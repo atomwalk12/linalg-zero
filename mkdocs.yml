@@ -5,7 +5,7 @@ site_description: This repository provides tools to generate a linear algebra da
 site_author: Razvan Florian Vasile
 edit_uri: edit/main/docs/
 repo_name: atomwalk12/linalg-zero
-copyright: Maintained by <a href="https://atomwalk12.com">atomwalk12</a>.
+copyright: Maintained by <a href="https://github.com/atomwalk12">atomwalk12</a>.
 
 nav:
   - Home: index.md
@@ -16,25 +16,32 @@ plugins:
       handlers:
         python:
           paths: ["linalg_zero"]
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_object_full_path: false
+            show_root_full_path: false
+            show_category_heading: true # Prints the category name (i.e. Functions, Classes, etc.)
+            group_by_category: true
+            heading_level: 2
+extra_css:
+  - stylesheets/extra.css
 theme:
   name: material
   feature:
     tabs: true
   palette:
     - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: white
-      accent: deep orange
+      scheme: astral-light
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: black
-      accent: deep orange
+      scheme: astral-dark
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode
+        name: Switch to system preference
   icon:
     repo: fontawesome/brands/github
 
