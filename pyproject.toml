@@ -18,10 +18,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "transformers>=4.53.0",
-    "wandb>=0.20.1",
-    "torch>=2.7.0",
-    "flash-attn==2.8.0.post2"
 ]
 
 [tool.uv]
