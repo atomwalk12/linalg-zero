@@ -1,0 +1,52 @@
+site_name: linalg-zero
+repo_url: https://github.com/atomwalk12/linalg-zero
+site_url: https://atomwalk12.github.io/linalg-zero
+site_description: This repository provides tools to generate a linear algebra dataset and code to train an open-source pre-trained model. Our goal is to explore the model's potential for emergent reasoning, inspired by the Deepseek-R1 paper.
+site_author: Razvan Florian Vasile
+edit_uri: edit/main/docs/
+repo_name: atomwalk12/linalg-zero
+copyright: Maintained by <a href="https://atomwalk12.com">atomwalk12</a>.
+
+nav:
+  - Home: index.md
+  - Modules: modules.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["linalg_zero"]
+theme:
+  name: material
+  feature:
+    tabs: true
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/atomwalk12/linalg-zero
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/linalg-zero
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
