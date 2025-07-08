@@ -8,7 +8,7 @@
 
 This repository offers tools for generating a linear algebra problem dataset and training an open-source base model, aiming to explore its potential for emergent reasoning as inspired by the Deepseek-R1 paper.
 
-- **Documentation** <https://atomwalk12.github.io/LinAlgZero/>
+- **Documentation** <https://atomwalk12.github.io/linalg-zero/>
 
 ## Installation
 
