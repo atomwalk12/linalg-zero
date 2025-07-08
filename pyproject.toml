@@ -17,6 +17,39 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+    "transformers>=4.53.0",
+    "wandb>=0.20.1",
+    "torch>=2.7.0",
+    "flash-attn==2.8.0.post2"
+]
+
+[tool.uv]
+# Instead of using --no-build-isolation from the command line
+no-build-isolation-package = ["flash-attn"]
+
+# PyTorch configuration - users can override by setting UV_TORCH_BACKEND
+# Default: CPU builds for non-Linux, CUDA 12.8 for Linux
+# See: https://docs.astral.sh/uv/guides/integration/pytorch/
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+]
+torchvision = [
+  { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [project.urls]
 Homepage = "https://atomwalk12.github.io/linalg-zero/"
@@ -29,37 +62,54 @@ dev = [
     "pre-commit>=2.20.0",
     "tox-uv>=1.11.3",
     "deptry>=0.23.0",
-    "mypy>=0.991",
+    "mypy>=1.16.0",
     "pytest-cov>=4.0.0",
     "ruff>=0.11.5",
     "mkdocs>=1.4.2",
     "mkdocs-material>=8.5.10",
     "mkdocstrings[python]>=0.26.1",
+    "python-semantic-release>=10.1.0",
+    "types-pyyaml>=6.0.12.20250516",
+    "types-tqdm>=4.67.0.20250516",
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.targets.wheel]
-packages = ["linalg_zero"]
+[tool.hatch.version]
+source = "vcs"
+
+[tool.setuptools]
+py-modules = ["linalg_zero"]
 
 [tool.mypy]
 files = ["linalg_zero"]
 disallow_untyped_defs = true
-disallow_any_unimported = true
+disallow_any_unimported = false
 no_implicit_optional = true
 check_untyped_defs = true
 warn_return_any = true
 warn_unused_ignores = true
 show_error_codes = true
 
+# PyTorch-specific ignores
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "torchvision.*",
+    "torchaudio.*",
+    "deepspeed.*",
+    "datasets.*"
+]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py39"
-line-length = 120
+target-version = "py311"
+line-length = 100
 fix = true
 
 [tool.ruff.lint]
@@ -114,3 +164,77 @@ skip_empty = true
 [tool.coverage.run]
 branch = true
 source = ["linalg_zero"]
+omit = [
+    # This file is a thin wrapper around the launch script, it is intended to be very simple.
+    # It is excluded from the coverage report.
+    "*/run_training.py",
+    "*/metrics/accuracy.py",
+    "*/trainers/zero_trainer.py",
+    "*/models/simple_cnn.py",
+]
+
+# Generated with: semantic-release generate-config --pyproject >> pyproject.toml
+[tool.semantic_release]
+assets = []
+build_command_env = []
+commit_message = "chore(release): 📦 v{version} [skip ci]"
+commit_parser = "conventional"
+logging_use_named_masks = false
+major_on_zero = true
+allow_zero_version = true
+repo_dir = "."
+no_git_verify = false
+tag_format = "v{version}"
+
+[tool.semantic_release.branches.main]
+match = "(main|master)"
+prerelease_token = "rc"
+prerelease = false
+
+[tool.semantic_release.changelog]
+exclude_commit_patterns = ["^chore.*"]
+mode = "init"
+insertion_flag = "<!-- version list -->"
+template_dir = "templates"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+output_format = "md"
+mask_initial_release = false
+
+[tool.semantic_release.changelog.environment]
+block_start_string = "{%"
+block_end_string = "%}"
+variable_start_string = "{{"
+variable_end_string = "}}"
+comment_start_string = "{#"
+comment_end_string = "#}"
+trim_blocks = false
+lstrip_blocks = false
+newline_sequence = "\n"
+keep_trailing_newline = false
+extensions = []
+autoescape = false
+
+[tool.semantic_release.commit_author]
+env = "GIT_COMMIT_AUTHOR"
+default = "semantic-release <semantic-release>"
+
+[tool.semantic_release.commit_parser_options]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+other_allowed_tags = ["build", "chore", "ci", "docs", "style", "refactor", "test"]
+allowed_tags = ["feat", "fix", "perf", "build", "chore", "ci", "docs", "style", "refactor", "test"]
+default_bump_level = 0
+parse_squash_commits = false
+ignore_merge_commits = false
+
+[tool.semantic_release.remote]
+name = "origin"
+type = "github"
+ignore_token_for_push = false
+insecure = false
+
+[tool.semantic_release.publish]
+dist_glob_patterns = ["dist/*"]
+upload_to_vcs_release = true
