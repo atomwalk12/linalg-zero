@@ -18,6 +18,8 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
+    "sympy>=1.14.0",
+    "trl>=0.19.1",
 ]
 
 [tool.uv]

@@ -1,1 +1,1 @@
-::: linalg_zero.foo
+::: linalg_zero.generate

@@ -18,4 +18,4 @@ COPY . /app
 # Sync the project
 RUN uv sync --frozen
 
-CMD [ "python", "linalg_zero/foo.py" ]
+CMD [ "python", "linalg_zero/generate.py" ]
