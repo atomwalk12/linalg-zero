@@ -4,6 +4,10 @@ from collections.abc import Callable
 
 from linalg_zero.generator.models import Question
 from linalg_zero.generator.registry import create_default_registry
+from linalg_zero.shared import get_logger
+
+# Set up logger
+logger = get_logger(__name__)
 
 
 class QuestionGenerator:
@@ -77,26 +81,28 @@ class DatasetGenerator:
             attempts += 1
 
         if len(questions) < num_questions:
-            print(
-                f"Warning: Only generated {len(questions)}/{num_questions} valid questions "
-                f"after {self.max_attempts} attempts"
+            logger.warning(
+                "Only generated %d/%d valid questions after %d attempts",
+                len(questions),
+                num_questions,
+                self.max_attempts,
             )
 
         return questions
 
 
 def print_dataset(questions: list[Question], include_invalid: bool = False) -> None:  # pragma: no cover
-    """Print a formatted dataset of questions."""
+    """Display a formatted dataset of questions."""
     # Filter questions based on include_invalid flag
     questions_to_print = questions if include_invalid else [q for q in questions if q.is_valid]
 
-    print("\n" + "=" * 60)
-    print("GENERATED DATASET")
-    print("=" * 60)
+    logger.info("=" * 30)
+    logger.info("GENERATED DATASET")
+    logger.info("=" * 30)
 
     for i, question in enumerate(questions_to_print, 1):
         status = " [INVALID]" if not question.is_valid else ""
-        print(f"\nQuestion {i}:{status}")
-        print(f"Topic: {question.topic} | Difficulty: {question.difficulty}")
-        print(f"Q: {question.text}")
-        print(f"A: {question.answer}")
+        logger.info("Question %d:%s", i, status)
+        logger.info("Topic: %s | Difficulty: %s", question.topic, question.difficulty)
+        logger.info("Q: %s", question.text)
+        logger.info("A: %s", question.answer)
