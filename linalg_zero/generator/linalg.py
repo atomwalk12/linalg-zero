@@ -38,11 +38,9 @@ def vector_dot_product_factory() -> Question:
 def matrix_addition_factory() -> Question:
     """Factory function for 2x2 matrix addition questions."""
     # Generate two 2x2 matrices
-    A = [[random.randint(1, 9), random.randint(1, 9)], [random.randint(1, 9), random.randint(1, 9)]]
-    B = [[random.randint(1, 9), random.randint(1, 9)], [random.randint(1, 9), random.randint(1, 9)]]
-
-    # Calculate result
-    result = [[A[0][0] + B[0][0], A[0][1] + B[0][1]], [A[1][0] + B[1][0], A[1][1] + B[1][1]]]
+    A = [[random.randint(1, 9) for _ in range(2)] for _ in range(2)]
+    B = [[random.randint(1, 9) for _ in range(2)] for _ in range(2)]
+    result = [[A[i][j] + B[i][j] for j in range(2)] for i in range(2)]
 
     return Question(
         text=f"Add the matrices {A} + {B}. Give your answer as a 2x2 matrix.",
