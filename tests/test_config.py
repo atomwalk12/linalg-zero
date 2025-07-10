@@ -4,7 +4,7 @@ from linalg_zero.config.configs import DatasetGenerationConfig
 from linalg_zero.shared import get_config_dir
 
 
-def test_config():
+def test_config() -> None:
     # Create argument parser and parse the config file
     parser = TrlParser(DatasetGenerationConfig)
     arguments = ["--config", get_config_dir() + "/dataset/default_debug.yml"]
