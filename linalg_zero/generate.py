@@ -16,7 +16,7 @@ def main() -> None:  # pragma: no cover
     print("\n=== Basic Dataset ===")
 
     def matrix_only_validator(question: Question) -> bool:
-        return "matrix" in question.text.lower() and len(question.text) > 0
+        return "matrix" in question.text.lower() and len(question.answer) > 0
 
     generator = DatasetGenerator(topic="linear_algebra", validator_factory=matrix_only_validator)
     questions = generator.generate_dataset(num_questions=3)
