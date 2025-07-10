@@ -18,7 +18,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "sympy>=1.14.0",
     "trl>=0.19.1",
 ]
 
@@ -98,7 +97,8 @@ module = [
     "torchvision.*",
     "torchaudio.*",
     "deepspeed.*",
-    "datasets.*"
+    "datasets.*",
+    "trl.*"
 ]
 ignore_missing_imports = true
 
@@ -107,7 +107,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py311"
-line-length = 100
+line-length = 119
 fix = true
 
 [tool.ruff.lint]
