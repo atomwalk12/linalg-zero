@@ -5,12 +5,11 @@ description = "This repository provides tools to generate a linear algebra datas
 authors = [{ name = "Razvan Florian Vasile", email = "atomwalk@duck.com" }]
 readme = "README.md"
 keywords = ['python']
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -18,7 +17,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "sympy>=1.14.0",
     "trl>=0.19.1",
 ]
 
@@ -98,7 +96,8 @@ module = [
     "torchvision.*",
     "torchaudio.*",
     "deepspeed.*",
-    "datasets.*"
+    "datasets.*",
+    "trl.*"
 ]
 ignore_missing_imports = true
 
@@ -107,7 +106,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py311"
-line-length = 100
+line-length = 119
 fix = true
 
 [tool.ruff.lint]
@@ -148,6 +147,10 @@ ignore = [
     "E501",
     # DoNotAssignLambda
     "E731",
+    # Allow random module usage
+    "S311",
+    # Allow raise with long message usage
+    "TRY003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
