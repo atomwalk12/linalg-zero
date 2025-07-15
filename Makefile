@@ -70,6 +70,16 @@ gh-deploy: ## Deploy the documentation to GitHub Pages
 	@echo "🚀 Deploying documentation to GitHub Pages"
 	@uv run mkdocs gh-deploy --force
 
+.PHONY: distillation-server
+distillation-server: ## Start the llama.cpp server
+	@echo "🚀 Starting llama.cpp server"
+	@sh linalg_zero/distillation/llama-cpp/local.sh https://huggingface.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf/resolve/main/Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf
+
+.PHONY: distil
+distil: ## Run the distillation pipeline
+	@echo "🚀 Running distillation pipeline"
+	@uv run python linalg_zero/distil.py --config linalg_zero/config/distillation/debug.yaml
+
 .PHONY: help
 help:
 	@uv run python -c "import re; \
