@@ -44,7 +44,9 @@ fi
 ARGS="--model ${MODEL_PATH}"
 
 # Offload all layers to GPU where possible
-ARGS="${ARGS} --n_gpu_layers -1"
+# The GPU-offload layers must be tuned otherwise we get errors.
+echo "Setting GPU-offload layers to: ${2}"
+ARGS="${ARGS} --n_gpu_layers ${2}"
 
 # Set the split mode to row
 # LLAMA_SPLIT_MODE_NONE = 0

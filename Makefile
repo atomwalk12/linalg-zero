@@ -73,11 +73,12 @@ gh-deploy: ## Deploy the documentation to GitHub Pages
 
 # Set a default value if MODEL_URL is not provided
 MODEL_URL ?= https://huggingface.co/unsloth/Llama-3.3-70B-Instruct-GGUF/resolve/main/Llama-3.3-70B-Instruct-Q4_K_M.gguf
+CPU_OFFLOAD_LAYERS ?= 30 # This variable may need to be tuned, depending on the model.
 
 .PHONY: distillation-server
 distillation-server: ## Start the llama.cpp server
 	@echo "🚀 Starting llama.cpp server"
-	@sh linalg_zero/distillation/llama-cpp/local.sh $(MODEL_URL)
+	@sh linalg_zero/distillation/llama-cpp/local.sh $(MODEL_URL) ${CPU_OFFLOAD_LAYERS}
 
 .PHONY: distil
 distil: ## Run the distillation pipeline

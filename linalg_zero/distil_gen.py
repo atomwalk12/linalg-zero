@@ -9,7 +9,7 @@ from trl import TrlParser
 
 from datasets import Dataset
 from linalg_zero.config.data import DistillationConfig
-from linalg_zero.distillation.utils import build_distilabel_pipeline
+from linalg_zero.distillation.utils import build_generation_pipeline
 from linalg_zero.shared import LLAMA_CPP_DIR, get_logger, setup_logging
 
 
@@ -23,7 +23,7 @@ def main() -> None:
     logger = get_logger(__name__)
 
     # Parse configuration from YAML file
-    parser = TrlParser(dataclass_types=[DistillationConfig])  # type: ignore[reportArgumentType]
+    parser = TrlParser(dataclass_types=[DistillationConfig])
     config: DistillationConfig = parser.parse_args_and_config()[0]
 
     logger.info("Running with configuration:")
@@ -51,7 +51,7 @@ def main() -> None:
     # Build and run the pipeline
     ############################
     # The pipeline uses OpenAI compatible APIs to streamline both debugging and deployment.
-    pipeline = build_distilabel_pipeline(
+    pipeline = build_generation_pipeline(
         model=str(LLAMA_CPP_DIR / config.model),
         base_url=config.vllm_server_url,
         prompt_template=config.prompt_template,
@@ -68,7 +68,7 @@ def main() -> None:
 
     logger.info("Running generation pipeline...")
     distiset = pipeline.run(
-        dataset=dataset,  # type: ignore[reportArgumentType]
+        dataset=dataset,
         dataset_batch_size=config.input_batch_size,
         use_cache=False,
     )

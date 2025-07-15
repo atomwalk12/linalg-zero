@@ -12,6 +12,6 @@ if __name__ == "__main__":  # pragma: no cover
     setup_logging(level=logging.INFO, include_timestamp=True)
     logger = get_logger(__name__)
 
-    trl = TrlParser(DatasetGenerationConfig)  # type: ignore[reportArgumentType]
+    trl = TrlParser(DatasetGenerationConfig)
     config: DatasetGenerationConfig = trl.parse_args_and_config()[0]
     logger.info("Configuration: %s", config)
