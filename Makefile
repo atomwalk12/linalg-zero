@@ -1,6 +1,7 @@
 .PHONY: install
 install: ## Install the virtual environment and install the pre-commit hooks
 	@echo "🚀 Creating virtual environment using uv"
+	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
 	@uv sync
 	@uv run pre-commit install
 
@@ -70,15 +71,23 @@ gh-deploy: ## Deploy the documentation to GitHub Pages
 	@echo "🚀 Deploying documentation to GitHub Pages"
 	@uv run mkdocs gh-deploy --force
 
+# Set a default value if MODEL_URL is not provided
+MODEL_URL ?= https://huggingface.co/unsloth/Llama-3.3-70B-Instruct-GGUF/resolve/main/Llama-3.3-70B-Instruct-Q4_K_M.gguf
+
 .PHONY: distillation-server
 distillation-server: ## Start the llama.cpp server
 	@echo "🚀 Starting llama.cpp server"
-	@sh linalg_zero/distillation/llama-cpp/local.sh https://huggingface.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf/resolve/main/Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf
+	@sh linalg_zero/distillation/llama-cpp/local.sh $(MODEL_URL)
 
 .PHONY: distil
 distil: ## Run the distillation pipeline
 	@echo "🚀 Running distillation pipeline"
-	@uv run python linalg_zero/distil.py --config linalg_zero/config/distillation/debug.yaml
+	@uv run python linalg_zero/distil_gen.py --config linalg_zero/config/distillation/debug.yaml
+
+.PHONY: distil-fc
+distil-fc: ## Run the distillation pipeline
+	@echo "🚀 Running distillation pipeline"
+	@uv run python linalg_zero/distil_fc.py --config linalg_zero/config/distillation/debug.yaml
 
 .PHONY: help
 help:

@@ -17,18 +17,27 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "datasets>=4.0.0",
+    "anyio>=4.9.0",
     "distilabel[openai,outlines,vllm,llama-cpp]>=1.5.3",
+    "datasets>=4.0.0",
+    "outlines>=0.1.0",
     "instructor>=1.9.2",
-    "ipykernel>=6.29.5",
-    "ipywidgets>=8.1.7",
-    "jupyter>=1.1.1",
-    "llama-cpp-python[server]>=0.3.0",
-    "pynvml>=12.0.0",
-    "ray>=2.47.1",
-    "sympy>=1.14.0",
-    "transformers>=4.53.1",
+    # NOTE: these dependencies will be necessary, leaving here for convenience.
+    #"ipykernel>=6.29.5",
+    #"ipywidgets>=8.1.7",
+    #"jupyter>=1.1.1",
+    #"llama-cpp-python[server]>=0.3.0",
+    #"pynvml>=12.0.0",
+    #"ray>=2.47.1",
+    #"sympy>=1.14.0",
+    #"transformers>=4.53.1",
     "trl>=0.19.1",
+    "fastapi>=0.116.1",
+    "pydantic-settings>=2.10.1",
+    "sse-starlette>=2.4.1",
+    "starlette>=0.47.1",
+    "starlette-context>=0.4.0",
+    "uvicorn>=0.35.0",
 ]
 
 [tool.uv]
