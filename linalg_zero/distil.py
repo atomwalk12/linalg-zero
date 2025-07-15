@@ -10,7 +10,7 @@ from trl import TrlParser
 from datasets import Dataset
 from linalg_zero.config.data import DistillationConfig
 from linalg_zero.distillation.utils import build_distilabel_pipeline
-from linalg_zero.shared import get_logger, setup_logging
+from linalg_zero.shared import LLAMA_CPP_DIR, get_logger, setup_logging
 
 
 def main() -> None:
@@ -52,7 +52,7 @@ def main() -> None:
     ############################
     # The pipeline uses OpenAI compatible APIs to streamline both debugging and deployment.
     pipeline = build_distilabel_pipeline(
-        model=config.model,
+        model=str(LLAMA_CPP_DIR / config.model),
         base_url=config.vllm_server_url,
         prompt_template=config.prompt_template,
         prompt_column=config.prompt_column,

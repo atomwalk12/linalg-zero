@@ -185,6 +185,9 @@ omit = [
     "*/metrics/accuracy.py",
     "*/trainers/zero_trainer.py",
     "*/models/simple_cnn.py",
+    "*/distil.py",
+    "*/generate.py",
+    "*/sft.py",
 ]
 
 # Generated with: semantic-release generate-config --pyproject >> pyproject.toml

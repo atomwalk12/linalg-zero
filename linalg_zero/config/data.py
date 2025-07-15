@@ -48,7 +48,7 @@ class DistillationConfig:
 
     # Model parameters
     model: str = field(
-        default="deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+        default="Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf",
         metadata={"help": "Model name to use for generation"},
     )
     vllm_server_url: str = field(

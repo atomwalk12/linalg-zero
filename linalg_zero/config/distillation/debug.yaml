@@ -11,7 +11,7 @@ prompt_column: "prompt"
 prompt_template: "{{ instruction }}"
 
 # Model parameters
-model: "deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
+model: "Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf"
 vllm_server_url: "http://localhost:8000/v1"
 
 # Generation parameters

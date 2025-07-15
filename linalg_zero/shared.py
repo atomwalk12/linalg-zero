@@ -3,6 +3,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+LLAMA_CPP_DIR = Path(__file__).parent / "distillation" / "llama-cpp" / "models"
+
 
 def get_config_dir() -> str:
     """Get the path of the config directory"""
@@ -12,7 +14,7 @@ def get_config_dir() -> str:
 
 def setup_logging(
     level: int = logging.INFO, include_timestamp: bool = False, fileName: str = "linalg_zero.log"
-) -> None:
+) -> None:  # pragma: no cover
     """
     Set up simple logging configuration. Will log to console and file.
 
