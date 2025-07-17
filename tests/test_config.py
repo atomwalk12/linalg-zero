@@ -1,6 +1,6 @@
 from trl import TrlParser
 
-from linalg_zero.config.configs import DatasetGenerationConfig
+from linalg_zero.config.data import DatasetGenerationConfig
 from linalg_zero.shared import get_config_dir
 
 

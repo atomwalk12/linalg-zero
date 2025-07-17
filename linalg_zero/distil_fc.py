@@ -43,19 +43,15 @@ def main() -> None:
     # Build and run the pipeline
     ############################
     # The pipeline uses OpenAI compatible APIs to streamline both debugging and deployment.
+    # TODO: Not all config parameters are used here, optimise parameter use.
     pipeline = build_fc_pipeline(
         model=str(LLAMA_CPP_DIR / config.model),
         dataset=dataset,
         target_fns=target_fns,
         base_url=config.vllm_server_url,
-        prompt_template=config.prompt_template,
-        prompt_column=config.prompt_column,
         temperature=config.temperature,
         top_p=config.top_p,
         max_new_tokens=config.max_new_tokens,
-        num_generations=config.num_generations,
-        input_batch_size=config.input_batch_size,
-        client_replicas=config.client_replicas,
         timeout=config.timeout,
         retries=config.retries,
     )

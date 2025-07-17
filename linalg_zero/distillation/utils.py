@@ -5,7 +5,7 @@ from typing import Any
 
 from distilabel.models import OpenAILLM
 from distilabel.models.base_clients.openai import SecretStr
-from distilabel.pipeline import Pipeline
+from distilabel.pipeline import Pipeline, RayPipeline
 from distilabel.steps import CombineOutputs, DataSampler, LoadDataFromDicts, StepResources
 from distilabel.steps.tasks import (
     APIGenExecutionChecker,
@@ -23,7 +23,7 @@ def get_openai_client(
     base_url: str,
     timeout: int,
     retries: int,
-    generation_kwargs: dict,
+    generation_kwargs: dict[str, Any],
 ) -> OpenAILLM:
     return OpenAILLM(
         base_url=base_url,
@@ -40,14 +40,9 @@ def build_fc_pipeline(
     dataset: Dataset,
     target_fns: list[dict[str, Any]],
     base_url: str = "http://localhost:8000/v1",
-    prompt_column: str | None = None,
-    prompt_template: str = "{{ instruction }}",
     temperature: float | None = None,
     top_p: float | None = None,
     max_new_tokens: int = 8192,
-    num_generations: int = 1,
-    input_batch_size: int = 64,
-    client_replicas: int = 1,
     timeout: int = 900,
     retries: int = 0,
 ) -> Pipeline:
@@ -128,7 +123,7 @@ def prepare_tools() -> Any:
     return tools, target_fns
 
 
-def build_fc_dataset(tools: dict[str, dict[str, Any]]) -> Dataset:
+def build_fc_dataset(tools: dict[str, dict[str, Any]]) -> Any:
     """Builds a dataset for function calling."""
 
     def gen() -> Generator[dict[str, Any], None, None]:
@@ -154,7 +149,7 @@ def build_generation_pipeline(
     client_replicas: int = 1,
     timeout: int = 900,
     retries: int = 0,
-) -> Pipeline:
+) -> Pipeline | RayPipeline:
     """Builds a pipeline for generation. Prior to this, the function calling pipeline is called."""
     generation_kwargs: dict[str, Any] = {"max_new_tokens": max_new_tokens}
 
@@ -165,7 +160,7 @@ def build_generation_pipeline(
         generation_kwargs["top_p"] = top_p
 
     with Pipeline().ray() as pipeline:
-        TextGeneration(
+        _ = TextGeneration(
             llm=get_openai_client(
                 model=model,
                 base_url=base_url,
