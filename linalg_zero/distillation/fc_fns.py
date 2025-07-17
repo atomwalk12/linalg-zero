@@ -57,7 +57,7 @@ def get_multiplication(a: int, b: int) -> int:
     return a * b
 
 
-def get_lib() -> dict[str, Callable]:
+def get_lib() -> dict[str, Callable[..., Any]]:
     return {
         "permutation_count": permutation_count,
         "get_division": get_division,
