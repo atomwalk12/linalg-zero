@@ -1,5 +1,4 @@
-# Distillation Configuration - Debug Mode
-# This file contains the configuration for the distillation pipeline
+# Distillation Configuration for llama.cpp inference
 
 # Dataset parameters
 hf_dataset: null
@@ -9,10 +8,6 @@ hf_dataset_split: "train"
 # Prompt parameters
 prompt_column: "prompt"
 prompt_template: "{{ instruction }}"
-
-# Model parameters
-model: "Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf"
-vllm_server_url: "http://localhost:8000/v1"
 
 # Generation parameters
 temperature: 0.7
@@ -29,3 +24,12 @@ retries: 2
 # Output parameters
 hf_output_dataset: null
 private: false
+
+# Server parameters
+# Make sure to choose the link path that contains "resolve"
+model: "https://huggingface.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf/resolve/main/Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf"
+n_gpu_layers: 32
+host: "0.0.0.0"
+port: 8000
+n_ctx: 2048
+split_mode: 2

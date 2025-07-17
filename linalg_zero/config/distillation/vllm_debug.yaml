@@ -1,0 +1,47 @@
+# Distillation Configuration for vLLM inference
+
+# Dataset parameters
+hf_dataset: null
+hf_dataset_config: null
+hf_dataset_split: "train"
+
+# Prompt parameters
+prompt_column: "prompt"
+prompt_template: "{{ instruction }}"
+
+# Generation parameters
+temperature: 0.7
+top_p: 0.9
+max_new_tokens: 8192
+num_generations: 1
+
+# Processing parameters
+input_batch_size: 64
+client_replicas: 1
+timeout: 600
+retries: 2
+
+# Output parameters
+hf_output_dataset: null
+private: false
+
+# Server parameters
+# To inspect the various model/chat template combinations:
+# https://github.com/vllm-project/vllm/blob/main/docs/features/tool_calling.md
+
+model: "TheBloke/Llama-2-7b-Chat-AWQ"
+tool_call_parser: "llama3_json"
+chat_template: "linalg_zero/distillation/vllm/tool_chat_template_llama3.1_json.jinja"
+
+#model: "lurker18/Llama_3.1_8B_Instruct_AWQ_4bit"
+#tool_call_parser: "llama3_json"
+#chat_template: "linalg_zero/distillation/vllm/tool_chat_template_llama3.1_json.jinja"
+
+#model: "solidrust/Mistral-7B-Instruct-v0.3-AWQ"
+#tool_call_parser: "mistral"
+#chat_template: "linalg_zero/distillation/vllm/tool_chat_template_mistral_parallel.jinja"
+
+enable_auto_tool_choice: true
+quantization: "awq"
+host: "localhost"
+port: 8000
