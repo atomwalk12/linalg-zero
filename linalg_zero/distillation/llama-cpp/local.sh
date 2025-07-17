@@ -11,10 +11,6 @@ fi
 # Activate development environment
 source ./.venv/bin/activate
 
-# Install llama.cpp Python binding
-echo "Installing llama.cpp Python binding..."
-CMAKE_ARGS="-DGGML_CUDA=on -DGGML_CUDA_FA_ALL_QUANTS=ON" uv pip install --root-user-action=ignore llama-cpp-python[server]
-
 # Start llama.cpp server
 echo "Starting llama.cpp server..."
 

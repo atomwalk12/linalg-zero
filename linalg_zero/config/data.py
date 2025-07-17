@@ -26,6 +26,10 @@ class LlamaCppServerConfig:
         metadata={"help": "Model URL to download (GGUF format)"},
     )
 
+    hf_pretrained_model_name_or_path: str = field(
+        metadata={"help": "HuggingFace model name or path to extract the tokenizer"},
+    )
+
     n_gpu_layers: int = field(
         metadata={"help": "Number of GPU layers to offload"},
     )

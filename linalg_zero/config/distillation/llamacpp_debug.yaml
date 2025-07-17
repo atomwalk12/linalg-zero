@@ -27,7 +27,11 @@ private: false
 
 # Server parameters
 # Make sure to choose the link path that contains "resolve"
-model: "https://huggingface.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf/resolve/main/Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf"
+# Other options:
+# model: "https://huggingface.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf/resolve/main/Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf"
+# hf_pretrained_model_name_or_path: Salesforce/Llama-xLAM-2-8b-fc-r-gguf
+model: "https://huggingface.co/unsloth/Qwen3-32B-GGUF/resolve/main/Qwen3-32B-Q4_K_M.gguf"
+hf_pretrained_model_name_or_path: "unsloth/Qwen3-32B-GGUF"
 n_gpu_layers: 32
 host: "0.0.0.0"
 port: 8000
