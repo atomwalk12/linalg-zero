@@ -1,6 +1,10 @@
+## NOTE: the llama-cpp server is used to startup the inference server using `make distillation-server`
+# Fixing the llama-cpp server version to 0.3.13 as the upstream repository gets updated frequently
+# leading to incompatibility issues. If bumping the version don't forget to update pyproject.toml.
 .PHONY: install
-install: ## Install the virtual environment and install the pre-commit hooks
+install: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
+	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
 	@uv sync
 	@uv run pre-commit install
 
@@ -69,6 +73,30 @@ semantic-release: ## Test semantic release
 gh-deploy: ## Deploy the documentation to GitHub Pages
 	@echo "🚀 Deploying documentation to GitHub Pages"
 	@uv run mkdocs gh-deploy --force
+
+LLAMACPP_CONFIG=linalg_zero/config/distillation/llamacpp_debug.yaml
+VLLM_CONFIG=linalg_zero/config/distillation/vllm_debug.yaml
+
+.PHONY: distillation-llamacpp
+distillation-llamacpp: ## Start the llama.cpp server
+	@echo "🚀 Starting llama.cpp server"
+	@INFERENCE_BACKEND=llamacpp uv run python linalg_zero/distillation/launch_server.py --config $(LLAMACPP_CONFIG)
+
+.PHONY: distillation-vllm
+distillation-vllm: ## Start the vLLM server
+	@echo "🚀 Starting vLLM server"
+	@INFERENCE_BACKEND=vllm uv run python linalg_zero/distillation/launch_server.py --config $(VLLM_CONFIG)
+
+
+.PHONY: distil
+distil: ## Run the distillation pipeline
+	@echo "🚀 Running distillation pipeline"
+	@uv run python linalg_zero/distil_gen.py --config $(CONFIG_PATH)
+
+.PHONY: distil-fc
+distil-fc: ## Run the distillation pipeline
+	@echo "🚀 Running distillation pipeline"
+	@uv run python linalg_zero/distil_fc.py --config $(CONFIG_PATH)
 
 .PHONY: help
 help:
