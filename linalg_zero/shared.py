@@ -13,7 +13,7 @@ def get_config_dir() -> str:
 
 
 def setup_logging(
-    level: int = logging.INFO, include_timestamp: bool = False, fileName: str = "linalg_zero.log"
+    level: int = logging.INFO, include_timestamp: bool = False, file_suffix: str = "linalg_zero.log"
 ) -> None:  # pragma: no cover
     """
     Set up simple logging configuration. Will log to console and file.
@@ -31,10 +31,10 @@ def setup_logging(
         level=level,
         format=format_string,
         force=True,
-        handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler(f"logs/{timestamp}_{fileName}")],
+        handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler(f"logs/{timestamp}_{file_suffix}")],
     )
 
-    logging.info(f"Logging to {Path('logs') / f'{timestamp}_{fileName}'}")
+    logging.info(f"Logging to {Path('logs') / f'{timestamp}_{file_suffix}'}")
 
 
 def get_logger(name: str) -> logging.Logger:

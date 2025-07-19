@@ -21,18 +21,8 @@ class LlamaCppServerConfig:
     Data class that stores LlamaCPP server parameters with llama_cpp_ prefix.
     """
 
-    # Model parameters
-    model: str = field(
-        metadata={"help": "Model URL to download (GGUF format)"},
-    )
-
-    hf_pretrained_model_name_or_path: str = field(
-        metadata={"help": "HuggingFace model name or path to extract the tokenizer"},
-    )
-
-    n_gpu_layers: int = field(
-        metadata={"help": "Number of GPU layers to offload"},
-    )
+    def __post_init__(self) -> None:
+        pass
 
     # Server parameters
     host: str = field(
@@ -46,6 +36,25 @@ class LlamaCppServerConfig:
     )
     split_mode: int = field(
         metadata={"help": "Split mode (0=none, 1=layer, 2=row)"},
+    )
+
+    # Model parameters
+    n_gpu_layers: int = field(
+        metadata={"help": "Number of GPU layers to offload"},
+    )
+
+    model: str = field(
+        metadata={"help": "Model URL to download (GGUF format)"},
+    )
+
+    hf_pretrained_model_name_or_path: str | None = field(
+        default=None,
+        metadata={"help": "Huggingface repository ID to ensure that the correct tokenizer is used."},
+    )
+
+    hf_model_repo_id: str | None = field(
+        default=None,
+        metadata={"help": "Path to the repository where the model is stored."},
     )
 
 

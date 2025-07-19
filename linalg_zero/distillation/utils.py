@@ -21,9 +21,10 @@ from datasets import Dataset  # type: ignore[attr-defined]
 def get_openai_client(
     model: str,
     base_url: str,
-    timeout: int,
-    retries: int,
-    generation_kwargs: dict[str, Any],
+    timeout: int = 900,
+    retries: int = 3,
+    generation_kwargs: dict[str, Any] | None = None,
+    structured_output: dict[str, Any] | None = None,
 ) -> OpenAILLM:
     return OpenAILLM(
         base_url=base_url,
@@ -32,6 +33,7 @@ def get_openai_client(
         timeout=timeout,
         max_retries=retries,
         generation_kwargs=generation_kwargs,
+        structured_output=structured_output,
     )
 
 

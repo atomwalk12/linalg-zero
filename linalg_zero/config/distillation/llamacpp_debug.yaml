@@ -28,11 +28,19 @@ private: false
 # Server parameters
 # Make sure to choose the link path that contains "resolve"
 # Other options:
-# model: "https://huggingface.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf/resolve/main/Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf"
-# hf_pretrained_model_name_or_path: Salesforce/Llama-xLAM-2-8b-fc-r-gguf
-model: "https://huggingface.co/unsloth/Qwen3-32B-GGUF/resolve/main/Qwen3-32B-Q4_K_M.gguf"
-hf_pretrained_model_name_or_path: "unsloth/Qwen3-32B-GGUF"
-n_gpu_layers: 32
+# Model 1
+# TODO: these comments will be cleaned up
+#model: "https://huggingface.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf/resolve/main/Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf"
+#hf_pretrained_model_name_or_path: "Salesforce/Llama-xLAM-2-8b-fc-r-gguf"
+#hf_tokenizer_config_path: "linalg_zero/distillation/llama-cpp/prompts/Llama-xLAM-2-8B-fc-r-Q4_K_M-prompt-template.txt"
+
+# Model 2
+# Supports regular expressions, which can be useful in some cases.
+model: "*-Q4_K_M.gguf"
+hf_model_repo_id: "unsloth/Qwen3-32B-GGUF"
+hf_pretrained_model_name_or_path: "Qwen/Qwen3-32B"
+
+n_gpu_layers: 60
 host: "0.0.0.0"
 port: 8000
 n_ctx: 2048

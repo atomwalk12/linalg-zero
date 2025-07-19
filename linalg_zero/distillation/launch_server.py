@@ -2,8 +2,8 @@
 
 import os
 import subprocess
+import sys
 from dataclasses import asdict
-from pathlib import Path
 
 from trl import TrlParser
 
@@ -11,39 +11,17 @@ from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, Vl
 from linalg_zero.shared import get_logger, setup_logging
 
 
-def download_model(url: str, model_dir: Path) -> Path:
-    """Download model if it doesn't exist locally"""
-    model_dir.mkdir(parents=True, exist_ok=True)
-
-    filename = Path(url).name
-    model_path = model_dir / filename
-
-    if model_path.exists():
-        print(f"Model already exists: {model_path}")
-        return model_path
-
-    print(f"Downloading model from: {url}")
-    # Use explicit shell=False and trust that the input is validated
-    _ = subprocess.run(["curl", "-L", "-o", str(model_path), url], check=True)  # noqa: S603,S607
-    print(f"Downloaded to: {model_path}")
-    return model_path
-
-
 def launch_llamacpp(config: LlamaCppServerConfig) -> None:
     """Launch LlamaCPP server"""
     print("Starting llama.cpp server...")
 
-    # Download model
-    model_dir = Path("./linalg_zero/distillation/llama-cpp/models")
-    model_path = download_model(config.model, model_dir)
-
     config_dict = asdict(config)
     args = ["uv", "run", "python3", "-m", "llama_cpp.server"]
     for k, v in config_dict.items():
-        if k == "model":
-            args.extend([f"--{k}", str(model_path)])
-        elif v is True:
+        if v is True:
             args.extend([f"--{k}"])
+        elif v is None:
+            continue
         else:
             args.extend([f"--{k}", str(v)])
 
@@ -62,6 +40,8 @@ def launch_vllm(config: VllmServerConfig) -> None:
             args.extend([str(v)])
         elif v is True:
             args.extend([f"--{k}"])
+        elif v is None:
+            continue
         else:
             args.extend([f"--{k}", str(v)])
 
@@ -71,8 +51,9 @@ def launch_vllm(config: VllmServerConfig) -> None:
 
 def main() -> None:
     """Main function"""
-    setup_logging()
+    setup_logging(file_suffix="distillation_server.log")
     logger = get_logger(__name__)
+    logger.info(f"Using the configuration file stored at: {os.path.abspath(sys.argv[2])}")
 
     # First parse to get the backend type
     backend = os.environ["INFERENCE_BACKEND"]
