@@ -2,10 +2,11 @@ from distilabel.distiset import Distiset
 from distilabel.models import OpenAILLM
 from distilabel.pipeline import Pipeline
 from distilabel.steps import LoadDataFromDicts
-from distilabel.steps.tasks import TextGeneration
+from distilabel.steps.tasks import ChatGeneration
 
 from linalg_zero.distillation.utils import get_openai_client
 
+# TODO: refine the prompts with challenging examples
 EXAMPLES = {
     "linear-algebra": """Example 1 for Task Decomposition:
 
@@ -47,42 +48,45 @@ Present the decomposed sub-questions as a numbered list.
 ---
 {examples}
 ---
-"""
+""".format(examples=EXAMPLES["linear-algebra"])
 
 
 if __name__ == "__main__":
     """The following code demonstrates how planning works. The code is not being used for other purposes."""
     llm: OpenAILLM = get_openai_client(
-        model="gpt-4o-mini",
+        model="Qwen3-32B-Q4_K_M.gguf",
         base_url="http://localhost:8000/v1",
     )
 
     with Pipeline("planner-pipeline") as pipeline:
         load_dataset = LoadDataFromDicts(
             name="load_instructions",
-            data=[{"instruction": "What is the trace of the matrix [[1, 2], [3, 4]]?"}],
+            data=[
+                {
+                    "messages": [
+                        {"role": "system", "content": PLANNER_PROMPT.format(examples=EXAMPLES["linear-algebra"])},
+                        {"role": "user", "content": "What is the trace of the matrix [[1, 2], [3, 4]]?"},
+                    ]
+                }
+            ],
         )
 
         # Create the TextGeneration step
-        text_generation = TextGeneration(
-            name="generate_function_calls",
-            llm=llm,
-            input_batch_size=8,
-            output_mappings={"model_name": "generation_model"},
-            system_prompt=PLANNER_PROMPT.format(examples=EXAMPLES["linear-algebra"]),
+        planner = ChatGeneration(
+            name="task_planning", llm=llm, input_batch_size=8, output_mappings={"model_name": "generation_model"}
         )
 
         # Connect the steps
-        load_dataset >> text_generation
+        load_dataset >> planner
 
     # Run the pipeline
     distiset: Distiset = pipeline.run(
-        parameters={text_generation.name: {"llm": {"generation_kwargs": {"max_new_tokens": 1024}}}},
+        parameters={planner.name: {"llm": {"generation_kwargs": {"max_new_tokens": 1024}}}},
         use_cache=False,
     )
 
     print("The results of the pipeline are:")
     for num, data in enumerate(distiset["default"]["train"]):
         print(f"\n--- Example {num + 1} ---")
-        print(f"Generated: {data.get('generation', 'N/A')}")
+        print(f"Generated: {data['generation']}")
         print("-" * 50)
