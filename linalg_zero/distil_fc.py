@@ -5,9 +5,9 @@ import logging
 
 from trl import TrlParser
 
-from linalg_zero.config.data import DistillationConfig
+from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig
 from linalg_zero.distillation.utils import build_fc_dataset, build_fc_pipeline, prepare_tools
-from linalg_zero.shared import LLAMA_CPP_DIR, get_logger, setup_logging
+from linalg_zero.shared import get_logger, setup_logging
 
 
 def main() -> None:
@@ -20,8 +20,8 @@ def main() -> None:
     logger = get_logger(__name__)
 
     # Parse configuration from YAML file
-    parser = TrlParser(dataclass_types=[DistillationConfig])
-    config: DistillationConfig = parser.parse_args_and_config()[0]
+    parser = TrlParser(dataclass_types=[DistillationConfig, LlamaCppServerConfig])
+    (config, server_config) = parser.parse_args_and_config()
 
     logger.info("Running with configuration:")
     for field_name in config.__dataclass_fields__:
@@ -45,10 +45,10 @@ def main() -> None:
     # The pipeline uses OpenAI compatible APIs to streamline both debugging and deployment.
     # TODO: Not all config parameters are used here, optimise parameter use.
     pipeline = build_fc_pipeline(
-        model=str(LLAMA_CPP_DIR / config.model),
+        model=server_config.model,
         dataset=dataset,
         target_fns=target_fns,
-        base_url=config.vllm_server_url,
+        base_url=f"http://{server_config.host}:{server_config.port}/v1",
         temperature=config.temperature,
         top_p=config.top_p,
         max_new_tokens=config.max_new_tokens,

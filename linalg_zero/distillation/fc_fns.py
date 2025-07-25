@@ -176,6 +176,32 @@ def vector_dot_product(vector_a: list[float], vector_b: list[float]) -> float:
     return sum(a * b for a, b in zip(vector_a, vector_b, strict=False))
 
 
+def get_division(dividend: int, divisor: int) -> float:
+    """Divides two numbers by making an API call to a division service.
+
+    Args:
+        dividend: The dividend in the division operation.
+        divisor: The divisor in the division operation.
+
+    Returns:
+        Division of the 2 numbers.
+    """
+    return dividend / divisor
+
+
+def get_multiplication(a: int, b: int) -> int:
+    """Performs multiplication of a and b then returns the result.
+
+    Args:
+        a: The first number.
+        b: The second number.
+
+    Returns:
+        Multiplication of the 2 numbers.
+    """
+    return a * b
+
+
 def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
@@ -189,6 +215,8 @@ def get_lib() -> dict[str, Callable[..., Any]]:
         "matrix_trace": matrix_trace,
         "permutation_count": permutation_count,
         "vector_dot_product": vector_dot_product,
+        "get_division": get_division,
+        "get_multiplication": get_multiplication,
     }
 
 

@@ -1,5 +1,3 @@
-import json
-
 from distilabel.distiset import Distiset
 from distilabel.models import OpenAILLM
 from distilabel.pipeline import Pipeline
@@ -7,9 +5,9 @@ from distilabel.steps import LoadDataFromDicts
 from distilabel.steps.tasks import ChatGeneration
 
 from linalg_zero.distillation.data import QueryAnswer
-from linalg_zero.distillation.utils import get_openai_client, load_module_from_path
+from linalg_zero.distillation.utils import get_function_schema, get_openai_client
 
-EXAMPLES = {
+TOOL_SELECTION_EXAMPLES = {
     "linear-algebra": """Example 1 for Tool Selection: Simple tool selection scenario.
 
 User initial query:
@@ -47,7 +45,7 @@ Model Response:
   {
     "tool_name": "frobenius_norm",
     "parameters": {
-      "matrix": "[result_of_call_1]"
+      "matrix": "[result_of_call_0]"
     }
   }
 ]
@@ -66,7 +64,7 @@ Strict Instructions for Tool Selection and Parameter Extraction:
 3.  Evaluate Available Tools: Review the `available_tools` list and their detailed JSON schema definitions. Your selection must be based on the tool's `name`, `description`, and the parameters specified in its `properties`.
 4.  Select the Best Fit: Choose the single most appropriate tool that directly addresses the sub-question. Avoid selecting multiple tools if one suffices, focusing on minimal, effective components.
 5.  Extract Parameters Precisely: For the selected tool, extract ALL required parameters and any relevant optional parameters directly from the sub-question's phrasing. Ensure the extracted values strictly match the `type` and `format` specified in the tool's JSON schema. For matrices or vectors, ensure they are represented as nested arrays of numbers (e.g., `[[9, 10], [6, 11]]` for a matrix).
-6.  Handling Inter-Tool Dependencies: If a sub-question requires the output of a preceding tool call as an input, represent this dependency using the specific placeholder [result_of_call_N], where 'N' corresponds to the sequential number of the tool call whose result is needed. For instance, [result_of_call_1] refers to the output of the first tool executed in the sequence. Ensure this placeholder is used exactly as specified, even if the parameter's expected type is a matrix or vector.
+6.  Handling Inter-Tool Dependencies: If a sub-question requires the output of a preceding tool call as an input, represent this dependency using the specific placeholder [result_of_call_N], where 'N' corresponds to the sequential number of the tool call whose result is needed. For instance, [result_of_call_0] refers to the output of the first tool executed in the sequence, [result_of_call_1] refers to the output of the second tool executed in the sequence, and so on. Ensure this placeholder is used exactly as specified, even if the parameter's expected type is a matrix or vector.
 7.  Focus on Selection, Not Solution: DO NOT attempt to perform any linear algebra calculations, solve the problem, or generate any descriptive text about the solution. Your output must ONLY contain the selected tool's name and its extracted parameters.
 8.  Output Format: Your response MUST be a valid JSON object.
 
@@ -76,17 +74,7 @@ Schema for Available Tools:
 ---
 {examples}
 ---
-"""
-
-LIBPATH = "/home/atomwalk12/repos/thesis/development/mathematics_dataset/steps/1.2.8.structured_output_multiple_fn_calls_with_verification_with_completion_carry_messages_improved_prompts_fns.py"
-libpath_module = load_module_from_path(LIBPATH)
-tools = libpath_module.get_tools()
-
-function_definitions = [tool_info["function"] for tool_info in tools.values()]
-function_schema_formatted = json.dumps(function_definitions, indent=2)
-
-
-prompt = TOOL_SELECTION_PROMPT.format(function_schema=function_schema_formatted, examples=EXAMPLES["linear-algebra"])
+""".format(function_schema=get_function_schema, examples=TOOL_SELECTION_EXAMPLES["linear-algebra"])  # noqa: S608
 
 
 if __name__ == "__main__":
@@ -101,7 +89,7 @@ if __name__ == "__main__":
             data=[
                 {
                     "messages": [
-                        {"role": "system", "content": prompt},
+                        {"role": "system", "content": TOOL_SELECTION_PROMPT},
                         {
                             "role": "user",
                             "content": "What is the Frobenius norm of the product of matrices [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",

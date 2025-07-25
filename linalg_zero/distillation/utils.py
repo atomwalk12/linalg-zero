@@ -1,3 +1,4 @@
+import json
 from collections.abc import Generator
 from pathlib import Path
 from types import ModuleType
@@ -13,7 +14,8 @@ from distilabel.steps.tasks import (
     APIGenSemanticChecker,
     TextGeneration,
 )
-from distilabel.steps.tasks.apigen.utils import PrepareExamples, load_module_from_path
+from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
+from distilabel.steps.tasks.apigen.utils import PrepareExamples
 
 from datasets import Dataset  # type: ignore[attr-defined]
 
@@ -81,7 +83,7 @@ def build_fc_pipeline(
         )
         combine_steps = CombineOutputs()
 
-        execution_checker = APIGenExecutionChecker(libpath=str(_get_libpath()))
+        execution_checker = APIGenExecutionChecker(libpath=str(get_libpath()))
         semantic_checker = APIGenSemanticChecker(llm=llm)
 
         sampler >> prep_examples
@@ -90,7 +92,18 @@ def build_fc_pipeline(
     return pipeline
 
 
-def _get_libpath() -> Path:
+def get_function_schema() -> str:
+    """Returns the tools for function calling."""
+    libpath_module = load_module_from_path(get_libpath())
+    tools = libpath_module.get_tools()
+
+    function_definitions = [tool_info["function"] for tool_info in tools.values()]
+    function_schema = json.dumps(function_definitions, indent=2)
+
+    return function_schema
+
+
+def get_libpath() -> Path:
     """Returns the path to the library of functions."""
     return Path(__file__).parent / "fc_fns.py"
 
@@ -116,7 +129,7 @@ def prepare_tools() -> Any:
     """Prepares the tools for function calling."""
 
     # This module is used internally by the distilabel library to make dynamic calls while building the dataset.
-    libpath = _get_libpath()
+    libpath = get_libpath()
     libpath_module: ModuleType = load_module_from_path(libpath)
     tools = libpath_module.get_tools()
 

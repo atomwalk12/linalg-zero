@@ -43,5 +43,5 @@ hf_pretrained_model_name_or_path: "Qwen/Qwen3-32B"
 n_gpu_layers: 60
 host: "0.0.0.0"
 port: 8000
-n_ctx: 2048
+n_ctx: 8192
 split_mode: 2
