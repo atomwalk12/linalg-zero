@@ -6,7 +6,10 @@ from distilabel.pipeline import Pipeline
 from distilabel.steps import LoadDataFromDicts
 
 from linalg_zero.distillation.components.chat_generation import ChatGeneration
-from linalg_zero.distillation.components.execution_checker import LinAlgZeroExecutionChecker
+from linalg_zero.distillation.components.code_execution import LinAlgZeroExecutionChecker
+from linalg_zero.distillation.components.execution_checker import (
+    MathVerifySemanticChecker,
+)
 from linalg_zero.distillation.components.planner_for_tool_calling import UNIFIED_PLANNING_PROMPT
 from linalg_zero.distillation.components.result_synthesiser import RESULT_SUMMARIZER_PROMPT
 from linalg_zero.distillation.data import AssistantMessage
@@ -42,7 +45,8 @@ def main() -> None:
                             "role": "user",
                             "content": "What is the Frobenius norm of the product of matrices [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
                         },
-                    ]
+                    ],
+                    "ground_truth_result": "17.204650534085253",
                 },
             ],
         )
@@ -76,8 +80,14 @@ def main() -> None:
             thinking_mode="/no_think",
         )
 
+        # Step 4: math-verify semantic checker
+        math_verify_checker = MathVerifySemanticChecker(
+            name="math-verify-semantic-checker",
+            input_batch_size=8,
+        )
+
         # Connect the steps
-        load_dataset >> tool_selection >> execution_checker >> result_summarizer
+        load_dataset >> tool_selection >> execution_checker >> result_summarizer >> math_verify_checker
 
     # Run the pipeline
     enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}} if USING_VLLM else {}
