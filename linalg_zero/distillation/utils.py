@@ -2,7 +2,9 @@ import json
 from collections.abc import Generator
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import (
+    Any,
+)
 
 from distilabel.models import OpenAILLM
 from distilabel.models.base_clients.openai import SecretStr
@@ -16,8 +18,87 @@ from distilabel.steps.tasks import (
 )
 from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 from distilabel.steps.tasks.apigen.utils import PrepareExamples
+from distilabel.typing import FormattedInput
+from pydantic import NonNegativeInt, PositiveInt
+from typing_extensions import override
 
 from datasets import Dataset  # type: ignore[attr-defined]
+
+
+# TODO: is this the right file to store this class in?
+class CustomOpenAILLM(OpenAILLM):
+    """
+    Patched OpenAI LLM that supports tool calls by bypassing the restrictive validation.
+    This allows using the full OpenAI API format with tool_calls and tool roles.
+    """
+
+    @override
+    async def agenerate(
+        self,
+        input: FormattedInput,
+        num_generations: int = 1,
+        max_new_tokens: NonNegativeInt = 128,
+        logprobs: bool = False,
+        top_logprobs: PositiveInt | None = None,
+        echo: bool = False,
+        frequency_penalty: float = 0.0,
+        presence_penalty: float = 0.0,
+        temperature: float = 1.0,
+        top_p: float = 1.0,
+        stop: str | list[str] | None = None,
+        response_format: dict[str, str] | None = None,
+        extra_body: dict[str, Any] | None = None,
+    ):
+        """Override agenerate to bypass validation and support tool calls."""
+
+        # Handle string input
+        if isinstance(input, str):
+            return await self._generate_completion(
+                input=input,
+                num_generations=num_generations,
+                max_new_tokens=max_new_tokens,
+                echo=echo,
+                top_logprobs=top_logprobs,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty,
+                temperature=temperature,
+                top_p=top_p,
+                extra_body=extra_body,
+            )
+
+        return await self._generate_chat_completion(
+            input=input,
+            num_generations=num_generations,
+            max_new_tokens=max_new_tokens,
+            logprobs=logprobs,
+            top_logprobs=top_logprobs,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+            temperature=temperature,
+            top_p=top_p,
+            stop=stop,
+            response_format=response_format,
+            extra_body=extra_body,
+        )
+
+
+def get_patched_openai_client(
+    model: str,
+    base_url: str,
+    timeout: int = 900,
+    retries: int = 3,
+    generation_kwargs: dict[str, Any] | None = None,
+    structured_output: dict[str, Any] | None = None,
+) -> OpenAILLM:
+    return CustomOpenAILLM(
+        base_url=base_url,
+        api_key=SecretStr("something"),
+        model=model,
+        timeout=timeout,
+        max_retries=retries,
+        generation_kwargs=generation_kwargs,
+        structured_output=structured_output,
+    )
 
 
 def get_openai_client(
@@ -192,3 +273,31 @@ def build_generation_pipeline(
         )
 
     return pipeline
+
+
+def is_openai_format(messages: Any) -> bool:
+    """Checks if the input is in OpenAI chat-like format:
+
+    ```python
+    [
+        {"role": "user", "content": "Turn on the living room lights."},
+        {"role": "assistant", "tool_calls": [
+            {"type": "function", "function": {
+                "name": "control_light",
+                "arguments": {"room": "living room", "state": "on"}
+            }}]
+        },
+        {"role": "tool", "name": "control_light", "content": "The lights in the living room are now on."},
+        {"role": "assistant", "content": "Done!"}
+    ]
+    ```
+
+    Args:
+        input: The input to check.
+
+    Returns:
+        A boolean indicating if the input is in OpenAI chat-like format.
+    """
+    if not isinstance(messages, list):
+        return False
+    return all(isinstance(x, dict) and "role" in x and ("content" in x or "tool_calls" in x) for x in messages)
