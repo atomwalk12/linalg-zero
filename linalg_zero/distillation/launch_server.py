@@ -26,7 +26,7 @@ def launch_llamacpp(config: LlamaCppServerConfig) -> None:
             args.extend([f"--{k}", str(v)])
 
     print(f"Command: {' '.join(args)}")
-    _ = subprocess.run(args)  # noqa: S603
+    _ = subprocess.run(args, check=True)  # noqa: S603
 
 
 def launch_vllm(config: VllmServerConfig) -> None:
