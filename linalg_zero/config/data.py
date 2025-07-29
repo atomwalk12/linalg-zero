@@ -133,6 +133,9 @@ class DistillationConfig:
     input_batch_size: int = field(
         metadata={"help": "Batch size for input processing"},
     )
+    use_cache: bool = field(
+        metadata={"help": "Whether to use cache for the pipeline. This can enable error recovery."},
+    )
     client_replicas: int = field(
         metadata={"help": "Number of client replicas for parallel processing"},
     )
@@ -146,6 +149,9 @@ class DistillationConfig:
     # Output parameters
     hf_output_dataset: str | None = field(
         metadata={"help": "HuggingFace repo to push results to"},
+    )
+    argilla_output_dataset: str | None = field(
+        metadata={"help": "Argilla dataset to push results to. This is used for manual annotation."},
     )
     private: bool = field(
         metadata={"help": "Whether to make the output dataset private when pushing to HF Hub"},

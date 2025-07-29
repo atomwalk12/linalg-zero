@@ -16,7 +16,8 @@ max_new_tokens: 8192
 num_generations: 1
 
 # Processing parameters
-input_batch_size: 64
+input_batch_size: 2
+use_cache: true
 client_replicas: 1
 timeout: 600
 retries: 2
