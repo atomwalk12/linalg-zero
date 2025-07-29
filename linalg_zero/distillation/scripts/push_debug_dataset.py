@@ -11,7 +11,7 @@ import logging
 import sys
 from typing import Any
 
-from datasets import Dataset  # type: ignore[attr-defined]
+from datasets import Dataset
 from linalg_zero.shared import get_logger, setup_logging
 
 

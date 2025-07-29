@@ -19,6 +19,7 @@ from distilabel.typing import FormattedInput, GenerateOutput
 from pydantic import NonNegativeInt, PositiveInt
 from typing_extensions import override
 
+from datasets import load_dataset as hf_load_dataset
 from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
 from linalg_zero.distillation.data import AssistantMessage
 from linalg_zero.shared import get_logger, setup_logging
@@ -88,7 +89,6 @@ def load_dataset(args: DistillationConfig) -> list[dict[str, Any]]:
         logger.info(
             f"Loading '{args.hf_dataset}' (config: {args.hf_dataset_config}, split: {args.hf_dataset_split}) dataset..."
         )
-        from datasets import load_dataset as hf_load_dataset  # type: ignore[attr-defined]
 
         dataset = hf_load_dataset(args.hf_dataset, args.hf_dataset_config, split=args.hf_dataset_split)
         dataset_dict = dataset.to_dict()

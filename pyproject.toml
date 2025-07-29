@@ -59,7 +59,10 @@ DEP002 = [
 
 [tool.uv]
 # Instead of using --no-build-isolation from the command line
-no-build-isolation-package = ["flash-attn"]
+no-build-isolation-package = ["flash-attn", "xformers"]
+constraint-dependencies = [
+  "torch",
+]
 
 # PyTorch configuration - users can override by setting UV_TORCH_BACKEND
 # Default: CPU builds for non-Linux, CUDA 12.8 for Linux
@@ -126,7 +129,7 @@ warn_return_any = true
 warn_unused_ignores = true
 show_error_codes = true
 
-# PyTorch-specific ignores
+# Module-specific ignores
 [[tool.mypy.overrides]]
 module = [
     "torch.*",
@@ -142,6 +145,10 @@ module = [
     "argilla.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["linalg_zero.distillation.utils", "linalg_zero.distillation.scripts.push_debug_dataset"]
+disable_error_code = ["attr-defined"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
