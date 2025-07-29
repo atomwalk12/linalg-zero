@@ -34,3 +34,10 @@ UV_TORCH_BACKEND=cpu uv sync    # for CPU-only
 ```
 
 For the available CUDA versions see the [official documentation](https://pytorch.org/get-started/locally/).
+
+#### Installation
+```bash
+uv venv --python 3.11
+source .venv/bin/activate.fish
+make install
+```

@@ -1,0 +1,49 @@
+# Distillation Configuration for llama.cpp inference
+
+# Dataset parameters
+hf_dataset: "atomwalk12/linalg-debug"
+hf_dataset_config: null
+hf_dataset_split: "train"
+
+# Prompt parameters
+prompt_column: "prompt"
+prompt_template: "{{ instruction }}"
+
+# Generation parameters
+temperature: 0.7
+top_p: 0.9
+max_new_tokens: 8192
+num_generations: 1
+
+# Processing parameters
+input_batch_size: 2
+use_cache: true
+client_replicas: 1
+timeout: 600
+retries: 2
+
+# Output parameters
+hf_output_dataset: "atomwalk12/linalg-debug-distilled"
+argilla_output_dataset: "atomwalk12/linalg-debug-distilled-argilla"
+private: false
+
+# Server parameters
+# Make sure to choose the link path that contains "resolve"
+# Other options:
+# Model 1
+# TODO: these comments will be cleaned up
+#model: "https://huggingface.co/Salesforce/Llama-xLAM-2-8b-fc-r-gguf/resolve/main/Llama-xLAM-2-8B-fc-r-Q4_K_M.gguf"
+#hf_pretrained_model_name_or_path: "Salesforce/Llama-xLAM-2-8b-fc-r-gguf"
+#hf_tokenizer_config_path: "linalg_zero/distillation/llama-cpp/prompts/Llama-xLAM-2-8B-fc-r-Q4_K_M-prompt-template.txt"
+
+# Model 2
+# Supports regular expressions, which can be useful in some cases.
+model: "Qwen3-32B-Q4_K_M.gguf"
+hf_model_repo_id: "unsloth/Qwen3-32B-GGUF"
+hf_pretrained_model_name_or_path: "Qwen/Qwen3-32B"
+
+n_gpu_layers: 60
+host: "0.0.0.0"
+port: 8000
+n_ctx: 8192
+split_mode: 2
