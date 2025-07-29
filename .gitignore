@@ -142,3 +142,4 @@ cython_debug/
 logs
 models
 notebooks
+*DE.md

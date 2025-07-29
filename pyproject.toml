@@ -30,7 +30,7 @@ dependencies = [
     #"pynvml>=12.0.0",
     #"ray>=2.47.1",
     #"sympy>=1.14.0",
-    #"transformers>=4.53.1",
+    "transformers>=4.53.1",
     "trl>=0.19.1",
     "fastapi>=0.116.1",
     "pydantic-settings>=2.10.1",
@@ -45,6 +45,16 @@ dependencies = [
     "bs4>=0.0.2",
     "verl>=0.5.0",
     "math-verify>=0.8.0",
+    "argilla>=2.8.0",
+    "pydantic>=2.11.7",
+    "typing-extensions>=4.14.1",
+]
+
+# These are false positives, the libraries are actually used (i.e. see launch_server.py)
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+    "starlette", "sse-starlette", "starlette-context", "pydantic-settings", "uvicorn", "llama-cpp-python", "vllm",
+    "bs4", "verl", "ipykernel", "bitsandbytes", "fastapi", "anyio", "instructor", "outlines", "pydantic"
 ]
 
 [tool.uv]
@@ -127,6 +137,9 @@ module = [
     "trl.*",
     "sympy.*",
     "distilabel.*",
+    "math_verify.*",
+    "verl.*",
+    "argilla.*",
 ]
 ignore_missing_imports = true
 

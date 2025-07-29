@@ -8,6 +8,11 @@ install: ## Install the virtual environment and install the pre-commit hooks.
 	@uv sync
 	@uv run pre-commit install
 
+.PHONY: setup-dev
+setup-dev: ## Setup the development environment
+	@echo "🚀 Setting up development environment"
+	@uv run linalg_zero/distillation/scripts/push_debug_dataset.py --dataset-name atomwalk12/linalg-debug --private
+
 .PHONY: check
 check: ## Run code quality tools.
 	@echo "🚀 Checking lock file consistency with 'pyproject.toml'"
