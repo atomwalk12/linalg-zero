@@ -3,7 +3,7 @@ from distilabel.pipeline import Pipeline
 from distilabel.steps import LoadDataFromDicts
 
 from linalg_zero.distillation.components.chat_generation import ChatGeneration
-from linalg_zero.distillation.utils import get_patched_openai_client
+from linalg_zero.distillation.utils import get_openai_client
 
 RESULT_SUMMARIZER_PROMPT = """You are a helpful response formatter. Your job is to take tool execution results and present them clearly and professionally to the user.
 
@@ -53,7 +53,7 @@ The Frobenius norm of this result is **19.9**.
 
 if __name__ == "__main__":
     """The following code demonstrates how planning works. The code is not being used for other purposes."""
-    llm = get_patched_openai_client(model="Qwen3-32B-Q4_K_M.gguf", base_url="http://localhost:8000/v1")
+    llm = get_openai_client(model="Qwen3-32B-Q4_K_M.gguf", base_url="http://localhost:8000/v1")
 
     with Pipeline("result-executor-pipeline") as pipeline:
         load_dataset = LoadDataFromDicts(

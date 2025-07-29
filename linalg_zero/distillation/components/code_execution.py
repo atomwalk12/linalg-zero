@@ -6,7 +6,7 @@ from distilabel.steps.tasks import APIGenExecutionChecker
 from distilabel.steps.tasks.apigen.utils import (
     execute_from_response,
 )
-from distilabel.typing import StepOutput
+from distilabel.typing import StepColumns, StepOutput
 from typing_extensions import override
 
 
@@ -21,6 +21,12 @@ class LinAlgZeroExecutionChecker(APIGenExecutionChecker):
             else:
                 parsed_args[key] = value
         return parsed_args
+
+    @property
+    @override
+    def inputs(self) -> StepColumns:
+        """The inputs for the task are those found in the original dataset."""
+        return ["generation"]
 
     @override
     def process(self, inputs: StepInput) -> "StepOutput":
@@ -40,14 +46,14 @@ class LinAlgZeroExecutionChecker(APIGenExecutionChecker):
 
         for _input in inputs:
             output = []
-            if _input["answers"]:
+            if _input["generation"]:
                 try:
-                    answers = json.loads(_input["answers"])
+                    answers = json.loads(_input["generation"])
                 except json.JSONDecodeError:
-                    self._logger.exception(f"Answers are not valid JSON: {_input['answers']}")
+                    self._logger.exception(f"Answers are not valid JSON: {_input['generation']}")
                     _input.update(**{
                         "keep_row_after_execution_check": False,
-                        "execution_result": [f"Answers are not valid JSON: {_input['answers']}"],
+                        "execution_result": [f"Answers are not valid JSON: {_input['generation']}"],
                     })
                     continue
             else:
@@ -105,12 +111,19 @@ class LinAlgZeroExecutionChecker(APIGenExecutionChecker):
                             "keep": False,
                             "execution_result": f"Error parsing arguments: {arguments}",
                         })
-            # We only consider a good response if all the answers were executed successfully,
-            # but keep the reasons for further review if needed.
-            _input.update(**{
-                "keep_row_after_execution_check": all(o["keep"] is True for o in output),
-                "execution_result": [o["execution_result"] for o in output],
-            })
+            # Check if no function calls were executed
+            if not tool_results:
+                _input.update(**{
+                    "keep_row_after_execution_check": False,
+                    "execution_result": [],
+                })
+            else:
+                # We only consider a good response if all the answers were executed successfully,
+                # but keep the reasons for further review if needed.
+                _input.update(**{
+                    "keep_row_after_execution_check": all(o["keep"] is True for o in output),
+                    "execution_result": [o["execution_result"] for o in output],
+                })
             _input["messages"].extend(tool_results)
 
         yield inputs

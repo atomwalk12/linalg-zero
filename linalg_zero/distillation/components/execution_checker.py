@@ -27,7 +27,6 @@ class MathVerifySemanticChecker(Step):
 
     Output columns:
         - final_result_correct (bool): Whether final result matches ground truth
-        - overall_score (float): Verification score (0.0 or 1.0)
         - keep_row_after_semantic_check (bool): Whether to keep this row
         - verification_details (str): Detailed verification information
         - extracted_result (str): What was extracted from the generated response
@@ -44,7 +43,6 @@ class MathVerifySemanticChecker(Step):
     def outputs(self) -> StepColumns:
         return [
             "final_result_correct",
-            "overall_score",
             "keep_row_after_semantic_check",
             "verification_details",
             "extracted_result",
@@ -58,6 +56,18 @@ class MathVerifySemanticChecker(Step):
         outputs = []
 
         for input_data in input_batch:
+            # Skip verification if marked by upstream filter
+            if input_data.get("skip_downstream_processing", False):
+                skip_output = input_data.copy()
+                skip_output.update({
+                    "final_result_correct": False,
+                    "keep_row_after_semantic_check": False,
+                    "verification_details": "Skipped due to upstream failure",
+                    "extracted_result": None,
+                })
+                outputs.append(skip_output)
+                continue
+
             try:
                 result = self._verify_with_math_verify(input_data)
                 outputs.append(result)
@@ -66,7 +76,6 @@ class MathVerifySemanticChecker(Step):
                 error_output = input_data.copy()
                 error_output.update({
                     "final_result_correct": False,
-                    "overall_score": 0.0,
                     "keep_row_after_semantic_check": False,
                     "verification_details": f"Verification error: {e!s}",
                     "extracted_result": None,
@@ -90,7 +99,6 @@ class MathVerifySemanticChecker(Step):
         if extracted_result is None:
             # No result found in messages
             result_correct = False
-            score = 0.0
             details = "No result found in <RESULT></RESULT> tags"
         else:
             # Use math-verify to compare
@@ -101,7 +109,6 @@ class MathVerifySemanticChecker(Step):
 
                 # Verify using math-verify
                 result_correct = verify(ground_truth_parsed, extracted_parsed)
-                score = 1.0 if result_correct else 0.0
 
                 if result_correct:
                     details = (
@@ -113,14 +120,12 @@ class MathVerifySemanticChecker(Step):
             except Exception as e:
                 # Math-verify parsing/comparison failed
                 result_correct = False
-                score = 0.0
                 details = f"Math-verify error: {e!s} - Generated: '{extracted_result}', Ground truth: '{ground_truth}'"
 
         # Update input with results
         output_data = input_data.copy()
         output_data.update({
             "final_result_correct": result_correct,
-            "overall_score": score,
             "keep_row_after_semantic_check": result_correct,
             "verification_details": details,
             "extracted_result": extracted_result,
@@ -182,7 +187,6 @@ if __name__ == "__main__":
             print(f"  Extracted: '{result.get('extracted_result')}'")
             print(f"  Ground Truth: '{result.get('ground_truth_result')}'")
             print(f"  Correct: {result['final_result_correct']}")
-            print(f"  Score: {result['overall_score']:.1f}")
             print(f"  Keep Row: {result['keep_row_after_semantic_check']}")
             print(f"  Details: {result['verification_details']}")
             print("-" * 40)

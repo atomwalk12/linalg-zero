@@ -46,6 +46,12 @@ Your response must be a JSON object with:
 - Handle dependencies using `[result_of_call_N]` where N is the call index (starting from 0)
 - Prioritize minimal, effective tool combinations
 
+**Important: If Problem Cannot Be Solved:**
+- If after reviewing the available tools you determine that the problem **cannot be solved** with the current tool set, provide an empty `tool_calls` array
+- In the `thinking` field, clearly explain why the problem cannot be solved with the available tools
+- Be specific about what functionality is missing or what additional tools would be needed
+- Always maintain JSON format
+
 **Available Tools Schema:**
 {get_function_schema()}
 
@@ -112,6 +118,17 @@ Your response must be a JSON object with:
       "arguments": {{"matrix": "[result_of_call_2]"}}
     }}
   ]
+}}
+```
+
+**Example 4: Problem Cannot Be Solved**
+*User Query:* "Find the eigenvalues of the matrix [[1, 2], [3, 4]]."
+
+*Response:*
+```json
+{{
+  "thinking": "After reviewing the available tools, I cannot solve this problem because there is no eigenvalue computation function available in the current tool set. To solve this problem, I would need a tool like 'eigenvalues' or 'eigen_decomposition' that can compute the eigenvalues of a matrix.",
+  "tool_calls": []
 }}
 ```
 

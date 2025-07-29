@@ -19,7 +19,6 @@ class ChatGeneration(Task):
     It prepares the output for the subsequent steps and dynamically adjusts the system prompt.
     """
 
-    # TODO: these variables look fairly ugly, are they really necessary?
     system_prompt: str | None = Field(default=None, description="The system prompt to use in the generation.")
     tool_calls: bool = Field(default=False, description="Whether the generation contains tool calls.")
     initialized: bool = Field(
@@ -49,24 +48,23 @@ class ChatGeneration(Task):
             ))
 
         if self.system_prompt and not self.initialized:
-            # TODO: this is somewhat a hack that is necessary to make local development with LlamaCPP work.
-            # Currently, the library doesn't support dynamically switching between thinking and no-thinking modes.
-            # To work around this, I am setting the mode inside the message itself. This is not needed for vLLM.
-            if self.thinking_mode == "/no_think":
-                input["messages"][1]["content"] = input["messages"][1]["content"] + " /no_think"
-
-            # The difference between the default `ChatGeneration` class and this one is that
-            # we use customised logic to handle the system prompt.
-            if input["messages"][0]["role"] != "system":
-                # No system prompt is present, so we simply add it to the beginning of the conversation.
-                input["messages"].insert(0, {"role": "system", "content": self.system_prompt})
-            else:
-                # An existing system prompt is present, so we need to replace it.
-                input["messages"].pop(0)
-                input["messages"].insert(0, {"role": "system", "content": self.system_prompt})
+            self._apply_system_prompt_and_thinking_mode(input["messages"])
             self.initialized = True
 
         return input["messages"]
+
+    def _apply_system_prompt_and_thinking_mode(self, messages: list[dict[str, Any]]) -> None:
+        """Apply system prompt and thinking mode modifications to messages."""
+        # TODO: this is somewhat a hack that is necessary to make local development with LlamaCPP work.
+        # Currently, the library doesn't support dynamically switching between thinking and no-thinking modes.
+        # To work around this, I am setting the mode inside the message itself. This is not needed for vLLM.
+        if self.thinking_mode == "/no_think":
+            messages[1]["content"] = messages[1]["content"] + " /no_think"
+
+        # Replace or add system prompt
+        if messages[0]["role"] == "system":
+            messages.pop(0)
+        messages.insert(0, {"role": "system", "content": self.system_prompt})
 
     @property
     @override
@@ -82,39 +80,63 @@ class ChatGeneration(Task):
         The output is formatted as a dictionary with the `generation`. The `model_name`
         will be automatically. The messages are updated to include the assistant's response.
         """
-        # TODO: this function is really convoluted. Need to improve flow.
         if input is None:
             raise DistilabelUserError("Input is required to format the output.")
 
         input_copy = deepcopy(input)
+
         if output is None:
             return self._default_error(input_copy)
 
-        result = []
+        # Handle skip processing first
+        if input.get("skip_downstream_processing", False):
+            return self._handle_skipped_processing(output, input_copy)
+
         try:
             if self.tool_calls:
-                # Currently, instructor doesn't support root fields in the model output, and because
-                # of this, we need to recur to this hack to obtain the generation in the correct format.
-                parsed_output = json.loads(output)
-                for i, tool_call in enumerate(parsed_output["tool_calls"]):
-                    # Ensure tool_call is a dict and arguments is properly formatted
-                    if isinstance(tool_call, dict):
-                        tool_call_copy = tool_call.copy()
-                        if "arguments" in tool_call_copy:
-                            tool_call_copy["arguments"] = json.dumps(tool_call_copy["arguments"])
-                        result.append({"type": "function", "id": f"tool_call_{i}", "function": tool_call_copy})
-                    output = parsed_output["thinking"]
-                input_copy["messages"].append({"role": "assistant", "tool_calls": result, "content": output})
-                input_copy.update({"generation": json.dumps(result)})
+                return self._process_tool_calls(output, input_copy)
             else:
-                input_copy["messages"].append({"role": "assistant", "content": output})
-                input_copy.update({"generation": output})
+                return self._process_regular_output(output, input_copy)
+        except json.JSONDecodeError:
+            return self._default_error(input_copy)
+
+    def _handle_skipped_processing(self, output: str, input_copy: dict[str, Any]) -> dict[str, Any]:
+        """Handle processing when upstream marked for skipping."""
+        input_copy.update({"generation": None, "model_name": "skipped_due_to_upstream_failure"})
+        try:
+            parsed_output = json.loads(output)
+            input_copy.update({"generation": parsed_output["thinking"]})
         except json.JSONDecodeError:
             return self._default_error(input_copy)
         else:
             return input_copy
 
+    def _process_tool_calls(self, output: str, input_copy: dict[str, Any]) -> dict[str, Any]:
+        """Process output containing tool calls."""
+        # Currently, instructor doesn't support root fields in the model output, and because
+        # of this, we need to recur to this hack to obtain the generation in the correct format.
+        parsed_output = json.loads(output)
+        result = []
+
+        for i, tool_call in enumerate(parsed_output["tool_calls"]):
+            if isinstance(tool_call, dict):
+                tool_call_copy = tool_call.copy()
+                if "arguments" in tool_call_copy:
+                    tool_call_copy["arguments"] = json.dumps(tool_call_copy["arguments"])
+                result.append({"type": "function", "id": f"tool_call_{i}", "function": tool_call_copy})
+
+        thinking_content = parsed_output["thinking"]
+        input_copy["messages"].append({"role": "assistant", "tool_calls": result, "content": thinking_content})
+        input_copy.update({"generation": json.dumps(result)})
+        return input_copy
+
+    def _process_regular_output(self, output: str, input_copy: dict[str, Any]) -> dict[str, Any]:
+        """Process regular text output without tool calls."""
+        input_copy["messages"].append({"role": "assistant", "content": output})
+        input_copy.update({"generation": output})
+        return input_copy
+
     def _default_error(self, _input: dict[str, Any]) -> dict[str, Any]:
         """Returns a default error output, to fill the responses in case of failure."""
-        _input.update(**{"generation": None, "messages": None})
+        _input.update(**{"generation": "Could not parse model output."})
         return _input
