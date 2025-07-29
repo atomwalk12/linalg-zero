@@ -93,15 +93,10 @@ distillation-vllm: ## Start the vLLM server
 	@INFERENCE_BACKEND=vllm uv run python linalg_zero/distillation/launch_server.py --config $(VLLM_CONFIG)
 
 
-.PHONY: distil
-distil: ## Run the distillation pipeline
+.PHONY: distillation
+distillation: ## Run the distillation pipeline using the vllm config
 	@echo "🚀 Running distillation pipeline"
-	@uv run python linalg_zero/distil_gen.py --config $(CONFIG_PATH)
-
-.PHONY: distil-fc
-distil-fc: ## Run the distillation pipeline
-	@echo "🚀 Running distillation pipeline"
-	@uv run python linalg_zero/distil_fc.py --config $(CONFIG_PATH)
+	@uv run python linalg_zero/distillation/run.py --config linalg_zero/config/distillation/vllm_debug.yaml
 
 .PHONY: help
 help:

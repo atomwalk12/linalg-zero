@@ -1,4 +1,5 @@
 import json
+from json import JSONDecodeError
 from typing import Any
 
 from distilabel.steps.base import StepInput
@@ -49,7 +50,7 @@ class LinAlgZeroExecutionChecker(APIGenExecutionChecker):
             if _input["generation"]:
                 try:
                     answers = json.loads(_input["generation"])
-                except json.JSONDecodeError:
+                except JSONDecodeError:
                     self._logger.exception(f"Answers are not valid JSON: {_input['generation']}")
                     _input.update(**{
                         "keep_row_after_execution_check": False,
@@ -104,7 +105,7 @@ class LinAlgZeroExecutionChecker(APIGenExecutionChecker):
                             "tool_call_id": wrapper["id"],
                             "content": execution["execution_result"],
                         })
-                    except Exception:
+                    except (KeyError, JSONDecodeError, TypeError):
                         self._logger.exception("Error parsing arguments")
 
                         output.append({
