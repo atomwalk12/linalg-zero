@@ -222,6 +222,10 @@ def get_lib() -> dict[str, Callable[..., Any]]:
 
 def get_tools() -> dict[str, dict[str, Any]]:
     """Returns the tool representation of the functions in the library."""
-    from transformers.utils.chat_template_utils import get_json_schema
+from transformers.utils.chat_template_utils import get_json_schema
+
+def get_tools() -> dict[str, dict[str, Any]]:
+    """Returns the tool representation of the functions in the library."""
+    return {name: get_json_schema(func) for name, func in get_lib().items()}
 
     return {name: get_json_schema(func) for name, func in get_lib().items()}
