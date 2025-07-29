@@ -101,7 +101,7 @@ def load_dataset(args: DistillationConfig) -> list[dict[str, Any]]:
         logger.exception(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.")
         logger.warning("Run `make setup-dev` to push a debugging dataset to the hub, then rerun the script.")
         logger.warning("Make sure to configure the `setup-dev` target to use the correct username.")
-        exit(1)
+        raise FileNotFoundError(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.")
 
 
 def get_openai_client(
