@@ -2,7 +2,6 @@
 
 [![Release](https://img.shields.io/github/v/release/atomwalk12/linalg-zero)](https://img.shields.io/github/v/release/atomwalk12/linalg-zero)
 [![Build status](https://img.shields.io/github/actions/workflow/status/atomwalk12/linalg-zero/main.yml?branch=main)](https://github.com/atomwalk12/linalg-zero/actions/workflows/main.yml?query=branch%3Amain)
-[![codecov](https://codecov.io/gh/atomwalk12/linalg-zero/branch/main/graph/badge.svg)](https://codecov.io/gh/atomwalk12/linalg-zero)
 [![Commit activity](https://img.shields.io/github/commit-activity/m/atomwalk12/linalg-zero)](https://img.shields.io/github/commit-activity/m/atomwalk12/linalg-zero)
 [![License](https://img.shields.io/github/license/atomwalk12/linalg-zero)](https://img.shields.io/github/license/atomwalk12/linalg-zero)
 
