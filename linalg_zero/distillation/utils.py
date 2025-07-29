@@ -1,28 +1,27 @@
 import json
-from collections.abc import Generator
+import logging
+import logging as stdlib_logging
 from pathlib import Path
-from types import ModuleType
 from typing import (
     Any,
 )
 
+import argilla as rg
 from distilabel.models import OpenAILLM
 from distilabel.models.base_clients.openai import SecretStr
 from distilabel.pipeline import Pipeline, RayPipeline
-from distilabel.steps import CombineOutputs, DataSampler, LoadDataFromDicts, StepResources
+from distilabel.steps import StepResources
 from distilabel.steps.tasks import (
-    APIGenExecutionChecker,
-    APIGenGenerator,
-    APIGenSemanticChecker,
     TextGeneration,
 )
 from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
-from distilabel.steps.tasks.apigen.utils import PrepareExamples
-from distilabel.typing import FormattedInput
+from distilabel.typing import FormattedInput, GenerateOutput
 from pydantic import NonNegativeInt, PositiveInt
 from typing_extensions import override
 
-from datasets import Dataset  # type: ignore[attr-defined]
+from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
+from linalg_zero.distillation.data import AssistantMessage
+from linalg_zero.shared import get_logger, setup_logging
 
 
 # TODO: is this the right file to store this class in?
@@ -48,10 +47,9 @@ class CustomOpenAILLM(OpenAILLM):
         stop: str | list[str] | None = None,
         response_format: dict[str, str] | None = None,
         extra_body: dict[str, Any] | None = None,
-    ):
+    ) -> GenerateOutput:
         """Override agenerate to bypass validation and support tool calls."""
 
-        # Handle string input
         if isinstance(input, str):
             return await self._generate_completion(
                 input=input,
@@ -82,23 +80,28 @@ class CustomOpenAILLM(OpenAILLM):
         )
 
 
-def get_patched_openai_client(
-    model: str,
-    base_url: str,
-    timeout: int = 900,
-    retries: int = 3,
-    generation_kwargs: dict[str, Any] | None = None,
-    structured_output: dict[str, Any] | None = None,
-) -> OpenAILLM:
-    return CustomOpenAILLM(
-        base_url=base_url,
-        api_key=SecretStr("something"),
-        model=model,
-        timeout=timeout,
-        max_retries=retries,
-        generation_kwargs=generation_kwargs,
-        structured_output=structured_output,
-    )
+def load_dataset(args: DistillationConfig) -> list[dict[str, Any]]:
+    """Loads the dataset either from the hub or from a local file."""
+    logger = get_logger(__name__)
+
+    try:
+        logger.info(
+            f"Loading '{args.hf_dataset}' (config: {args.hf_dataset_config}, split: {args.hf_dataset_split}) dataset..."
+        )
+        from datasets import load_dataset as hf_load_dataset  # type: ignore[attr-defined]
+
+        dataset = hf_load_dataset(args.hf_dataset, args.hf_dataset_config, split=args.hf_dataset_split)
+        dataset_dict = dataset.to_dict()
+        logger.info("Dataset loaded!")
+        # Convert the dict format back to list of dicts
+        return [
+            dict(zip(dataset_dict.keys(), values, strict=True)) for values in zip(*dataset_dict.values(), strict=True)
+        ]
+    except Exception:
+        logger.exception(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.")
+        logger.warning("Run `make setup-dev` to push a debugging dataset to the hub, then rerun the script.")
+        logger.warning("Make sure to configure the `setup-dev` target to use the correct username.")
+        exit(1)
 
 
 def get_openai_client(
@@ -106,32 +109,11 @@ def get_openai_client(
     base_url: str,
     timeout: int = 900,
     retries: int = 3,
-    generation_kwargs: dict[str, Any] | None = None,
-    structured_output: dict[str, Any] | None = None,
-) -> OpenAILLM:
-    return OpenAILLM(
-        base_url=base_url,
-        api_key=SecretStr("something"),
-        model=model,
-        timeout=timeout,
-        max_retries=retries,
-        generation_kwargs=generation_kwargs,
-        structured_output=structured_output,
-    )
-
-
-def build_fc_pipeline(
-    model: str,
-    dataset: Dataset,
-    target_fns: list[dict[str, Any]],
-    base_url: str = "http://localhost:8000/v1",
+    max_new_tokens: int = 8192,
     temperature: float | None = None,
     top_p: float | None = None,
-    max_new_tokens: int = 8192,
-    timeout: int = 900,
-    retries: int = 0,
-) -> Pipeline:
-    """Builds a pipeline for function calling. This is called prior to the generation pipeline."""
+    structured_output: dict[str, Any] | None = None,
+) -> OpenAILLM:
     generation_kwargs: dict[str, Any] = {"max_new_tokens": max_new_tokens}
 
     if temperature is not None:
@@ -140,37 +122,35 @@ def build_fc_pipeline(
     if top_p is not None:
         generation_kwargs["top_p"] = top_p
 
-    with Pipeline(name="APIGenPipeline") as pipeline:
-        loader_seeds = LoadDataFromDicts(data=target_fns)
-        sampler = DataSampler(
-            data=dataset,
-            size=2,
-            samples=len(target_fns),
-            batch_size=8,
-        )
+    return CustomOpenAILLM(
+        model=model,
+        base_url=base_url,
+        api_key=SecretStr("not-used"),
+        timeout=timeout,
+        max_retries=retries,
+        generation_kwargs=generation_kwargs,
+        structured_output=structured_output,
+    )
 
-        prep_examples = PrepareExamples()
 
-        llm = get_openai_client(
-            model=model,
-            base_url=base_url,
-            timeout=timeout,
-            retries=retries,
-            generation_kwargs=generation_kwargs,
-        )
-        apigen = APIGenGenerator(
-            llm=llm,
-            use_default_structured_output=True,
-        )
-        combine_steps = CombineOutputs()
+def create_llm_clients(
+    server: LlamaCppServerConfig | VllmServerConfig, args: DistillationConfig
+) -> tuple[OpenAILLM, OpenAILLM]:
+    """Create structured and non-structured LLM clients."""
+    base_params: dict[str, Any] = {
+        "model": server.model,
+        "base_url": f"http://{server.host}:{server.port}/v1",
+        "timeout": args.timeout,
+        "retries": args.retries,
+        "max_new_tokens": args.max_new_tokens,
+        "temperature": args.temperature,
+        "top_p": args.top_p,
+    }
 
-        execution_checker = APIGenExecutionChecker(libpath=str(get_libpath()))
-        semantic_checker = APIGenSemanticChecker(llm=llm)
+    llm_planner = get_openai_client(**base_params, structured_output={"schema": AssistantMessage})
+    llm_synthesizer = get_openai_client(**base_params, structured_output=None)
 
-        sampler >> prep_examples
-        ([loader_seeds, prep_examples] >> combine_steps >> apigen >> execution_checker >> semantic_checker)
-
-    return pipeline
+    return llm_planner, llm_synthesizer
 
 
 def get_function_schema() -> str:
@@ -206,32 +186,6 @@ def _get_target_fns(tools: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
-def prepare_tools() -> Any:
-    """Prepares the tools for function calling."""
-
-    # This module is used internally by the distilabel library to make dynamic calls while building the dataset.
-    libpath = get_libpath()
-    libpath_module: ModuleType = load_module_from_path(libpath)
-    tools = libpath_module.get_tools()
-
-    target_fns = _get_target_fns(tools)
-
-    return tools, target_fns
-
-
-def build_fc_dataset(tools: dict[str, dict[str, Any]]) -> Any:
-    """Builds a dataset for function calling."""
-
-    def gen() -> Generator[dict[str, Any], None, None]:
-        yield {
-            "query": "Calculate 100 divided by 20, then multiply the result by 2.",
-            "answers": ["100/20 = 5, then 5*2 = 10"],
-            "tools": [key["function"] for key in tools.values()],
-        }
-
-    return Dataset.from_generator(gen)
-
-
 def build_generation_pipeline(
     model: str,
     base_url: str = "http://localhost:8000/v1",
@@ -247,14 +201,6 @@ def build_generation_pipeline(
     retries: int = 0,
 ) -> Pipeline | RayPipeline:
     """Builds a pipeline for generation. Prior to this, the function calling pipeline is called."""
-    generation_kwargs: dict[str, Any] = {"max_new_tokens": max_new_tokens}
-
-    if temperature is not None:
-        generation_kwargs["temperature"] = temperature
-
-    if top_p is not None:
-        generation_kwargs["top_p"] = top_p
-
     with Pipeline().ray() as pipeline:
         _ = TextGeneration(
             llm=get_openai_client(
@@ -262,7 +208,9 @@ def build_generation_pipeline(
                 base_url=base_url,
                 timeout=timeout,
                 retries=retries,
-                generation_kwargs=generation_kwargs,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_p=top_p,
             ),
             template=prompt_template,
             input_mappings=({"instruction": prompt_column} if prompt_column is not None else {}),
@@ -301,3 +249,207 @@ def is_openai_format(messages: Any) -> bool:
     if not isinstance(messages, list):
         return False
     return all(isinstance(x, dict) and "role" in x and ("content" in x or "tool_calls" in x) for x in messages)
+
+
+def cleanup() -> None:
+    """Cleans up logging to prevent multiprocessing queue errors."""
+    root_logger = stdlib_logging.getLogger()
+    queue_handlers = [h for h in root_logger.handlers if hasattr(h, "queue")]
+    for handler in queue_handlers:
+        root_logger.removeHandler(handler)
+
+    # Reinitialize logging
+    setup_logging(level=logging.INFO, include_timestamp=True)
+
+
+def create_argilla_dataset_settings() -> rg.Settings:
+    """Create Argilla dataset settings for linear algebra distillation results."""
+
+    return rg.Settings(
+        guidelines="""Review and validate the model's reasoning for linear algebra problems.""",
+        fields=[
+            rg.TextField(
+                name="ground_truth",
+                title="Ground Truth Result",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="problem",
+                title="User's Linear Algebra Problem",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="tool_planning_thought",
+                title="Model's Tool Planning Thought",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="tool_calls",
+                title="Tool Calls Made",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="execution_result",
+                title="Code Execution Result",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="keep_row_after_execution_check",
+                title="Keep Row After Execution Check",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="final_answer",
+                title="Model's Final Answer",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="verification_result",
+                title="Math-Verify Verification Result",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="verification_details",
+                title="Detailed Verification Information",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="final_result_correct",
+                title="Does the final answer match the ground truth?",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="keep_row_after_semantic_check",
+                title="Keep Row After Semantic Check",
+                use_markdown=False,
+            ),
+        ],
+        questions=[
+            rg.LabelQuestion(
+                name="reasoning_quality",
+                title="How would you rate the overall reasoning quality?",
+                labels=["excellent", "good", "fair", "poor"],
+            ),
+            rg.LabelQuestion(
+                name="mathematical_accuracy",
+                title="Is the mathematical reasoning correct?",
+                labels=["correct", "minor_errors", "major_errors", "incorrect"],
+            ),
+            rg.LabelQuestion(
+                name="tool_usage",
+                title="Are the tool calls appropriate and effective?",
+                labels=["optimal", "good", "suboptimal", "incorrect"],
+            ),
+            rg.LabelQuestion(
+                name="final_correctness",
+                title="Is the final answer correct?",
+                labels=["correct", "close", "wrong", "no_answer"],
+            ),
+            rg.TextQuestion(
+                name="feedback",
+                title="Additional feedback or observations",
+            ),
+        ],
+    )
+
+
+def _delete_existing_argilla_dataset(client: rg.Argilla, dataset_name: str) -> None:
+    """Delete existing Argilla dataset if it exists."""
+    logger = get_logger(__name__)
+    try:
+        existing_dataset = client.datasets(name=dataset_name)
+        if existing_dataset:
+            existing_dataset.delete()
+            logger.info(f"Deleted existing Argilla dataset: {dataset_name}")
+    except Exception:
+        logger.exception("Failed to delete existing Argilla dataset")
+        # Dataset doesn't exist
+        pass
+
+
+def _extract_assistant_messages(messages: list[dict[str, Any]]) -> tuple[str, str, str]:
+    """Extract tool planning thought, tool calls, and final answer from assistant messages."""
+    tool_planning_thought = ""
+    tool_calls = ""
+    final_answer = ""
+
+    for msg in messages:
+        if msg.get("role") == "assistant":
+            if msg.get("tool_calls"):
+                tool_calls = str(msg.get("tool_calls", ""))
+                if msg.get("content"):
+                    tool_planning_thought = msg.get("content", "")
+            elif msg.get("content"):
+                # Preserve the raw content including special tags like <think></think> and <RESULT></RESULT>
+                final_answer = msg.get("content", "")
+
+    return tool_planning_thought, tool_calls, final_answer
+
+
+def _convert_item_to_argilla_record(item: dict[str, Any]) -> dict[str, str] | None:
+    """Convert a single distillation item to an Argilla record."""
+    logger = get_logger(__name__)
+    try:
+        # Extract problem from messages
+        problem = ""
+        for msg in item.get("messages", []):
+            if msg.get("role") == "user":
+                problem = msg.get("content", "")
+                break
+
+        # Extract assistant message components
+        tool_planning_thought, tool_calls, final_answer = _extract_assistant_messages(item.get("messages", []))
+
+        return {
+            "problem": problem,
+            "ground_truth": str(item.get("ground_truth_result", "")),
+            "tool_planning_thought": tool_planning_thought,
+            "tool_calls": tool_calls,
+            "execution_result": str(item.get("execution_result", "")),
+            "final_answer": final_answer,
+            "verification_result": str(item.get("verification_result", "")),
+            "final_result_correct": str(item.get("final_result_correct", "")),
+            "keep_row_after_semantic_check": str(item.get("keep_row_after_semantic_check", "")),
+            "verification_details": str(item.get("verification_details", "")),
+            "keep_row_after_execution_check": str(item.get("keep_row_after_execution_check", "")),
+        }
+    except Exception as e:
+        logger.warning(f"Failed to process record: {e}")
+        return None
+
+
+def create_argilla_dataset(dataset_name: str, distiset_data: list[dict[str, Any]], client: rg.Argilla) -> None:
+    """Create and populate an Argilla dataset from distillation results."""
+    logger = get_logger(__name__)
+
+    try:
+        # Delete existing dataset if it exists to ensure clean reupload
+        _delete_existing_argilla_dataset(client, dataset_name)
+
+        # Create dataset with settings
+        settings = create_argilla_dataset_settings()
+        dataset = rg.Dataset(
+            name=dataset_name,
+            settings=settings,
+            client=client,
+        )
+        _ = dataset.create()
+        logger.info(f"Created Argilla dataset: {dataset_name}")
+
+        # Convert distilabel data to Argilla records
+        records = []
+        for item in distiset_data:
+            record = _convert_item_to_argilla_record(item)
+            if record is not None:
+                records.append(record)
+
+        # Log records to dataset
+        if records:
+            dataset.records.log(records=records)
+            logger.info(f"Logged {len(records)} records to Argilla dataset")
+        else:
+            logger.warning("No valid records found to log")
+
+    except Exception:
+        logger.exception("Failed to create Argilla dataset")
+        raise
