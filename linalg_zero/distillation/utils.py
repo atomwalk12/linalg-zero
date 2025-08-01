@@ -7,6 +7,7 @@ from typing import (
 )
 
 import argilla as rg
+from distilabel.distiset import Distiset
 from distilabel.models import OpenAILLM
 from distilabel.models.base_clients.openai import SecretStr
 from distilabel.pipeline import Pipeline, RayPipeline
@@ -20,8 +21,13 @@ from pydantic import NonNegativeInt, PositiveInt
 from typing_extensions import override
 
 from datasets import load_dataset as hf_load_dataset
-from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
+from linalg_zero.config.data import (
+    DistillationConfig,
+    LlamaCppServerConfig,
+    VllmServerConfig,
+)
 from linalg_zero.distillation.data import AssistantMessage
+from linalg_zero.distillation.fc_fns import get_tools
 from linalg_zero.shared import get_logger, setup_logging
 
 
@@ -81,29 +87,6 @@ class CustomOpenAILLM(OpenAILLM):
         )
 
 
-def load_dataset(args: DistillationConfig) -> list[dict[str, Any]]:
-    """Loads the dataset either from the hub or from a local file."""
-    logger = get_logger(__name__)
-
-    try:
-        logger.info(
-            f"Loading '{args.hf_dataset}' (config: {args.hf_dataset_config}, split: {args.hf_dataset_split}) dataset..."
-        )
-
-        dataset = hf_load_dataset(args.hf_dataset, args.hf_dataset_config, split=args.hf_dataset_split)
-        dataset_dict = dataset.to_dict()
-        logger.info("Dataset loaded!")
-        # Convert the dict format back to list of dicts
-        return [
-            dict(zip(dataset_dict.keys(), values, strict=True)) for values in zip(*dataset_dict.values(), strict=True)
-        ]
-    except Exception as err:
-        logger.exception(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.")
-        logger.warning("Run `make setup-dev` to push a debugging dataset to the hub, then rerun the script.")
-        logger.warning("Make sure to configure the `setup-dev` target to use the correct username.")
-        raise FileNotFoundError(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.") from err
-
-
 def get_openai_client(
     model: str,
     base_url: str,
@@ -158,7 +141,7 @@ def get_function_schema() -> str:
     libpath_module = load_module_from_path(get_libpath())
     tools = libpath_module.get_tools()
 
-    function_definitions = [tool_info["function"] for tool_info in tools.values()]
+    function_definitions = [tool_info["function"] for tool_info in tools]
     function_schema = json.dumps(function_definitions, indent=2)
 
     return function_schema
@@ -167,23 +150,6 @@ def get_function_schema() -> str:
 def get_libpath() -> Path:
     """Returns the path to the library of functions."""
     return Path(__file__).parent / "fc_fns.py"
-
-
-def _get_target_fns(tools: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
-    """These are the functions that will interactively be called during training.
-    For each element in the dataset, each function below is called once."""
-    return [
-        {
-            "func_name": "get_division",
-            "func_desc": "Performs division of a and b, and returns the result.",
-            "tools": [tools["get_division"]],
-        },
-        {
-            "func_name": "get_multiplication",
-            "func_desc": "Performs multiplication of a and b, and returns the result.",
-            "tools": [tools["get_multiplication"]],
-        },
-    ]
 
 
 def build_generation_pipeline(
@@ -453,3 +419,33 @@ def create_argilla_dataset(dataset_name: str, distiset_data: list[dict[str, Any]
     except Exception:
         logger.exception("Failed to create Argilla dataset")
         raise
+
+
+def prepare_dataset_for_sft(distiset: Distiset) -> None:
+    """Adds the tools column to the dataset."""
+    TOOLS = get_tools()
+
+    def add_tools_column(example: dict[str, Any]) -> dict[str, Any]:
+        example["tools"] = TOOLS
+        return example
+
+    distiset["default"]["train"] = distiset["default"]["train"].map(add_tools_column)
+
+
+def load_dataset(args: DistillationConfig) -> list[dict[str, Any]]:
+    """Loads the dataset either from the hub or from a local file."""
+    logger = get_logger(__name__)
+
+    try:
+        logger.info(
+            f"Loading '{args.hf_dataset}' (config: {args.hf_dataset_config}, split: {args.hf_dataset_split}) dataset."
+        )
+
+        dataset = hf_load_dataset(args.hf_dataset, args.hf_dataset_config, split=args.hf_dataset_split)
+        logger.info("Dataset loaded!")
+    except Exception as err:
+        raise FileNotFoundError(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.") from err
+    else:
+        # Convert the dict format back to list of dicts. This is the format expected by Argilla.
+        dataset_dict = dataset.to_dict()
+        return [dict(zip(dataset_dict.keys(), vals, strict=True)) for vals in zip(*dataset_dict.values(), strict=True)]
