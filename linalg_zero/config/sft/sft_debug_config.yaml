@@ -1,5 +1,5 @@
 # Model arguments
-model_name_or_path: Qwen/Qwen3-1.7B-Base
+model_name_or_path: Qwen/Qwen3-1.7B
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
@@ -20,13 +20,26 @@ eos_token: <|im_end|>
 
 # SFT trainer config
 bf16: true
-do_eval: false
-eval_strategy: 'no'
+
+## Evaluation parameters
+do_eval: true                  # does a final evaluation step at the end of training
+eval_strategy: 'no'            # can be "no","epoch","steps"
+# load_best_model_at_end: true
+metric_for_best_model: eval_loss
+greater_is_better: false
+early_stopping_patience: 3
+early_stopping_threshold: 0.0  # Any improvement counts
+save_total_limit: 3
+# callbacks:
+# - tool_calling_accuracy
+# - early_stopping
+
+## Training parameters
 gradient_accumulation_steps: 8
-gradient_checkpointing: true # gradient checkpointing doesn't work well with 4-bit quantization and deepspeed ZeRO-3
+gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: Qwen3-1.7B-Base-SFT
+hub_model_id: Qwen3-1.7B-Instruct-SFT
 hub_strategy: every_save
 learning_rate: 4.0e-05
 log_level: info
@@ -40,7 +53,7 @@ max_grad_norm: 0.2
 max_length: 32768
 max_steps: -1
 num_train_epochs: 5
-output_dir: results/Qwen3-1.7B-Base-SFT
+output_dir: results/Qwen3-1.7B-Instruct-SFT
 overwrite_output_dir: true
 per_device_eval_batch_size: 1
 per_device_train_batch_size: 2
@@ -48,7 +61,6 @@ push_to_hub: true
 report_to:
 - wandb
 save_strategy: epoch
-save_total_limit: 1
 seed: 42
 use_liger_kernel: true
 warmup_ratio: 0.03
