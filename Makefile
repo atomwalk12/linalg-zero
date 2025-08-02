@@ -108,20 +108,11 @@ sft-debug: ## Run SFT training on single GPU
 	@echo "🚀 Running SFT training on single GPU"
 	@uv run python linalg_zero/sft.py --config $(SFT_CONFIG)
 
-.PHONY: sft-debug-resume
-sft-debug-resume: ## Resume SFT training from checkpoint (single GPU)
-	@echo "🚀 Resuming SFT training from checkpoint (single GPU)"
-	@uv run python linalg_zero/sft.py --config $(SFT_CONFIG) --resume_from_checkpoint results/Qwen3-1.7B-Base-SFT
 
 .PHONY: sft-distributed
 sft-distributed: ## Run SFT training with distributed setup using DeepSpeed ZeroStage 3
 	@echo "🚀 Running distributed SFT training with DeepSpeed"
 	@uv run accelerate launch --config_file=$(ACCELERATE_CONFIG) linalg_zero/sft.py --config $(SFT_CONFIG)
-
-.PHONY: sft-distributed-resume
-sft-distributed-resume: ## Resume distributed SFT training from checkpoint
-	@echo "🚀 Resuming distributed SFT training from checkpoint"
-	@uv run accelerate launch --config_file=$(ACCELERATE_CONFIG) linalg_zero/sft.py --config $(SFT_CONFIG) --resume_from_checkpoint results/Qwen3-1.7B-Base-SFT
 
 .PHONY: help
 help:
