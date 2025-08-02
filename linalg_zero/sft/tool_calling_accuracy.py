@@ -8,6 +8,7 @@ import random
 from typing import Any
 
 import torch
+from torch.utils.data import DataLoader
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
@@ -45,8 +46,8 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Run tool calling accuracy evaluation after each eval."""
         if not state.is_world_process_zero:
             return
@@ -67,7 +68,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             # Log metrics
             for metric_name, value in accuracy_metrics.items():
                 state.log_history.append({
-                    "epoch": state.epoch,
+                    "epoch": state.epoch if state.epoch is not None else -1,
                     "step": state.global_step,
                     f"eval_{metric_name}": value,
                 })
@@ -80,7 +81,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
-        eval_dataloader,
+        eval_dataloader: DataLoader,
     ) -> dict[str, float]:
         """Compute tool calling accuracy metrics."""
         model.eval()
@@ -127,7 +128,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         return metrics
 
-    def _sample_eval_data(self, eval_dataloader) -> list[dict[str, Any]]:
+    def _sample_eval_data(self, eval_dataloader: DataLoader) -> list[dict[str, Any]]:
         """Sample evaluation data."""
         all_samples = []
 
@@ -169,7 +170,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         with torch.no_grad():
             # We disable sampling to ensure deterministic behaviour
-            outputs = model.generate(  # type: ignore[reportCallIssue]
+            outputs = model.generate(  # type: ignore[operator]
                 **inputs,
                 max_new_tokens=self.max_new_tokens,
                 do_sample=False,
