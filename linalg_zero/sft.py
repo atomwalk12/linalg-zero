@@ -108,7 +108,6 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
 
         logger.info("Training completed successfully!")
 
-    except Exception:
     except KeyboardInterrupt:
         logger.info("Training interrupted by user.")
     except Exception:
