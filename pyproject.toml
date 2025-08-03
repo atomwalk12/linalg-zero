@@ -47,11 +47,10 @@ dependencies = [
     "argilla>=2.8.0",
     "pydantic>=2.11.7",
     "typing-extensions>=4.14.1",
-    "flash-attn>=2.8.2",
+    "flash-attn",
     "liger-kernel>=0.6.1",
     "deepspeed>=0.17.3",
     "huggingface-hub>=0.33.4",
-    "setuptools>=79.0.1",
 ]
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)
@@ -119,7 +118,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling", "hatch-vcs", "setuptools", "wheel"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]

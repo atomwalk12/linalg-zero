@@ -28,3 +28,5 @@ runs:
     - name: Install Python dependencies
       run: uv sync --frozen
       shell: bash
+      env:
+        FLASH_ATTENTION_SKIP_CUDA_BUILD: TRUE
