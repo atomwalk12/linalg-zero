@@ -1,5 +1,61 @@
 from dataclasses import dataclass, field
 
+import trl
+
+
+@dataclass
+class ScriptArguments(trl.ScriptArguments):
+    """
+    Extended version of ScriptArguments with support for dataset mixtures.
+    """
+
+    # Override the dataset_name to make it optional
+    dataset_name: str | None = field(
+        default=None, metadata={"help": "Dataset name. Can be omitted if using dataset_mixture."}
+    )
+
+
+@dataclass
+class SFTConfig(trl.SFTConfig):
+    early_stopping_patience: int = field(
+        default=3, metadata={"help": "The number of epochs to wait before early stopping."}
+    )
+    early_stopping_threshold: float = field(
+        default=0.0, metadata={"help": "Minimum improvement required to reset patience counter."}
+    )
+
+    benchmarks: list[str] = field(
+        default_factory=lambda: [],
+        metadata={"help": "The benchmarks to run after training."},
+    )
+    callbacks: list[str] = field(
+        default_factory=lambda: [],
+        metadata={"help": "The callbacks to run during training."},
+    )
+    chat_template: str | None = field(default=None, metadata={"help": "The chat template to use."})
+    system_prompt: str | None = field(
+        default=None,
+        metadata={"help": "The optional system prompt to use for benchmarking."},
+    )
+    hub_model_revision: str | None = field(
+        default="main",
+        metadata={"help": "The Hub model branch to push the model to."},
+    )
+    overwrite_hub_revision: bool = field(default=False, metadata={"help": "Whether to overwrite the Hub revision."})
+    push_to_hub_revision: bool = field(default=False, metadata={"help": "Whether to push to a Hub revision/branch."})
+    wandb_entity: str | None = field(
+        default=None,
+        metadata={"help": ("The entity to store runs under.")},
+    )
+    wandb_project: str | None = field(
+        default=None,
+        metadata={"help": ("The project to store runs under.")},
+    )
+    wandb_run_group: str | None = field(
+        default=None,
+        metadata={"help": ("The group to store runs under.")},
+    )
+
 
 @dataclass
 class DatasetGenerationConfig:

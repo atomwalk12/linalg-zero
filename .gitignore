@@ -143,3 +143,5 @@ logs
 models
 notebooks
 *DE.md
+wandb/
+results/

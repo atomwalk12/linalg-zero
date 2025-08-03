@@ -5,7 +5,8 @@
 install: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
 	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
-	@uv sync
+	@uv sync --locked
+	@uv pip install setuptools flash-attn --no-build-isolation
 	@uv run pre-commit install
 
 .PHONY: setup-dev
@@ -97,6 +98,28 @@ distillation-vllm: ## Start the vLLM server
 distillation: ## Run the distillation pipeline using the vllm config
 	@echo "🚀 Running distillation pipeline"
 	@uv run python linalg_zero/distillation/run.py --config linalg_zero/config/distillation/vllm_debug.yaml
+
+# SFT Training Commands
+SFT_CONFIG=linalg_zero/config/sft/sft_debug_config.yaml
+# SFT_CONFIG=linalg_zero/config/sft/sft_config.yaml
+ACCELERATE_CONFIG=linalg_zero/config/sft/accelerate/zero3.yaml
+
+.PHONY: sft-debug
+sft-debug: ## Run SFT training on single GPU
+	@echo "🚀 Running SFT training on single GPU"
+	@uv run python linalg_zero/sft.py --config $(SFT_CONFIG)
+
+
+.PHONY: sft-distributed
+sft-distributed: ## Run SFT training with distributed setup using DeepSpeed ZeroStage 3
+	@echo "🚀 Running distributed SFT training with DeepSpeed"
+	@uv run accelerate launch --config_file=$(ACCELERATE_CONFIG) linalg_zero/sft.py --config $(SFT_CONFIG)
+
+
+.PHONY: grpo-debug
+grpo-debug: ## Run GRPO training on single GPU
+	@echo "🚀 Running GRPO training on single GPU"
+	@cd linalg_zero/grpo/verl && bash examples/sglang_multiturn/run_qwen2.5-1.5b-instruct_gsm8k_multiturn_1xgpu.sh
 
 .PHONY: help
 help:

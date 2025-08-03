@@ -24,6 +24,7 @@ from linalg_zero.distillation.utils import (
     create_llm_clients,
     get_libpath,
     load_dataset,
+    prepare_dataset_for_sft,
 )
 from linalg_zero.shared import get_logger, setup_logging
 
@@ -167,6 +168,9 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")
 
         try:
+            # Add the tools column to the dataset, required for SFT
+            prepare_dataset_for_sft(distiset)
+
             # Push to HuggingFace Hub
             distiset.push_to_hub(
                 args.hf_output_dataset,
@@ -196,8 +200,9 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
 if __name__ == "__main__":
     # TODO: remove these lines if not developing locally
-    argv.append("--config")
-    argv.append("linalg_zero/config/distillation/llamacpp_debug.yaml")
+    if "--config" not in argv:
+        argv.append("--config")
+        argv.append("linalg_zero/config/distillation/llamacpp_debug.yaml")
 
     # Check backend type (vllm or llama-cpp)
     USING_VLLM = os.environ.get("USING_VLLM", "False").lower() == "true"
