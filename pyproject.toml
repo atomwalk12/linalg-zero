@@ -47,7 +47,6 @@ dependencies = [
     "argilla>=2.8.0",
     "pydantic>=2.11.7",
     "typing-extensions>=4.14.1",
-    "flash-attn",
     "liger-kernel>=0.6.1",
     "deepspeed>=0.17.3",
     "huggingface-hub>=0.33.4",
@@ -57,7 +56,7 @@ dependencies = [
 [tool.deptry.per_rule_ignores]
 DEP002 = [
     "starlette", "sse-starlette", "starlette-context", "pydantic-settings", "uvicorn", "llama-cpp-python", "vllm",
-    "bs4", "verl", "ipykernel", "bitsandbytes", "fastapi", "anyio", "instructor", "outlines", "pydantic", "flash-attn",
+    "bs4", "verl", "ipykernel", "bitsandbytes", "fastapi", "anyio", "instructor", "outlines", "pydantic",
     "liger-kernel", "deepspeed"
 ]
 # There are some problems installing torch directly, however it is being made available as a transient dependency.
@@ -67,7 +66,7 @@ DEP003 = [
 
 [tool.uv]
 # Instead of using --no-build-isolation from the command line
-no-build-isolation-package = ["flash-attn", "xformers"]
+no-build-isolation-package = ["xformers"]
 constraint-dependencies = [
   "torch",
 ]
