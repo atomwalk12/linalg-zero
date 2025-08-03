@@ -54,7 +54,8 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
     dataset = load_dataset(script_args)
 
-    assert isinstance(dataset, datasets.DatasetDict)  # noqa: S101
+    if not isinstance(dataset, datasets.DatasetDict):
+        raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
 
     if training_args.do_eval:
         # TODO: this is a workaround since we are currently missing the evaluation dataset

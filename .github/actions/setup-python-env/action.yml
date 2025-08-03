@@ -26,7 +26,5 @@ runs:
         cache-suffix: ${{ matrix.python-version }}
 
     - name: Install Python dependencies
-      run: |
-        # Install the package with GPU support in CI
-        uv sync --frozen --no-install-package flash-attn
+      run: uv sync --frozen
       shell: bash

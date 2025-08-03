@@ -5,6 +5,7 @@ Evaluates model's ability to correctly use tools on a subset of eval data.
 """
 
 import random
+import re
 from typing import Any
 
 import torch
@@ -191,9 +192,6 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         # Look for tool call patterns in the text
         try:
-            # Check for function call patterns like: function_name(arg1, arg2)
-            import re
-
             # Pattern for function calls
             pattern = r"(\w+)\s*\((.*?)\)"
             matches = re.findall(pattern, text)

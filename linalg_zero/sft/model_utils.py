@@ -47,10 +47,10 @@ def get_model(model_args: ModelConfig, training_args: SFTConfig) -> AutoModelFor
     device_map = None
     if quantization_config is not None and not using_deepspeed:
         device_map = get_kbit_device_map()
-        print(f"Setting device_map: {device_map}")
+        logger.info(f"Setting device_map: {device_map}")
     else:
         # Device map is not compatible with quantization and deepspeed ZeRO-3``
-        print("Not setting device_map (DeepSpeed detected or no quantization)")
+        logger.info("Not setting device_map (DeepSpeed detected or no quantization)")
 
     model_kwargs = {
         "revision": model_args.model_revision,

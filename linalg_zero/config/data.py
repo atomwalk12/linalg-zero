@@ -17,10 +17,6 @@ class ScriptArguments(trl.ScriptArguments):
 
 @dataclass
 class SFTConfig(trl.SFTConfig):
-    """
-    args for callbacks, benchmarks etc
-    """
-
     early_stopping_patience: int = field(
         default=3, metadata={"help": "The number of epochs to wait before early stopping."}
     )
