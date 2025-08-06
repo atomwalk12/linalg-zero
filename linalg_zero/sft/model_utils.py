@@ -71,22 +71,18 @@ def get_model(model_args: ModelConfig, training_args: SFTConfig) -> AutoModelFor
 def load_dataset(args: ScriptArguments) -> DatasetDict:
     """Load the dataset produced during the distillation step, removing unnecessary columns for SFT."""
 
-    def remove_redundant_columns(dataset: DatasetDict) -> DatasetDict:
+    def remove_redundant_columns(dataset: DatasetDict, required_columns: list[str]) -> DatasetDict:
         """Remove columns from a dataset."""
         if dataset.column_names:
             splits = dict(dataset.column_names.items())
 
             # Remove any redundant columns not using during SFT training. Only 'tools' and 'messages' are relevant.
             dataset = dataset.remove_columns([
-                col
-                for split in splits.values()
-                if split is not None
-                for col in split
-                if col not in ["tools", "messages"]
+                col for split in splits.values() if split is not None for col in split if col not in required_columns
             ])
         return dataset
 
     dataset = hf_load_dataset(args.dataset_name, args.dataset_config)
 
     # Only the ["messages", "tools"] columns are relevant for SFT
-    return remove_redundant_columns(dataset)
+    return remove_redundant_columns(dataset, required_columns=["messages", "tools"])

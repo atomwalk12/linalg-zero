@@ -11,65 +11,98 @@ import logging
 import sys
 from typing import Any
 
-from datasets import Dataset
+from datasets import Dataset, DatasetDict
 from linalg_zero.shared import get_logger, setup_logging
 
 
 def create_debug_dataset() -> list[dict[str, Any]]:
     """Create a comprehensive debug dataset with various linear algebra problems."""
-    from linalg_zero.distillation.components.planner_for_tool_calling import UNIFIED_PLANNING_PROMPT
 
     return [
         {
             "messages": [
-                {"role": "system", "content": UNIFIED_PLANNING_PROMPT},
                 {
                     "role": "user",
                     "content": "What is the Frobenius norm of the product of matrices [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
                 },
             ],
             "ground_truth_result": "17.204650534085253",
+            "ground_tool_calls": [
+                {
+                    "function": {
+                        "arguments": '{"matrix_a": [[1, 2], [3, 4]], "matrix_b": [[2, 0], [1, 3]]}',
+                        "name": "multiply_matrices",
+                    },
+                    "id": "tool_call_0",
+                    "type": "function",
+                },
+                {
+                    "function": {"arguments": '{"matrix": "[result_of_call_0]"}', "name": "frobenius_norm"},
+                    "id": "tool_call_1",
+                    "type": "function",
+                },
+            ],
         },
         {
             "messages": [
-                {"role": "system", "content": UNIFIED_PLANNING_PROMPT},
                 {
                     "role": "user",
-                    "content": "Calculate the determinant of the matrix [[3, 1], [2, 4]].",
+                    "content": "What is the Frobenius norm of the product of matrices [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
                 },
             ],
-            "ground_truth_result": "10.0",
-        },
-        {
-            "messages": [
-                {"role": "system", "content": UNIFIED_PLANNING_PROMPT},
+            "ground_truth_result": "17.204650534085253",
+            "ground_tool_calls": [
                 {
-                    "role": "user",
-                    "content": "Find the trace of the matrix [[1, 2, 3], [4, 5, 6], [7, 8, 9]].",
+                    "function": {
+                        "arguments": '{"matrix_a": [[1, 2], [3, 4]], "matrix_b": [[2, 0], [1, 3]]}',
+                        "name": "multiply_matrices",
+                    },
+                    "id": "tool_call_0",
+                    "type": "function",
                 },
-            ],
-            "ground_truth_result": "15.0",
-        },
-        {
-            "messages": [
-                {"role": "system", "content": UNIFIED_PLANNING_PROMPT},
                 {
-                    "role": "user",
-                    "content": "Compute the L2 norm of the vector [3, 4, 5].",
+                    "function": {"arguments": '{"matrix": "[result_of_call_0]"}', "name": "frobenius_norm"},
+                    "id": "tool_call_1",
+                    "type": "function",
                 },
             ],
-            "ground_truth_result": "7.0710678118654755",
         },
-        {
-            "messages": [
-                {"role": "system", "content": UNIFIED_PLANNING_PROMPT},
-                {
-                    "role": "user",
-                    "content": "What is the rank of the matrix [[1, 2], [2, 4]]?",
-                },
-            ],
-            "ground_truth_result": "1",
-        },
+        # {
+        #     "messages": [
+        #         {
+        #             "role": "user",
+        #             "content": "Calculate the determinant of the matrix [[3, 1], [2, 4]].",
+        #         },
+        #     ],
+        #     "ground_truth_result": "10.0",
+        # },
+        # {
+        #     "messages": [
+        #         {
+        #             "role": "user",
+        #             "content": "Find the trace of the matrix [[1, 2, 3], [4, 5, 6], [7, 8, 9]].",
+        #         },
+        #     ],
+        #     "ground_truth_result": "15.0",
+        # },
+        # {
+        #     "messages": [
+        #         {
+        #             "role": "user",
+        #             "content": "Compute the L2 norm of the vector [3, 4, 5].",
+        #         },
+        #     ],
+        #     "ground_truth_result": "7.0710678118654755",
+        # },
+        # {
+        #     "messages": [
+        #         {
+        #             "role": "user",
+        #             "content": "What is the rank of the matrix [[1, 2], [2, 4]]?",
+        #         },
+        #     ],
+        #     "ground_truth_result": "1",
+        # },
     ]
 
 
@@ -80,12 +113,19 @@ def push_debug_dataset_to_hub(dataset_name: str, private: bool = True) -> None:
     # Create the debug dataset
     debug_data = create_debug_dataset()
 
-    # Convert to HuggingFace Dataset
-    hf_dataset = Dataset.from_list(debug_data)
+    # Split data into train/test (80/20)
+    split_idx = int(0.8 * len(debug_data))
+    train_data = debug_data[:split_idx]
+    test_data = debug_data[split_idx:] if split_idx < len(debug_data) else debug_data[:1]
+
+    # Convert to HuggingFace DatasetDict with train/test splits
+
+    dataset_dict = DatasetDict({"train": Dataset.from_list(train_data), "test": Dataset.from_list(test_data)})
 
     # Push to hub
     logger.info(f"Pushing debug dataset to: {dataset_name}")
-    _ = hf_dataset.push_to_hub(dataset_name, private=private)
+    logger.info(f"Train examples: {len(train_data)}, Test examples: {len(test_data)}")
+    _ = dataset_dict.push_to_hub(dataset_name, private=private)
     logger.info("Debug dataset successfully pushed to hub!")
 
 
