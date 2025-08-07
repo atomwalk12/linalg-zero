@@ -145,3 +145,5 @@ notebooks
 *DE.md
 wandb/
 results/
+*_debug.py
+*_debug.sh

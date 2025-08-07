@@ -4,10 +4,12 @@
 .PHONY: install
 install: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
+	@uv venv .venv --python 3.11
+	@. .venv/bin/activate
 	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
 	@uv sync --locked
 	# It is necessary to install flash-attn after syncing deps via uv, otherwise conflicts arise with CI/CD
-	@uv pip install setuptools flash-attn --no-build-isolation
+	@uv pip install setuptools flash-attn==2.8.2 --no-build-isolation
 	@uv run pre-commit install
 
 .PHONY: setup-dev
@@ -118,15 +120,9 @@ sft-distributed: ## Run SFT training with distributed setup using DeepSpeed Zero
 
 
 .PHONY: grpo-debug
-grpo-debug: ## Run GRPO training on single GPU
+grpo-debug: ## Run GRPO training using multi-turn rollout (multiple tool invocations per turn)
 	@echo "🚀 Running GRPO training on single GPU"
-	@cd linalg_zero/grpo/verl && bash ../run_qwen2.5-0.5b-instruct_gsm8k_multiturn_1xgpu.sh
-
-# TODO[debug]: temporary
-.PHONY: grpo-working
-grpo-working: ## Run GRPO training on single GPU
-	@echo "🚀 Running GRPO training on single GPU"
-	@cd linalg_zero/grpo/verl && bash examples/sglang_multiturn/run_qwen2.5-0.5b-instruct_gsm8k_multiturn_1xgpu.sh
+	@cd linalg_zero/grpo/verl && bash ../run_grpo_training.sh
 
 .PHONY: create-grpo-dataset
 create-grpo-dataset: ## Create the GRPO dataset

@@ -207,18 +207,10 @@ def get_multiplication(a: int, b: int) -> int:
 def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
-        "add_numbers": add_numbers,
-        "multiply_numbers": multiply_numbers,
-        "divide_numbers": divide_numbers,
         "multiply_matrices": multiply_matrices,
-        "transpose_matrix": transpose_matrix,
-        "determinant": determinant,
         "frobenius_norm": frobenius_norm,
-        "matrix_trace": matrix_trace,
-        "permutation_count": permutation_count,
-        "vector_dot_product": vector_dot_product,
-        "get_division": get_division,
-        "get_multiplication": get_multiplication,
+        "add_numbers": add_numbers,
+        "divide_numbers": divide_numbers,
     }
 
 

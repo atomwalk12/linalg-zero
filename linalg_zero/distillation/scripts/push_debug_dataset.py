@@ -67,42 +67,6 @@ def create_debug_dataset() -> list[dict[str, Any]]:
                 },
             ],
         },
-        # {
-        #     "messages": [
-        #         {
-        #             "role": "user",
-        #             "content": "Calculate the determinant of the matrix [[3, 1], [2, 4]].",
-        #         },
-        #     ],
-        #     "ground_truth_result": "10.0",
-        # },
-        # {
-        #     "messages": [
-        #         {
-        #             "role": "user",
-        #             "content": "Find the trace of the matrix [[1, 2, 3], [4, 5, 6], [7, 8, 9]].",
-        #         },
-        #     ],
-        #     "ground_truth_result": "15.0",
-        # },
-        # {
-        #     "messages": [
-        #         {
-        #             "role": "user",
-        #             "content": "Compute the L2 norm of the vector [3, 4, 5].",
-        #         },
-        #     ],
-        #     "ground_truth_result": "7.0710678118654755",
-        # },
-        # {
-        #     "messages": [
-        #         {
-        #             "role": "user",
-        #             "content": "What is the rank of the matrix [[1, 2], [2, 4]]?",
-        #         },
-        #     ],
-        #     "ground_truth_result": "1",
-        # },
     ]
 
 
