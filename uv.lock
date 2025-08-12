@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
@@ -1757,7 +1757,7 @@ requires-dist = [
     { name = "instructor", specifier = ">=1.9.2" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "liger-kernel", specifier = ">=0.6.1" },
-    { name = "llama-cpp-python", specifier = "==0.3.13" },
+    { name = "llama-cpp-python", specifier = "==0.3.15" },
     { name = "math-verify", specifier = ">=0.8.0" },
     { name = "outlines", specifier = ">=0.1.0" },
     { name = "pydantic", specifier = ">=2.11.7" },
@@ -1792,7 +1792,7 @@ dev = [
 
 [[package]]
 name = "llama-cpp-python"
-version = "0.3.13"
+version = "0.3.15"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "diskcache" },
@@ -1800,7 +1800,7 @@ dependencies = [
     { name = "numpy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/3d/a426f9777301569a17f3c3bf4ecc3755120531c008e4601450eec13c09ac/llama_cpp_python-0.3.13.tar.gz", hash = "sha256:307ce2abf62c7cf574234b8c633978cf92eb1c4b3cfe6babef889d812c298d84", size = 50059668, upload-time = "2025-07-15T11:43:59.734Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/fa/8917d9655d105f7675106a6076c489ed23d79d42b79bad56a444c9458735/llama_cpp_python-0.3.15.tar.gz", hash = "sha256:a2cf42935a9ff9e55804db01d6827b4862d7ab10ae72ea8e38b7d180d2c640f3", size = 50649779, upload-time = "2025-08-07T13:56:54.856Z" }
 
 [[package]]
 name = "llguidance"
