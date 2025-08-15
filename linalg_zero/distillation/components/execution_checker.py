@@ -23,7 +23,7 @@ class MathVerifySemanticChecker(Step):
 
     Input columns:
         - messages (list[dict]): Conversation messages from pipeline
-        - ground_truth_result (str): Expected correct result from dataset
+        - ground_truth (str): Expected correct result from dataset
 
     Output columns:
         - final_result_correct (bool): Whether final result matches ground truth
@@ -36,7 +36,7 @@ class MathVerifySemanticChecker(Step):
     def inputs(self) -> StepColumns:
         return {
             "messages": True,
-            "ground_truth_result": True,
+            "ground_truth": True,
         }
 
     @property
@@ -91,7 +91,7 @@ class MathVerifySemanticChecker(Step):
 
         """
         messages = input_data["messages"]
-        ground_truth = input_data["ground_truth_result"]
+        ground_truth = input_data["ground_truth"]
 
         # Extract result from <RESULT></RESULT> tags in messages
         extracted_result = self._extract_result_from_messages(messages)
@@ -159,21 +159,21 @@ if __name__ == "__main__":
                     {"role": "user", "content": "What is 2 + 2?"},
                     {"role": "assistant", "content": "The answer is **4**.\n\n<RESULT>4</RESULT>"},
                 ],
-                "ground_truth_result": "4",
+                "ground_truth": "4",
             },
             {
                 "messages": [
                     {"role": "user", "content": "What is the determinant of [[2, 1], [3, 4]]?"},
                     {"role": "assistant", "content": "The determinant is **5**.\n\n<RESULT>5</RESULT>"},
                 ],
-                "ground_truth_result": "5",
+                "ground_truth": "5",
             },
             {
                 "messages": [
                     {"role": "user", "content": "What is 1/2 + 1/3?"},
                     {"role": "assistant", "content": "The result is **5/6**.\n\n<RESULT>5/6</RESULT>"},
                 ],
-                "ground_truth_result": "5/6",
+                "ground_truth": "5/6",
             },
         ]
 
@@ -185,7 +185,7 @@ if __name__ == "__main__":
         for i, result in enumerate(batch):
             print(f"\nTest {i + 1}:")
             print(f"  Extracted: '{result.get('extracted_result')}'")
-            print(f"  Ground Truth: '{result.get('ground_truth_result')}'")
+            print(f"  Ground Truth: '{result.get('ground_truth')}'")
             print(f"  Correct: {result['final_result_correct']}")
             print(f"  Keep Row: {result['keep_row_after_semantic_check']}")
             print(f"  Details: {result['verification_details']}")

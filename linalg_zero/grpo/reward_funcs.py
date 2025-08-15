@@ -1,0 +1,91 @@
+from linalg_zero.grpo.answer_parser import verify_answers
+from linalg_zero.grpo.verifiers.xml_parser import XMLParser
+from linalg_zero.shared.lib import LibTypes
+
+
+def reward_tool_output(tool_output: LibTypes, ground_truth: LibTypes) -> float:
+    """Reward function that checks if the tool output matches the ground truth."""
+    try:
+        return 1.0 if verify_answers(str(tool_output), str(ground_truth)) else 0.0
+    except Exception:
+        return 0.0
+
+
+def reward_response_format(parser: XMLParser, completion: list[dict] | str, ground_truth: str) -> float:
+    reward = 0
+    try:
+        if isinstance(completion, list):
+            # Extract the last assistant message to score during a user-assistant interaction
+            # Malformed tool are not penalized here, but during execution in `LinalgZeroTool`
+            assistant_messages = parser.get_assistant_messages(completion)
+            if not assistant_messages:
+                return 0.0
+
+            # The response format is starts with <think> tags and ends with <answer> tags
+            message = assistant_messages[-1]["content"]
+        else:
+            message = completion
+
+        regex = (
+            r"^<think>\s*([^<]*(?:<(?!/?think>)[^<]*)*)\s*<\/think>\s*"
+            r"<answer>\s*([\s\S]*?)\s*<\/answer>$"
+        )
+
+        # Check format using parser method
+        if parser.check_format(message, regex, expected_groups=2):
+            reward = 1.0
+    except Exception:
+        print(f"Error in reward_response_format: {completion}")
+        pass
+
+    return reward
+
+
+def reward_final_answer(parser: XMLParser, completion: list[dict] | str, ground_truth: LibTypes) -> float:
+    """Reward function that checks if the completion answer matches the ground truth."""
+    try:
+        if isinstance(completion, list):
+            assistant_messages = parser.get_assistant_messages(completion)
+            if not assistant_messages:
+                return 0.0
+
+            message = assistant_messages[-1]["content"]
+        else:
+            message = completion
+
+        answer = parser.extract_answer(message)
+        if answer is None:
+            return 0.0
+        return 1.0 if verify_answers(str(answer), str(ground_truth)) else 0.0
+    except Exception:
+        return 0.0
+
+
+def reward_num_tool_calls(parser: XMLParser, completion: list[dict]) -> float:
+    """Count the number of tool calls in the completion."""
+    num_tool_calls = len(parser.get_tool_messages(completion))
+    return float(num_tool_calls)
+
+
+def reward_num_tool_errors(parser: XMLParser, completion: list[dict]) -> float:
+    """Count the number of errors in tool messages."""
+    num_errors = sum([
+        1.0
+        for msg in parser.get_tool_messages(completion)
+        if (content := msg.get("content")) and "error" in content.lower()
+    ])
+    return num_errors
+
+
+def reward_execution_success_rate(parser: XMLParser, completion: list[dict]) -> float:
+    """Combines num_tool_calls and num_errors to return execution success rate."""
+    tool_messages = parser.get_tool_messages(completion)
+    num_tool_calls = len(tool_messages)
+
+    if num_tool_calls == 0:
+        return 0.0
+
+    num_errors = sum(1.0 for msg in tool_messages if (content := msg.get("content")) and "error" in content.lower())
+
+    # This returns the success rate, as opposed to the error rate
+    return 1.0 - (num_errors / num_tool_calls)

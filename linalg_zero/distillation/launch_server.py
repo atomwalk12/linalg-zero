@@ -8,7 +8,7 @@ from dataclasses import asdict
 from trl import TrlParser
 
 from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
-from linalg_zero.shared import get_logger, setup_logging
+from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 def launch_llamacpp(config: LlamaCppServerConfig) -> None:
