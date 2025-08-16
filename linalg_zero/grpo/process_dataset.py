@@ -5,13 +5,15 @@ See reference script: linalg_zero/grpo/verl/examples/data_preprocess/gsm8k_multi
 import argparse
 import json
 import os
+from collections.abc import Callable
+from typing import Any
 
 import yaml
 from argilla import Dataset
 from verl.tools.schemas import OpenAIFunctionToolSchema
 
 import datasets
-from linalg_zero.shared.lib import get_lib
+from linalg_zero.shared.lib import LibTypesList, get_lib
 from linalg_zero.shared.system_prompts import MATH_TOOL_PROMPT
 from linalg_zero.shared.utils import get_function_schema, push_to_hub
 
@@ -20,16 +22,12 @@ def remove_redundant_columns(dataset: Dataset, required_columns: list[str]) -> D
     return dataset.remove_columns([col for col in dataset.column_names if col not in required_columns])
 
 
-def generate_tool_specification():
+def generate_tool_specification() -> None:
     """
     Update the linalg_tool_config.yaml file with current function schema.
     This gives the model information on how to use tools.
     """
     config_path = os.path.join(os.path.dirname(__file__), "config", "linalg_tool_config.yaml")
-
-    # Read existing YAML file
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
 
     # Get current function schema - it returns a JSON string, so parse it
     function_schemas_json = get_function_schema()
@@ -39,7 +37,7 @@ def generate_tool_specification():
         function_schemas = function_schemas_json
 
     # Create a new tool configuration
-    validated_schemas = {"tools": []}
+    validated_schemas: dict[str, list] = {"tools": []}
     for func_schema in function_schemas:
         try:
             OpenAIFunctionToolSchema.model_validate(func_schema, strict=True)
@@ -64,12 +62,55 @@ def generate_tool_specification():
     print(f"Available functions: {[func['function']['name'] for func in function_schemas]}")
 
 
-def make_map_fn(split_name: str):
+def normalize_dataset_schema(ground_truth: str, stepwise_ground_truths: str) -> tuple[dict, dict]:
+    """
+    This function ensures that the tool arguments and interaction arguments are normalized.
+    This is necessary otherwise validation fails. The ground truth and stepwise ground truths
+    are both in JSON format.
+    """
+
+    if type(json.loads(ground_truth)) not in LibTypesList:
+        raise ValueError(f"Ground truth is not a valid type: {type(ground_truth)}")
+
+    if len(json.loads(stepwise_ground_truths)) == 0:
+        raise ValueError("Stepwise ground truth is empty")
+
+    tool_kwargs = {}
+    interaction_kwargs = {}
+    lib_names = get_lib().keys()
+
+    for lib_name in lib_names:
+        tool_kwargs[lib_name] = {
+            "create_kwargs": {"stepwise_ground_truth": json.dumps({}), "ground_truth": json.dumps({})}
+        }
+
+    stepwise_ground_arr = json.loads(stepwise_ground_truths)
+    for stepwise_truth in stepwise_ground_arr:
+        for key, value in stepwise_truth.items():
+            if type(value) not in LibTypesList:
+                raise ValueError(f"Stepwise truth is not a valid type: {type(stepwise_truth)}")
+
+            if key not in lib_names:
+                raise ValueError(f"Key {key} not in lib_names")
+
+            value = json.dumps(value)
+            tool_kwargs[key]["create_kwargs"].update({"stepwise_ground_truth": value, "ground_truth": ground_truth})
+
+    interaction_kwargs = {
+        "stepwise_ground_truths": stepwise_ground_truths,
+        "ground_truth": ground_truth,
+        "name": "linalg",
+    }
+
+    return tool_kwargs, interaction_kwargs
+
+
+def make_map_fn(split_name: str) -> Callable[[dict[str, Any], int], dict[str, Any]]:
     """Create mapping function for dataset transformation."""
 
-    def process_fn(example, idx):
+    def process_fn(example: dict[str, Any], idx: int) -> dict[str, Any]:
+        # Process the user messages
         user_content = example["messages"][0]["content"]
-        ground_truth = example["ground_truth"]
         messages = []
         messages.append({
             "role": "system",
@@ -80,18 +121,11 @@ def make_map_fn(split_name: str):
             "content": user_content,
         })
 
-        tool_kwargs = {}
-        lib_names = get_lib().keys()
-
         # Ensure that the kwargs schema is normalized across all examples, otherwise training fails
-        for lib_name in lib_names:
-            tool_kwargs[lib_name] = {"create_kwargs": {"ground_truth": json.dumps({})}}
+        stepwise_ground_truths = example["stepwise_ground_truths"]
+        ground_truth = example["ground_truth"]
 
-        for key, value in json.loads(ground_truth).items():
-            if key not in lib_names:
-                raise ValueError(f"Key {key} not in lib_names")
-
-            tool_kwargs[key] = {"create_kwargs": {"ground_truth": value}}
+        tool_kwargs, interaction_kwargs = normalize_dataset_schema(ground_truth, stepwise_ground_truths)
 
         # Generate VERL-compatible data
         data = {
@@ -105,10 +139,7 @@ def make_map_fn(split_name: str):
                 "original_messages": example["messages"],
                 "need_tools_kwargs": True,
                 "tools_kwargs": tool_kwargs,
-                "interaction_kwargs": {
-                    "name": "linalg",
-                    "ground_truth": ground_truth,
-                },
+                "interaction_kwargs": interaction_kwargs,
             },
         }
         return data
@@ -116,7 +147,7 @@ def make_map_fn(split_name: str):
     return process_fn
 
 
-def generate_parquet_files(dataset: Dataset, output_dir: str, args: argparse.Namespace):
+def generate_parquet_files(dataset: Dataset, output_dir: str, args: argparse.Namespace) -> dict[str, Dataset]:
     """Generate parquet files for the dataset."""
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
@@ -144,13 +175,13 @@ def generate_parquet_files(dataset: Dataset, output_dir: str, args: argparse.Nam
     return processed_datasets
 
 
-def main(args: argparse.Namespace):
+def main(args: argparse.Namespace) -> None:
     # Generation tool specification file
     generate_tool_specification()
 
     # Load the base dataset from HuggingFace
     print(f"Loading dataset: {args.dataset_name}")
-    dataset = datasets.load_dataset(args.dataset_name)
+    dataset = datasets.load_dataset(args.dataset_name)  # type: ignore[attr-defined]
 
     if "train" not in dataset or "test" not in dataset:
         raise ValueError("Dataset must contain train and test splits")
