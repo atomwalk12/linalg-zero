@@ -11,6 +11,7 @@ from argilla import Dataset
 from verl.tools.schemas import OpenAIFunctionToolSchema
 
 import datasets
+from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.system_prompts import MATH_TOOL_PROMPT
 from linalg_zero.shared.utils import get_function_schema, push_to_hub
 
@@ -20,7 +21,10 @@ def remove_redundant_columns(dataset: Dataset, required_columns: list[str]) -> D
 
 
 def generate_tool_specification():
-    """Update the linalg_tool_config.yaml file with current function schema from get_function_schema()"""
+    """
+    Update the linalg_tool_config.yaml file with current function schema.
+    This gives the model information on how to use tools.
+    """
     config_path = os.path.join(os.path.dirname(__file__), "config", "linalg_tool_config.yaml")
 
     # Read existing YAML file
@@ -76,7 +80,20 @@ def make_map_fn(split_name: str):
             "content": user_content,
         })
 
-        # Create VERL-compatible format
+        tool_kwargs = {}
+        lib_names = get_lib().keys()
+
+        # Ensure that the kwargs schema is normalized across all examples, otherwise training fails
+        for lib_name in lib_names:
+            tool_kwargs[lib_name] = {"create_kwargs": {"ground_truth": json.dumps({})}}
+
+        for key, value in json.loads(ground_truth).items():
+            if key not in lib_names:
+                raise ValueError(f"Key {key} not in lib_names")
+
+            tool_kwargs[key] = {"create_kwargs": {"ground_truth": value}}
+
+        # Generate VERL-compatible data
         data = {
             "data_source": "atomwalk12/linalg-debug",
             "prompt": messages,
@@ -87,14 +104,7 @@ def make_map_fn(split_name: str):
                 "index": idx,
                 "original_messages": example["messages"],
                 "need_tools_kwargs": True,
-                "tools_kwargs": {
-                    "multiply_matrices": {
-                        "create_kwargs": {"ground_truth": ground_truth, "messages": messages},
-                    },
-                    "frobenius_norm": {
-                        "create_kwargs": {"ground_truth": ground_truth, "messages": messages},
-                    },
-                },
+                "tools_kwargs": tool_kwargs,
                 "interaction_kwargs": {
                     "name": "linalg",
                     "ground_truth": ground_truth,
@@ -111,7 +121,7 @@ def generate_parquet_files(dataset: Dataset, output_dir: str, args: argparse.Nam
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # Store processed datasets for potential hub upload
+    # Store processed datasets for huggingface upload
     processed_datasets = {}
 
     # Save each split as parquet
@@ -120,13 +130,12 @@ def generate_parquet_files(dataset: Dataset, output_dir: str, args: argparse.Nam
         print(f"Saving {split_name} split to {output_path}")
         print(f"Split contains {len(split_data)} examples")
 
-        # Apply transformation using single map function like GSM8k
+        # Apply transformation using single map function similar to GSM8k example
         dataset = split_data.map(function=make_map_fn(split_name), with_indices=True)
         dataset = remove_redundant_columns(dataset, ["extra_info", "reward_model", "prompt", "ability", "data_source"])
 
-        # Store processed dataset
+        # Store and save to parquet
         processed_datasets[split_name] = dataset
-
         dataset.to_parquet(output_path)
         print(f"Saved {output_path}")
 
@@ -136,18 +145,16 @@ def generate_parquet_files(dataset: Dataset, output_dir: str, args: argparse.Nam
 
 
 def main(args: argparse.Namespace):
-    # This creates the necessary tool specification file required by the GRPO trainer.
+    # Generation tool specification file
     generate_tool_specification()
 
-    # Load the base dataset from HuggingFace. This dataset is the one generating during step 1.
+    # Load the base dataset from HuggingFace
     print(f"Loading dataset: {args.dataset_name}")
     dataset = datasets.load_dataset(args.dataset_name)
 
     if "train" not in dataset or "test" not in dataset:
         raise ValueError("Dataset must contain train and test splits")
 
-    # Here, we generate the parquet files that are necessary for GRPO training,
-    # then push them to the hub. It will be automatically loaded by the GRPO trainer.
     dataset = generate_parquet_files(dataset, args.output_dir, args)
     push_to_hub(dataset, args.hub_dataset_name, private=False)
 
