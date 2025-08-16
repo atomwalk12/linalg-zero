@@ -39,7 +39,7 @@ dependencies = [
     "uvicorn>=0.35.0",
     "ipykernel>=6.29.5",
     "bitsandbytes>=0.46.1",
-    "llama-cpp-python==0.3.13",
+    "llama-cpp-python==0.3.16",
     "vllm>=0.9.2",
     "bs4>=0.0.2",
     "verl>=0.5.0",
