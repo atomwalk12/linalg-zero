@@ -115,11 +115,23 @@ sft-distributed: ## Run SFT training with distributed setup using DeepSpeed Zero
 	@echo "🚀 Running distributed SFT training with DeepSpeed"
 	@uv run accelerate launch --config_file=$(ACCELERATE_CONFIG) linalg_zero/sft.py --config $(SFT_CONFIG)
 
-
 .PHONY: grpo-debug
-grpo-debug: ## Run GRPO training on single GPU
+grpo-debug: ## Run GRPO training using multi-turn rollout
 	@echo "🚀 Running GRPO training on single GPU"
-	@cd linalg_zero/grpo/verl && bash examples/sglang_multiturn/run_qwen2.5-1.5b-instruct_gsm8k_multiturn_1xgpu.sh
+	@cd linalg_zero/grpo/verl && . .venv/bin/activate && bash ../run_grpo_training.sh
+
+.PHONY: prepare-grpo-dataset
+prepare-grpo-dataset: ## Prepare the GRPO dataset
+	@echo "🚀 Creating GRPO dataset"
+	@uv run linalg_zero/grpo/process_dataset.py
+
+.PHONY: run-training
+run-training: ## Run the training pipeline
+	@echo "🚀 Running training pipeline"
+	@$(MAKE) setup-dev
+	@$(MAKE) prepare-grpo-dataset
+	@echo "🚀 Training pipeline completed"
+
 
 .PHONY: help
 help:

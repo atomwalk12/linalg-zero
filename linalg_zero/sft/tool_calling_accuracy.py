@@ -15,7 +15,7 @@ from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
-from linalg_zero.shared import get_logger
+from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
 

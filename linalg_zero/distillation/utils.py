@@ -27,8 +27,8 @@ from linalg_zero.config.data import (
     VllmServerConfig,
 )
 from linalg_zero.distillation.data import AssistantMessage
-from linalg_zero.distillation.fc_fns import get_tools
-from linalg_zero.shared import get_logger, setup_logging
+from linalg_zero.shared.lib import get_tools
+from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 # TODO: is this the right file to store this class in?
@@ -368,7 +368,7 @@ def _convert_item_to_argilla_record(item: dict[str, Any]) -> dict[str, str] | No
 
         return {
             "problem": problem,
-            "ground_truth": str(item.get("ground_truth_result", "")),
+            "ground_truth": str(item.get("ground_truth", "")),
             "tool_planning_thought": tool_planning_thought,
             "tool_calls": tool_calls,
             "execution_result": str(item.get("execution_result", "")),

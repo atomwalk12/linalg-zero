@@ -2,8 +2,9 @@
 
 import math
 from collections.abc import Callable
-from typing import Any
+from typing import Any, get_origin, get_type_hints
 
+import sympy as sp
 from transformers.utils.chat_template_utils import get_json_schema
 
 
@@ -49,7 +50,13 @@ def divide_numbers(dividend: float, divisor: float) -> float:
 
 
 def multiply_matrices(matrix_a: list[list[float]], matrix_b: list[list[float]]) -> list[list[float]]:
-    """Multiply two matrices.
+    """Multiply two matrices using SymPy.
+
+    Examples:
+        >>> multiply_matrices([[1, 2], [3, 4]], [[2, 0], [1, 3]])
+        [[4, 6], [10, 12]]
+        >>> multiply_matrices([[1, 0], [0, 1]], [[5, 6], [7, 8]])  # Identity matrix
+        [[5, 6], [7, 8]]
 
     Args:
         matrix_a: The first matrix as a list of lists.
@@ -58,20 +65,15 @@ def multiply_matrices(matrix_a: list[list[float]], matrix_b: list[list[float]]) 
     Returns:
         The product matrix as a list of lists.
     """
-    rows_a, cols_a = len(matrix_a), len(matrix_a[0])
-    rows_b, cols_b = len(matrix_b), len(matrix_b[0])
+    # Convert to SymPy matrices
+    sym_a = sp.Matrix(matrix_a)
+    sym_b = sp.Matrix(matrix_b)
 
-    if cols_a != rows_b:
-        raise ValueError("Matrix dimensions incompatible for multiplication")
+    # Perform multiplication
+    result_matrix = sym_a * sym_b
 
-    result = [[0.0 for _ in range(cols_b)] for _ in range(rows_a)]
-
-    for i in range(rows_a):
-        for j in range(cols_b):
-            for k in range(cols_a):
-                result[i][j] += matrix_a[i][k] * matrix_b[k][j]
-
-    return result
+    # Convert back to list of lists with float values
+    return [[float(result_matrix[i, j]) for j in range(result_matrix.cols)] for i in range(result_matrix.rows)]
 
 
 def transpose_matrix(matrix: list[list[float]]) -> list[list[float]]:
@@ -118,6 +120,14 @@ def determinant(matrix: list[list[float]]) -> float:
 
 def frobenius_norm(matrix: list[list[float]]) -> float:
     """Calculate the Frobenius norm of a matrix.
+
+    Examples:
+        >>> frobenius_norm([[1, 0], [0, 1]])  # Identity matrix
+        1.4142135623730951
+        >>> frobenius_norm([[3, 4]])  # Single row
+        5.0
+        >>> frobenius_norm([[1], [2], [3]])  # Single column
+        3.7416573867739413
 
     Args:
         matrix: The matrix as a list of lists.
@@ -208,20 +218,44 @@ def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
         "add_numbers": add_numbers,
-        "multiply_numbers": multiply_numbers,
         "divide_numbers": divide_numbers,
         "multiply_matrices": multiply_matrices,
-        "transpose_matrix": transpose_matrix,
-        "determinant": determinant,
         "frobenius_norm": frobenius_norm,
-        "matrix_trace": matrix_trace,
-        "permutation_count": permutation_count,
-        "vector_dot_product": vector_dot_product,
-        "get_division": get_division,
-        "get_multiplication": get_multiplication,
     }
 
 
 def get_tools() -> list[dict[str, Any]]:
     """Returns the tool representation of the functions in the library."""
     return [get_json_schema(func) for func in get_lib().values()]
+
+
+def assert_lib_returns(tested_types: set[type]) -> list[type]:
+    """
+    This function extracts all function return types from the library.
+    The reward functions used during GRPO were tested against these types.
+    """
+    lib_functions = get_lib()
+    return_types = set()
+
+    for func in lib_functions.values():
+        type_hints = get_type_hints(func)
+        if "return" in type_hints:
+            type_hint = type_hints["return"]
+            base_type = get_origin(type_hint) or type_hint
+
+            if base_type not in tested_types:
+                raise ValueError(f"Unexpected return type: {type_hint}")
+
+            return_types.add(base_type)
+
+    if len(return_types) == 0:
+        raise ValueError("No return types found")
+
+    return list(return_types)
+
+
+# This is a check to ensure grpo training uses well-tested types in math-verify.
+# This only influences the reward functions, and will likely work with other
+# types as well. Make sure the types defined below coincide.
+LibTypesList = assert_lib_returns({float, int, list})
+LibTypes = float | int | list

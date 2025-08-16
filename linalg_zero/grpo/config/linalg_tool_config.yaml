@@ -1,0 +1,110 @@
+tools:
+- class_name: linalg_zero.grpo.linalg_zero_tool.LinalgZeroTool
+  config:
+    type: native
+  tool_schema:
+    function:
+      description: Add two numbers together.
+      name: add_numbers
+      parameters:
+        properties:
+          a:
+            description: The first number.
+            type: number
+          b:
+            description: The second number.
+            type: number
+        required:
+        - a
+        - b
+        type: object
+      return:
+        description: The sum of the two numbers.
+        type: number
+    type: function
+- class_name: linalg_zero.grpo.linalg_zero_tool.LinalgZeroTool
+  config:
+    type: native
+  tool_schema:
+    function:
+      description: Divide two numbers.
+      name: divide_numbers
+      parameters:
+        properties:
+          dividend:
+            description: The number to be divided.
+            type: number
+          divisor:
+            description: The number to divide by.
+            type: number
+        required:
+        - dividend
+        - divisor
+        type: object
+      return:
+        description: The result of the division.
+        type: number
+    type: function
+- class_name: linalg_zero.grpo.linalg_zero_tool.LinalgZeroTool
+  config:
+    type: native
+  tool_schema:
+    function:
+      description: "Multiply two matrices using SymPy.\n\nExamples:\n    >>> multiply_matrices([[1,\
+        \ 2], [3, 4]], [[2, 0], [1, 3]])\n    [[4, 6], [10, 12]]\n    >>> multiply_matrices([[1,\
+        \ 0], [0, 1]], [[5, 6], [7, 8]])  # Identity matrix\n    [[5, 6], [7, 8]]"
+      name: multiply_matrices
+      parameters:
+        properties:
+          matrix_a:
+            description: The first matrix as a list of lists.
+            items:
+              items:
+                type: number
+              type: array
+            type: array
+          matrix_b:
+            description: The second matrix as a list of lists.
+            items:
+              items:
+                type: number
+              type: array
+            type: array
+        required:
+        - matrix_a
+        - matrix_b
+        type: object
+      return:
+        description: The product matrix as a list of lists.
+        items:
+          items:
+            type: number
+          type: array
+        type: array
+    type: function
+- class_name: linalg_zero.grpo.linalg_zero_tool.LinalgZeroTool
+  config:
+    type: native
+  tool_schema:
+    function:
+      description: "Calculate the Frobenius norm of a matrix.\n\nExamples:\n    >>>\
+        \ frobenius_norm([[1, 0], [0, 1]])  # Identity matrix\n    1.4142135623730951\n\
+        \    >>> frobenius_norm([[3, 4]])  # Single row\n    5.0\n    >>> frobenius_norm([[1],\
+        \ [2], [3]])  # Single column\n    3.7416573867739413"
+      name: frobenius_norm
+      parameters:
+        properties:
+          matrix:
+            description: The matrix as a list of lists.
+            items:
+              items:
+                type: number
+              type: array
+            type: array
+        required:
+        - matrix
+        type: object
+      return:
+        description: The Frobenius norm of the matrix.
+        type: number
+    type: function
