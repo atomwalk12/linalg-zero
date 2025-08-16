@@ -11,7 +11,7 @@ class XMLParser:
         return [msg for msg in completion if msg["role"] == "tool"]
 
     def extract_answer(self, message: str) -> str | None:
-        """Extract answer content from the last <answer> tag (handles truncated text)."""
+        """Extract answer content from properly formed <answer></answer> tags."""
         # Find the last occurrence of <answer>
         last_answer_pos = message.rfind("<answer>")
         if last_answer_pos == -1:
@@ -20,13 +20,12 @@ class XMLParser:
         # Extract text after the last <answer> tag
         after_tag = message[last_answer_pos + len("<answer>") :].strip()
 
-        # If there's a closing </answer> tag, extract only the content before it
+        # Require a closing </answer> tag
         end_tag_pos = after_tag.find("</answer>")
         if end_tag_pos != -1:
             return after_tag[:end_tag_pos].strip()
 
-        # If no closing tag, return everything after <answer>
-        return after_tag
+        return None
 
     def check_format(self, message: str, regex: str, expected_groups: int) -> bool:
         """Check if message matches the expected format with correct number of groups."""

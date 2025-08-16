@@ -50,8 +50,8 @@ class LinalgZeroInteraction(BaseInteraction):
         metadata = self._instance_dict[instance_id]["metadata"]
 
         # Use metadata for intelligent decision making
-        answer_correct = metadata.get("reward_final_answer") is True
-        format_good = metadata.get("reward_response_format") is True
+        answer_correct = metadata["reward_final_answer"] is True
+        format_good = metadata["reward_response_format"] is True
 
         # Response lookup table: (answer_correct, format_good) -> (response, terminate)
         responses = {
