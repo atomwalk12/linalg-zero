@@ -1,7 +1,7 @@
 from trl import TrlParser
 
 from linalg_zero.config.data import DatasetGenerationConfig
-from linalg_zero.shared import get_config_dir
+from linalg_zero.shared.utils import get_config_dir
 
 
 def test_config() -> None:

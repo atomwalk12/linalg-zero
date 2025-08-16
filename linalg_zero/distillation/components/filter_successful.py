@@ -142,7 +142,7 @@ class FilterSemanticSuccessful(FilterSuccessful):
     Pre-configured to filter rows where keep_row_after_semantic_check=True.
     """
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **kwargs: dict):
         # Set default filter condition for semantic success
         if "filter_columns" not in kwargs:
             kwargs["filter_columns"] = {"keep_row_after_semantic_check": True}

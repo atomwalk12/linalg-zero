@@ -50,9 +50,15 @@ dependencies = [
     "liger-kernel>=0.6.1",
     "deepspeed>=0.17.3",
     "huggingface-hub>=0.33.4",
+    "pytest>=7.2.0",
+    "sympy>=1.14.0",
+    "pyyaml>=6.0.2",
 ]
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)
+[tool.deptry]
+exclude = ["linalg_zero/grpo/verl/", ".venv"]
+
 [tool.deptry.per_rule_ignores]
 DEP002 = [
     "starlette", "sse-starlette", "starlette-context", "pydantic-settings", "uvicorn", "llama-cpp-python", "vllm",
@@ -101,7 +107,6 @@ Documentation = "https://atomwalk12.github.io/linalg-zero/"
 
 [dependency-groups]
 dev = [
-    "pytest>=7.2.0",
     "pre-commit>=2.20.0",
     "tox-uv>=1.11.3",
     "deptry>=0.23.0",
@@ -128,6 +133,7 @@ py-modules = ["linalg_zero"]
 
 [tool.mypy]
 files = ["linalg_zero"]
+exclude = ["linalg_zero/grpo/verl/"]
 disallow_untyped_defs = true
 disallow_any_unimported = false
 no_implicit_optional = true
@@ -154,8 +160,12 @@ module = [
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["linalg_zero.distillation.utils", "linalg_zero.distillation.scripts.push_debug_dataset", "linalg_zero.sft.model_utils"]
+module = ["linalg_zero.distillation.utils", "linalg_zero.distillation.scripts.push_debug_dataset", "linalg_zero.sft.model_utils", "linalg_zero.grpo.datagen", "linalg_zero.grpo.process_dataset"]
 disable_error_code = ["attr-defined"]
+
+[[tool.mypy.overrides]]
+module = ["linalg_zero.grpo.verify", "linalg_zero.grpo.linalg_zero_interaction"]
+disable_error_code = ["no-any-return", "unused-ignore"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

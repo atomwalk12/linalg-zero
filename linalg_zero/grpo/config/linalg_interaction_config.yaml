@@ -1,0 +1,4 @@
+interaction:
+  - name: "linalg"
+    class_name: "linalg_zero.grpo.linalg_zero_interaction.LinalgZeroInteraction"
+    config: {}
