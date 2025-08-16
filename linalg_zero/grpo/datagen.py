@@ -3,7 +3,7 @@ import logging
 from torch.utils.data import Dataset
 from verl.experimental.dynamic_dataset.dynamicgen_dataset import AbstractDataGenerator
 
-from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
+from datasets import Dataset as HFDataset
 
 logger = logging.getLogger(__name__)
 

@@ -181,7 +181,7 @@ def main(args: argparse.Namespace) -> None:
 
     # Load the base dataset from HuggingFace
     print(f"Loading dataset: {args.dataset_name}")
-    dataset = datasets.load_dataset(args.dataset_name)  # type: ignore[attr-defined]
+    dataset = datasets.load_dataset(args.dataset_name)
 
     if "train" not in dataset or "test" not in dataset:
         raise ValueError("Dataset must contain train and test splits")
