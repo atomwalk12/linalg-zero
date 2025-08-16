@@ -1,0 +1,3 @@
+[submodule "linalg_zero/grpo/verl"]
+	path = linalg_zero/grpo/verl
+	url = https://github.com/atomwalk12/linalg-zero-grpo/
