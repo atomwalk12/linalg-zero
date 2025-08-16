@@ -222,64 +222,58 @@ class TestCalcRewardE2E:
 
     def test_basic_functionality(self):
         """Test basic calc_reward functionality."""
-        solution_str = [{"role": "assistant", "content": "<think>Let me solve this</think><answer>42</answer>"}]
+        solution_str = "<think>Let me solve this</think><answer>42</answer>"
         ground_truth = "42"
-        parser = XMLParser()
 
-        score = calc_reward(solution_str, ground_truth, parser)
+        score = calc_reward(solution_str, ground_truth)
 
         assert isinstance(score, (int, float))  # noqa: UP038
         assert score == 1.2
 
     def test_with_additional_kwargs(self):
         """Test that additional kwargs are handled gracefully."""
-        solution_str = [{"role": "assistant", "content": "<think>Calculating</think><answer>100</answer>"}]
+        solution_str = "<think>Calculating</think><answer>100</answer>"
         ground_truth = "100"
-        parser = XMLParser()
 
-        score = calc_reward(solution_str, ground_truth, parser, extra_param="test", another_param=123)
+        score = calc_reward(solution_str, ground_truth, extra_param="test", another_param=123)
 
         assert score == 1.2
 
     def test_string_format_input(self):
-        """Test with string format input instead of list."""
+        """Test with string format input."""
         solution_str = "<think>Let me work on this</think><answer>3.14</answer>"
         ground_truth = "3.14"
-        parser = XMLParser()
 
-        score = calc_reward(solution_str, ground_truth, parser)
+        score = calc_reward(solution_str, ground_truth)
 
         assert score == 1.2
 
     def test_zero_score_scenario(self):
         """Test scenario that should result in zero score."""
-        solution_str = [{"role": "assistant", "content": "Just plain text without proper format"}]
+        solution_str = "Just plain text without proper format"
         ground_truth = "42"
-        parser = XMLParser()
 
-        score = calc_reward(solution_str, ground_truth, parser)
+        score = calc_reward(solution_str, ground_truth)
 
         assert score == 0.0
 
     def test_partial_score_scenario(self):
         """Test scenario with partial score (format only)."""
-        solution_str = [{"role": "assistant", "content": "<think>Thinking</think><answer>wrong_answer</answer>"}]
+        solution_str = "<think>Thinking</think><answer>wrong_answer</answer>"
         ground_truth = "42"
-        parser = XMLParser()
 
-        score = calc_reward(solution_str, ground_truth, parser)
+        score = calc_reward(solution_str, ground_truth)
 
         assert score == 0.2
 
     def test_with_correct_answer(self):
-        """Test scenario with correct answer."""
-        solution_str = [{"role": "assistant", "content": "Thinking</think><answer>42</answer>"}]
+        """Test scenario with correct answer but malformed think tag."""
+        solution_str = "Thinking</think><answer>42</answer>"  # Missing opening think tag
         ground_truth = "42"
-        parser = XMLParser()
 
-        score = calc_reward(solution_str, ground_truth, parser)
+        score = calc_reward(solution_str, ground_truth)
 
-        assert score == 1.0
+        assert score == 1.0  # Answer correct but format broken
 
 
 class TestIntegrationScenarios:
@@ -329,19 +323,10 @@ class TestIntegrationScenarios:
 
     def test_complete_problem_solving_flow(self):
         """Test complete problem solving flow with calc_reward."""
-
-        solution = [
-            {"role": "user", "content": "What is 5 factorial?"},
-            {"role": "assistant", "content": "Let me calculate this."},
-            {"role": "tool", "content": "factorial(5) = 120"},
-            {
-                "role": "assistant",
-                "content": "<think>The factorial of 5 is 5 * 4 * 3 * 2 * 1 = 120. The tool gave the correct answer.</think><answer>120</answer>",
-            },
-        ]
+        solution_str = "What is the factorial of 5?<tool_call>factorial(5)</tool_call><tool_response>120</tool_response><think>The factorial of 5 is 5 * 4 * 3 * 2 * 1 = 120. The tool gave the correct answer.</think><answer>120</answer>"
         ground_truth = "120"
 
-        final_score = calc_reward(solution, ground_truth, XMLParser())
+        final_score = calc_reward(solution_str, ground_truth)
 
         assert final_score == 1.2
 

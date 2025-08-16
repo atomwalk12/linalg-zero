@@ -4,15 +4,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from linalg_zero.shared.utils import load_module_from_path
+from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 
 LLAMA_CPP_DIR = Path(__file__).parent / "distillation" / "llama-cpp" / "models"
-
-
-def get_config_dir() -> str:
-    """Get the path of the config directory"""
-    script_dir = Path(__file__).parent
-    return str(script_dir / "config")
 
 
 def setup_logging(
@@ -47,7 +41,7 @@ def get_logger(name: str) -> logging.Logger:
 
 def get_function_schema(descriptions_only: bool = False) -> str:
     """Return a string representation of the tool schema. This can be a short list of descriptions or a full schema."""
-    libpath_module = load_module_from_path(Path(__file__).parent / "lib.py")
+    libpath_module = load_module_from_path(Path(__file__).parent / "shared" / "lib.py")
     tools = libpath_module.get_tools()
 
     if descriptions_only:

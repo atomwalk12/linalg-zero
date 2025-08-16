@@ -11,7 +11,7 @@ LLAMA_CPP_DIR = Path(__file__).parent / "distillation" / "llama-cpp" / "models"
 
 def get_config_dir() -> str:
     """Get the path of the config directory"""
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).parent.parent
     return str(script_dir / "config")
 
 
