@@ -1,5 +1,5 @@
-from linalg_zero.grpo.answer_parser import verify_answers
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
+from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import LibTypes
 
 
@@ -8,7 +8,7 @@ def reward_tool_output(tool_output: LibTypes, ground_truth: LibTypes) -> float:
     return 1.0 if verify_answers(str(tool_output), str(ground_truth)) else 0.0
 
 
-def reward_response_format(parser: XMLParser, completion: list[dict] | str, ground_truth: str) -> float:
+def reward_response_format(parser: XMLParser, completion: list[dict] | str, ground_truth: LibTypes) -> float:
     if isinstance(completion, list):
         # Extract the last assistant message to score during a user-assistant interaction
         # Malformed tool are not penalized here, but during execution in `LinalgZeroTool`

@@ -1,10 +1,9 @@
 import logging
 
-from omegaconf import DictConfig
 from torch.utils.data import Dataset
 from verl.experimental.dynamic_dataset.dynamicgen_dataset import AbstractDataGenerator
 
-import datasets
+from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +14,9 @@ class LinearAlgebraCurriculum(AbstractDataGenerator):
     This class is useful as a placeholder and testing.
     """
 
-    def __init__(self, config: DictConfig = None):
-        super().__init__(config)
+    def __init__(self, dataset: HFDataset = None):
+        self.dataset = dataset
 
-    def generate(self, dataset: Dataset) -> datasets.Dataset:
+    def generate(self, dataset: Dataset) -> HFDataset:
         print("MockDataGenerator: No operation performed on the dataset.")
-        return dataset.dataframe.select([0])
+        return self.dataset

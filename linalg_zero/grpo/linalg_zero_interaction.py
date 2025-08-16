@@ -10,6 +10,7 @@ from linalg_zero.grpo.compute_score import (
     get_interaction_reward,
 )
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
+from linalg_zero.shared.lib import LibTypes
 
 logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
@@ -20,27 +21,27 @@ class LinalgZeroInteraction(BaseInteraction):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self._instance_dict = {}
+        self._instance_dict: dict[str, Any] = {}
 
         # The expected completion output is <think> AND (<tool> OR <answer>)
         self.parser = XMLParser()
 
     async def start_interaction(
-        self, instance_id: str | None = None, ground_truth: str | None = None, **kwargs
+        self, instance_id: str | None = None, ground_truth: str | None = None, **kwargs: dict
     ) -> str:
         # Unique identifier for this class instance
         if instance_id is None:
             instance_id = str(uuid4())
 
+        if ground_truth is None:
+            raise ValueError("Ground truth is required for interaction creation")
+
         # Store state in a dictionary
-        self._instance_dict[instance_id] = {
-            "messages": [],
-            "ground_truth": json.loads(ground_truth),
-        }
+        self._instance_dict[instance_id] = {"messages": [], "ground_truth": json.loads(ground_truth)}
         return instance_id
 
     async def generate_response(
-        self, instance_id: str, messages: list[dict[str, Any]], **kwargs
+        self, instance_id: str, messages: list[dict[str, Any]], **kwargs: dict
     ) -> tuple[bool, str, float, dict]:
         """Generate response to the model during rollout."""
         self._instance_dict[instance_id]["messages"] = messages
@@ -65,12 +66,12 @@ class LinalgZeroInteraction(BaseInteraction):
 
         return should_terminate_sequence, response, reward, metadata
 
-    async def calc_reward(self, instance_id: str, **kwargs) -> float:
+    async def calc_reward(self, instance_id: str, **kwargs: dict) -> float:
         """Calculate reward based on tool execution success."""
         # Retrieve state
         instance_data = self._instance_dict[instance_id]
         messages = instance_data["messages"]
-        ground_truth = instance_data["ground_truth"]
+        ground_truth: LibTypes = instance_data["ground_truth"]
 
         # Compute reward and store metrics for analysis
         reward, metadata = get_interaction_reward(parser=self.parser, completion=messages, ground_truth=ground_truth)
@@ -80,5 +81,5 @@ class LinalgZeroInteraction(BaseInteraction):
         # upon trajectory completion to assert the correctness of the final tool call.
         return reward
 
-    async def finalize_interaction(self, instance_id: str, **kwargs) -> None:  # type: ignore[reportIncompatibleMethodOverride]
+    async def finalize_interaction(self, instance_id: str, **kwargs: dict) -> None:  # type: ignore[reportIncompatibleMethodOverride]
         del self._instance_dict[instance_id]

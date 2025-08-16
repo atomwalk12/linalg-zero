@@ -1,6 +1,6 @@
 import pytest
 
-from linalg_zero.grpo.answer_parser import verify_answers
+from linalg_zero.grpo.verify import verify_answers
 
 
 class TestVerifyAnswersCorrectness:

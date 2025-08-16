@@ -26,7 +26,7 @@ from linalg_zero.distillation.utils import (
     load_dataset,
     prepare_dataset_for_sft,
 )
-from linalg_zero.shared import get_logger, setup_logging
+from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig) -> None:

@@ -1,3 +1,6 @@
+import json
+from collections.abc import Callable
+
 from linalg_zero.grpo.reward_funcs import (
     reward_final_answer,
     reward_response_format,
@@ -9,12 +12,12 @@ from linalg_zero.shared.lib import LibTypes
 
 def get_tool_reward(ground_truth: LibTypes, tool_output: LibTypes) -> tuple[float, dict]:
     """Computes the reward for a single tool call."""
-    reward_funcs_with_weights = [
+    reward_funcs_with_weights: list[tuple[Callable[[LibTypes, LibTypes], float], float]] = [
         (reward_tool_output, 1.0),
     ]
 
     reward = 0.0
-    metadata = {}
+    metadata: dict[str, str | bool] = {}
     for reward_func, weight in reward_funcs_with_weights:
         try:
             score = reward_func(tool_output, ground_truth)
@@ -28,15 +31,20 @@ def get_tool_reward(ground_truth: LibTypes, tool_output: LibTypes) -> tuple[floa
     return reward, metadata
 
 
-def get_interaction_reward(parser: XMLParser, completion: list[dict], ground_truth: str) -> tuple[float, dict]:
+def get_interaction_reward(
+    parser: XMLParser, completion: list[dict] | str, ground_truth: LibTypes
+) -> tuple[float, dict]:
     """
     Computes the reward for a single tool_call->tool_response turn. It simulates
     a user that provides feedback based on the tool response.
     """
-    reward_funcs_with_weights = [(reward_final_answer, 1.0), (reward_response_format, 0.2)]
+    reward_funcs_with_weights: list[tuple[Callable[[XMLParser, list[dict] | str, LibTypes], float], float]] = [
+        (reward_final_answer, 1.0),
+        (reward_response_format, 0.2),
+    ]
 
     reward = 0.0
-    metadata = {}
+    metadata: dict[str, str | bool] = {}
     for reward_func, weight in reward_funcs_with_weights:
         try:
             score = reward_func(parser, completion, ground_truth)
@@ -50,11 +58,12 @@ def get_interaction_reward(parser: XMLParser, completion: list[dict], ground_tru
     return reward, metadata
 
 
-def calc_reward(solution_str, ground_truth, parser, **kwargs) -> float:
+def calc_reward(solution_str: str, ground_truth: str, **kwargs: dict) -> float:
     """
     Calculates the reward for the complete trajectory. It is the solution retrieved
     after all interactions (computed by the get_interaction_answer) finish.
     """
     parser = XMLParser()
-    reward, _ = get_interaction_reward(parser, solution_str, ground_truth)
+    parsed: LibTypes = json.loads(ground_truth)
+    reward, _ = get_interaction_reward(parser, solution_str, parsed)
     return reward

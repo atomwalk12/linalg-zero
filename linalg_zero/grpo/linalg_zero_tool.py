@@ -23,16 +23,19 @@ class LinalgZeroTool(BaseTool):
 
     def __init__(self, config: dict, tool_schema: OpenAIFunctionToolSchema):
         super().__init__(config, tool_schema)
-        self._instance_dict = {}
+        self._instance_dict: dict[str, Any] = {}
         self.lib = get_lib()
 
     def get_openai_tool_schema(self) -> OpenAIFunctionToolSchema:
         return self.tool_schema
 
-    async def create(self, instance_id: str | None = None, ground_truth: str | None = None, **kwargs) -> str:
+    async def create(self, instance_id: str | None = None, ground_truth: str | None = None, **kwargs: dict) -> str:
         # Unique identifier for this class instance
         if instance_id is None:
             instance_id = str(uuid4())
+
+        if ground_truth is None:
+            raise ValueError("Ground truth is required for tool creation")
 
         # Store state in a dictionary
         self._instance_dict[instance_id] = {
@@ -43,7 +46,7 @@ class LinalgZeroTool(BaseTool):
         return instance_id
 
     @rollout_trace_op
-    async def execute(self, instance_id: str, parameters: dict[str, Any], **kwargs) -> tuple[str, float, dict]:
+    async def execute(self, instance_id: str, parameters: dict[str, Any], **kwargs: dict) -> tuple[str, float, dict]:
         # breakpoint()
         """Execute a linear algebra calculation operation."""
 
@@ -82,7 +85,7 @@ class LinalgZeroTool(BaseTool):
             metadata = {"function": function_name, "success": True, **invocation_metadata}
             return result, reward, metadata
 
-    async def calc_reward(self, instance_id: str, **kwargs) -> float:
+    async def calc_reward(self, instance_id: str, **kwargs: dict) -> float:
         """Calculate reward based on tool execution success."""
 
         # Prepare the current execution result and ground truth value
@@ -99,5 +102,5 @@ class LinalgZeroTool(BaseTool):
         # final reward computation. It validates all tool calls.
         return reward
 
-    async def release(self, instance_id: str, **kwargs) -> None:
+    async def release(self, instance_id: str, **kwargs: dict) -> None:
         del self._instance_dict[instance_id]

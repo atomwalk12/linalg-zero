@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import datasets
+from datasets.dataset_dict import DatasetDict
 
 LLAMA_CPP_DIR = Path(__file__).parent / "distillation" / "llama-cpp" / "models"
 
@@ -61,11 +61,11 @@ def get_function_schema(descriptions_only: bool = False) -> str:
     return json.dumps(tools, indent=2)
 
 
-def push_to_hub(dataset: datasets.DatasetDict | dict, hub_dataset_name: str, private: bool = False) -> None:
+def push_to_hub(dataset: DatasetDict | dict, hub_dataset_name: str, private: bool = False) -> None:
     """Push the dataset to Hugging Face Hub."""
 
     if isinstance(dataset, dict):
-        dataset = datasets.DatasetDict(dataset)
+        dataset = DatasetDict(dataset)
 
     try:
         dataset.push_to_hub(hub_dataset_name, private=private)

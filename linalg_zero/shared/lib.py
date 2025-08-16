@@ -229,7 +229,7 @@ def get_tools() -> list[dict[str, Any]]:
     return [get_json_schema(func) for func in get_lib().values()]
 
 
-def get_lib_return_types(tested_types: set[type]) -> type:
+def assert_lib_returns(tested_types: set[type]) -> list[type]:
     """
     This function extracts all function return types from the library.
     The reward functions used during GRPO were tested against these types.
@@ -251,17 +251,11 @@ def get_lib_return_types(tested_types: set[type]) -> type:
     if len(return_types) == 0:
         raise ValueError("No return types found")
 
-    # Convert set to union type
-    return_types_list = list(return_types)
-    result = return_types_list[0]
-    for t in return_types_list[1:]:
-        result = result | t
-
-    return result
+    return list(return_types)
 
 
 # This is a check to ensure grpo training uses well-tested types in math-verify.
 # This only influences the reward functions, and will likely work with other
 # types as well. Make sure the types defined below coincide.
-_ = get_lib_return_types({float, int, list})
+LibTypesList = assert_lib_returns({float, int, list})
 LibTypes = float | int | list

@@ -2,7 +2,7 @@
 
 import logging
 
-from linalg_zero.shared import get_logger, setup_logging
+from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 def main() -> None:  # pragma: no cover
