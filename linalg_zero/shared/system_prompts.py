@@ -12,7 +12,7 @@ You have access to the following tools to help solve the task:
 {get_function_schema(descriptions_only=True)}
 
 For each step:
-1. Start with a step-by-step thinking process inside <reasoning> </reasoning> tags to think through the problem.
+1. Start with a step-by-step thinking process inside <think> </think> tags to think through the problem.
 2. If needed, use tools by writing one or more JSON commands as a list inside <tool> </tool> tags. Each item in the list should have a name and arguments keys, where arguments is a dictionary.
    example: <tool> [{{"name": func_1_name, "arguments": {{arg1: value1, arg2: value2}}}}, {{"name": func_2_name, "arguments": {{arg3: value3, arg4: value4}}}}] </tool>
    Tools expect specific JSON input formats. Follow the examples carefully. Do not make up tools or arguments that aren't listed.

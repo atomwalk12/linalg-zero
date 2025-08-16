@@ -47,7 +47,6 @@ class LinalgZeroTool(BaseTool):
 
     @rollout_trace_op
     async def execute(self, instance_id: str, parameters: dict[str, Any], **kwargs: dict) -> tuple[str, float, dict]:
-        # breakpoint()
         """Execute a linear algebra calculation operation."""
 
         # This object is instantiated for a specific function schema
