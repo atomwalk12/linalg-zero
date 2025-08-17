@@ -11,7 +11,7 @@ from linalg_zero.config.data import ScriptArguments, SFTConfig
 from linalg_zero.sft.callbacks import get_callbacks
 from linalg_zero.sft.model_utils import get_model, get_tokenizer, load_dataset
 from linalg_zero.sft.wandb_logging import init_wandb_training
-from linalg_zero.shared import get_logger, setup_logging
+from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: ModelConfig) -> None:  # noqa: C901
