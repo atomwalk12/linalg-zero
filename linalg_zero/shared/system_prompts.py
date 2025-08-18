@@ -4,12 +4,17 @@ from linalg_zero.shared.utils import get_function_schema
 tools = get_lib()
 
 
-MATH_TOOL_PROMPT = f"""\
+def get_math_system_prompt(summary: bool) -> str:
+    """Get the prompt for the math tool calling task."""
+    return MATH_TOOL_PROMPT.format(schema=get_function_schema(summary_only=summary))
+
+
+MATH_TOOL_PROMPT = """\
 You are an expert in composing functions. You are given a math problem from a user and a set of possible functions. Based on the question, you will need to make one or more function/tool calls to complete the task.
 
 You have access to the following tools to help solve the task:
 
-{get_function_schema(descriptions_only=True)}
+{schema}
 
 For each step:
 1. Start with a step-by-step thinking process inside <think> </think> tags to think through the problem.

@@ -212,3 +212,8 @@ class DistillationConfig:
     private: bool = field(
         metadata={"help": "Whether to make the output dataset private when pushing to HF Hub"},
     )
+
+    # Generation parameters
+    n_turns: int = field(
+        metadata={"help": "Number of turns to generate"},
+    )
