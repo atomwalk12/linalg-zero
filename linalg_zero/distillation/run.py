@@ -9,6 +9,7 @@ from distilabel.pipeline import Pipeline
 from distilabel.steps import LoadDataFromDicts
 from trl import TrlParser
 
+from datasets import load_dataset as hf_load_dataset  # type: ignore[attr-defined]
 from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
 from linalg_zero.distillation.components.chat_generation import ChatGeneration
 from linalg_zero.distillation.components.code_execution import LinAlgZeroExecutionChecker
@@ -18,12 +19,12 @@ from linalg_zero.distillation.components.execution_checker import (
 from linalg_zero.distillation.components.filter_successful import FilterExecutionSuccessful
 from linalg_zero.distillation.components.planner_for_tool_calling import UNIFIED_PLANNING_PROMPT
 from linalg_zero.distillation.components.result_synthesiser import RESULT_SUMMARIZER_PROMPT
+from linalg_zero.distillation.data import AssistantMessage
 from linalg_zero.distillation.utils import (
     cleanup,
     create_argilla_dataset,
     create_llm_clients,
     get_libpath,
-    load_dataset,
     prepare_dataset_for_sft,
 )
 from linalg_zero.shared.utils import get_logger, setup_logging
@@ -63,8 +64,8 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     ##########################
     # Load dataset/LLM clients
     ##########################
-    llm_planner, llm_synthesizer = create_llm_clients(server, args)
-    dataset = load_dataset(args)
+    llm_planner, llm_synthesizer = create_llm_clients(server, args, AssistantMessage)  # type: ignore[arg-type]
+    dataset = hf_load_dataset("atomwalk12/linalg-debug-outdated", split="train")
     logger.info(f"Loaded {len(dataset)} examples")
 
     ############################

@@ -14,7 +14,7 @@ from verl.tools.schemas import OpenAIFunctionToolSchema
 
 import datasets
 from linalg_zero.shared.lib import LibTypesList, get_lib
-from linalg_zero.shared.system_prompts import MATH_TOOL_PROMPT
+from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_function_schema, push_to_hub
 
 
@@ -110,11 +110,11 @@ def make_map_fn(split_name: str) -> Callable[[dict[str, Any], int], dict[str, An
 
     def process_fn(example: dict[str, Any], idx: int) -> dict[str, Any]:
         # Process the user messages
-        user_content = example["messages"][0]["content"]
+        user_content = example["query"]
         messages = []
         messages.append({
             "role": "system",
-            "content": MATH_TOOL_PROMPT,
+            "content": get_math_system_prompt(summary=True),
         })
         messages.append({
             "role": "user",
@@ -136,7 +136,7 @@ def make_map_fn(split_name: str) -> Callable[[dict[str, Any], int], dict[str, An
             "extra_info": {
                 "split": split_name,
                 "index": idx,
-                "original_messages": example["messages"],
+                "original_query": example["query"],
                 "need_tools_kwargs": True,
                 "tools_kwargs": tool_kwargs,
                 "interaction_kwargs": interaction_kwargs,

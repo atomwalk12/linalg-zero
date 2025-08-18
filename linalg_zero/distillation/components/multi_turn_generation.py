@@ -22,7 +22,7 @@ class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
     def format_output(
         self,
         output: str | None,
-        input: dict[str, Any] | None = None,  # noqa: A002
+        input: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Does nothing."""
         return {}
