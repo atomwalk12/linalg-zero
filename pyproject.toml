@@ -53,6 +53,7 @@ dependencies = [
     "pytest>=7.2.0",
     "sympy>=1.14.0",
     "pyyaml>=6.0.2",
+    "openai>=1.90.0",
 ]
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)
@@ -221,6 +222,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
+"linalg_zero/distillation/components/multi_turn_generation.py" = ["A002"]
+"linalg_zero/distillation/components/multi_turn_generation_base.py" = ["A001", "PGH003", "S101"]
 
 [tool.ruff.format]
 preview = true
