@@ -56,12 +56,12 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         if message.completed:
             result = {
                 "role": "assistant",
-                "content": f"<thought>{message.thought}</thought>\n\n<result>{message.final_answer}</result>",
+                "content": f"<think>{message.thought}</think>\n\n<answer>{message.final_answer}</answer>",
             }
         elif message.tool_call is not None:
             result = {
                 "role": "assistant",
-                "content": "<thought>" + message.thought + "</thought>",
+                "content": "<think>" + message.thought + "</think>",
                 "tool_calls": [
                     {
                         "id": str(uuid.uuid4()),
