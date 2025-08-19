@@ -6,32 +6,24 @@ from sys import argv
 import argilla as rg
 from distilabel.distiset import Distiset
 from distilabel.pipeline import Pipeline
-from distilabel.steps import LoadDataFromDicts
 from trl import TrlParser
 
-from datasets import load_dataset as hf_load_dataset
 from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
-from linalg_zero.distillation.components.chat_generation import ChatGeneration
-from linalg_zero.distillation.components.code_execution import LinAlgZeroExecutionChecker
-from linalg_zero.distillation.components.execution_checker import (
-    MathVerifySemanticChecker,
-)
-from linalg_zero.distillation.components.filter_successful import FilterExecutionSuccessful
-from linalg_zero.distillation.components.planner_for_tool_calling import UNIFIED_PLANNING_PROMPT
-from linalg_zero.distillation.components.result_synthesiser import RESULT_SUMMARIZER_PROMPT
-from linalg_zero.distillation.data import AssistantMessage
+from linalg_zero.distillation.components.multi_turn_generation import MultiTurnWithToolUseGenerator
+from linalg_zero.distillation.data import ThoughtSchema
 from linalg_zero.distillation.utils import (
     cleanup,
     create_argilla_dataset,
     create_llm_clients,
-    get_libpath,
+    load_dataset,
     prepare_dataset_for_sft,
 )
+from linalg_zero.shared.lib import get_lib
+from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig) -> None:
-    """The following code demonstrates how planning works. The code is not being used for other purposes."""
     ################
     # Initialization
     ################
@@ -64,70 +56,25 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     ##########################
     # Load dataset/LLM clients
     ##########################
-    llm_planner, llm_synthesizer = create_llm_clients(server, args, AssistantMessage)
-    dataset = hf_load_dataset("atomwalk12/linalg-debug-outdated", split="train")
+    llm, _ = create_llm_clients(server, args, ThoughtSchema)
+    dataset = load_dataset(args)
     logger.info(f"Loaded {len(dataset)} examples")
 
     ############################
     # Build and run the pipeline
     ############################
     with Pipeline("generation-pipeline").ray() as pipeline:
-        # Step 1: load the dataset
-        dataset_loader = LoadDataFromDicts(
-            name="load_instructions",
-            data=dataset,
-        )
-
-        # Step 2: planning and tool selection
-        tool_selection = ChatGeneration(
-            name="tool-selection-step",
-            llm=llm_planner,
-            input_batch_size=args.input_batch_size,
-            output_mappings={"model_name": "tool_selection_model"},
-            use_default_structured_output=True,
-            tool_calls=True,
-            system_prompt=UNIFIED_PLANNING_PROMPT,
-        )
-
-        # Step 3: code execution
-        execution_checker = LinAlgZeroExecutionChecker(
-            name="verify_function_execution",
-            libpath=str(get_libpath()),
-            input_batch_size=args.input_batch_size,
-            check_is_dangerous=True,
-        )
-        # Step 3.5: filter samples (preserves all data but marks failures for skipping)
-        filter_execution = FilterExecutionSuccessful(
-            name="mark_execution_failures",
-            input_batch_size=args.input_batch_size,
-            preserve_data=True,
-        )
-
-        # Step 4: result summarization
-        result_summarizer = ChatGeneration(
-            name="summarize_results",
-            llm=llm_synthesizer,
-            input_batch_size=args.input_batch_size,
-            system_prompt=RESULT_SUMMARIZER_PROMPT,
-            output_mappings={"model_name": "summary_model"},
-            tool_calls=False,
-            thinking_mode="/no_think",
-        )
-
-        # Step 5: math-verify semantic checker
-        math_verify_checker = MathVerifySemanticChecker(
-            name="math-verify-semantic-checker",
-            input_batch_size=args.input_batch_size,
-        )
-
-        # Connect the steps with data-preserving filter after execution
-        (
-            dataset_loader
-            >> tool_selection
-            >> execution_checker
-            >> filter_execution
-            >> result_summarizer
-            >> math_verify_checker
+        # Single step: generate multi-turn conversations
+        multi_turn_generator = MultiTurnWithToolUseGenerator(
+            name="multi_turn_generator",
+            llm=llm,
+            dataset=dataset,
+            batch_size=args.input_batch_size,
+            n_turns=args.n_turns,
+            system_prompt=get_math_system_prompt(summary=False),
+            include_system_prompt=True,
+            thought_schema=ThoughtSchema,
+            library=get_lib(),
         )
 
     # Run the pipeline
@@ -137,8 +84,9 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
     distiset: Distiset = pipeline.run(
         parameters={
-            tool_selection.name: {"llm": {"generation_kwargs": {"max_new_tokens": 4096, **enable_thinking}}},
-            result_summarizer.name: {"llm": {"generation_kwargs": {"max_new_tokens": 2048, **enable_thinking}}},
+            multi_turn_generator.name: {
+                "llm": {"generation_kwargs": {"max_new_tokens": 4096, **enable_thinking, "temperature": 0.0}}
+            },
         },
         use_cache=False,
         dataset_batch_size=args.input_batch_size,
@@ -151,19 +99,15 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     # Push the results to the hub
     #############################
     logger.info("Generation complete!")
-    train_data = distiset["default"]["train"]
+    distilabel_data = distiset["default"]["train"]
 
-    total_examples = len(train_data)
-    total_inputs = len(dataset)
+    total_examples = len(distilabel_data)
 
     # Count successes at each stage
-    execution_successes = sum(1 for row in train_data if row.get("keep_row_after_execution_check", False))
-    math_verify_successes = sum(1 for row in train_data if row.get("keep_row_after_semantic_check", False))
+    math_verify_successes = sum(1 for row in distilabel_data if row["is_correct"])
 
     logger.info("Pipeline completed:")
-    logger.info(f"  Total results: {total_examples}/{total_inputs}")
-    logger.info(f"  Execution successes: {execution_successes}/{total_inputs}")
-    logger.info(f"  Math verify successes: {math_verify_successes}/{total_inputs}")
+    logger.info(f"  Math verify successes: {math_verify_successes}/{total_examples}")
 
     if args.hf_output_dataset:
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")

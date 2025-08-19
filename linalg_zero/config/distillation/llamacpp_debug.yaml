@@ -16,7 +16,7 @@ max_new_tokens: 8192
 num_generations: 1
 
 # Processing parameters
-input_batch_size: 2
+input_batch_size: 5
 use_cache: true
 client_replicas: 1
 timeout: 600
@@ -47,3 +47,6 @@ host: "0.0.0.0"
 port: 8000
 n_ctx: 8192
 split_mode: 2
+
+# Distillation parameters
+n_turns: 6

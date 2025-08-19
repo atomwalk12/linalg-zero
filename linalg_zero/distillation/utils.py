@@ -1,7 +1,6 @@
 import json
 import logging
 import logging as stdlib_logging
-from pathlib import Path
 from typing import (
     Any,
 )
@@ -17,7 +16,7 @@ from distilabel.steps.tasks import (
 )
 from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 from distilabel.typing import FormattedInput, GenerateOutput
-from pydantic import NonNegativeInt, PositiveInt
+from pydantic import BaseModel, NonNegativeInt, PositiveInt
 from typing_extensions import override
 
 from datasets import load_dataset as hf_load_dataset
@@ -26,9 +25,8 @@ from linalg_zero.config.data import (
     LlamaCppServerConfig,
     VllmServerConfig,
 )
-from linalg_zero.distillation.data import AssistantMessage
 from linalg_zero.shared.lib import get_tools
-from linalg_zero.shared.utils import get_logger, setup_logging
+from linalg_zero.shared.utils import get_libpath, get_logger, setup_logging
 
 
 # TODO: is this the right file to store this class in?
@@ -117,7 +115,7 @@ def get_openai_client(
 
 
 def create_llm_clients(
-    server: LlamaCppServerConfig | VllmServerConfig, args: DistillationConfig
+    server: LlamaCppServerConfig | VllmServerConfig, args: DistillationConfig, schema: type[BaseModel]
 ) -> tuple[OpenAILLM, OpenAILLM]:
     """Create structured and non-structured LLM clients."""
     base_params: dict[str, Any] = {
@@ -130,7 +128,7 @@ def create_llm_clients(
         "top_p": args.top_p,
     }
 
-    llm_planner = get_openai_client(**base_params, structured_output={"schema": AssistantMessage})
+    llm_planner = get_openai_client(**base_params, structured_output={"schema": schema})
     llm_synthesizer = get_openai_client(**base_params, structured_output=None)
 
     return llm_planner, llm_synthesizer
@@ -145,11 +143,6 @@ def get_function_schema() -> str:
     function_schema = json.dumps(function_definitions, indent=2)
 
     return function_schema
-
-
-def get_libpath() -> Path:
-    """Returns the path to the library of functions."""
-    return Path(__file__).parent / "fc_fns.py"
 
 
 def build_generation_pipeline(
@@ -442,6 +435,7 @@ def load_dataset(args: DistillationConfig) -> list[dict[str, Any]]:
         )
 
         dataset = hf_load_dataset(args.hf_dataset, args.hf_dataset_config, split=args.hf_dataset_split)
+
         logger.info("Dataset loaded!")
     except Exception as err:
         raise FileNotFoundError(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.") from err

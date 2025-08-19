@@ -24,46 +24,26 @@ def create_debug_dataset() -> list[dict[str, Any]]:
 
     return [
         {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "What is the matrix multiplication result of [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
-                },
-            ],
+            "query": "What is the matrix multiplication result of [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
             "stepwise_ground_truths": json.dumps([
                 {"multiply_matrices": libs["multiply_matrices"]([[1, 2], [3, 4]], [[2, 0], [1, 3]])}
             ]),
             "ground_truth": json.dumps(libs["multiply_matrices"]([[1, 2], [3, 4]], [[2, 0], [1, 3]])),
         },
         {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "What is the Frobenius norm of the product of matrices [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
-                },
-            ],
+            "query": "What is the Frobenius norm of the product of matrices [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
             "stepwise_ground_truths": json.dumps([{"frobenius_norm": 17.204650534085253}]),
             "ground_truth": json.dumps(17.204650534085253),
         },
         {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "What is the matrix multiplication result of [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
-                },
-            ],
+            "query": "What is the matrix multiplication result of [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
             "stepwise_ground_truths": json.dumps([
                 {"multiply_matrices": libs["multiply_matrices"]([[1, 2], [3, 4]], [[2, 0], [1, 3]])}
             ]),
             "ground_truth": json.dumps(libs["multiply_matrices"]([[1, 2], [3, 4]], [[2, 0], [1, 3]])),
         },
         {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "What is the Frobenius norm of the product of matrices [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
-                },
-            ],
+            "query": "What is the Frobenius norm of the product of matrices [[1, 2], [3, 4]] and [[2, 0], [1, 3]]?",
             "stepwise_ground_truths": json.dumps([{"frobenius_norm": 17.204650534085253}]),
             "ground_truth": json.dumps(17.204650534085253),
         },

@@ -45,20 +45,26 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-def get_function_schema(descriptions_only: bool = False) -> str:
+def get_libpath() -> Path:
+    """Returns the path to the library of functions."""
+    return Path(__file__).parent / "lib.py"
+
+
+def get_function_schema(summary_only: bool = False) -> str:
     """Return a string representation of the tool schema. This can be a short list of descriptions or a full schema."""
     from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 
-    libpath_module = load_module_from_path(Path(__file__).parent / "lib.py")
+    libpath_module = load_module_from_path(get_libpath())
     tools = libpath_module.get_tools()
 
-    if descriptions_only:
+    if summary_only:
         # Return only the descriptions
         return "\n".join(
             f'"{tool_info["function"]["name"]}": {tool_info["function"]["description"]}' for tool_info in tools
         )
 
-    return json.dumps(tools, indent=2)
+    extracted_functions = [tool_info["function"] for tool_info in tools]
+    return json.dumps(extracted_functions, indent=2)
 
 
 def push_to_hub(dataset: DatasetDict | dict, hub_dataset_name: str, private: bool = False) -> None:
