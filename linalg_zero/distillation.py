@@ -24,7 +24,6 @@ from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig) -> None:
-    """The following code demonstrates how planning works. The code is not being used for other purposes."""
     ################
     # Initialization
     ################
@@ -70,7 +69,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             name="multi_turn_generator",
             llm=llm,
             dataset=dataset,
-            batch_size=1,  # TODO(A): tweak this
+            batch_size=5,  # TODO(A): tweak this
             n_turns=args.n_turns,
             system_prompt=get_math_system_prompt(summary=False),
             include_system_prompt=True,

@@ -10,7 +10,7 @@ from distilabel.mixins.runtime_parameters import (
 )
 from distilabel.models.llms.base import LLM
 from distilabel.utils.dicts import merge_dicts
-from pydantic import Field, PositiveInt
+from pydantic import Field, PositiveInt, ValidationError
 
 from linalg_zero.distillation.data import ThoughtSchema
 from linalg_zero.grpo.verify import verify_answers
@@ -185,7 +185,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
     def _execute_tool_calls(
         self, conversations: list["ChatType"], active_indices: list[int], parsed_messages: list[ThoughtSchema | None]
-    ) -> tuple[list["ChatType"], list[int], dict[str, int]]:
+    ) -> tuple[list["ChatType"], list[int], dict[int, str]]:
         active_conversations = []
         active_parsed_messages = []
         for idx in active_indices:
@@ -196,7 +196,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 raise DistilabelUserError(f"Message at index {idx} is None, but should never be None at this step")
             active_parsed_messages.append(message)
 
-        active_results, tool_statistics = self._execute(inputs=active_parsed_messages)
+        active_results, tool_statistics = self._execute(inputs=active_parsed_messages, active_indices=active_indices)
 
         updated_conversations = self._append_messages_to_conversations(
             role="tool",
@@ -209,11 +209,13 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         return conversations, active_indices, tool_statistics
 
-    def _execute(self, inputs: list[ThoughtSchema]) -> tuple[list[dict[str, str]], dict[str, int]]:
+    def _execute(
+        self, inputs: list[ThoughtSchema], active_indices: list[int]
+    ) -> tuple[list[dict[str, str]], dict[int, str]]:
         results: list[dict[str, str]] = []
-        statistics: dict[str, int] = {}
+        statistics: dict[int, str] = {}
 
-        for data in inputs:
+        for data, idx in zip(inputs, active_indices, strict=True):
             if data.tool_call is None:
                 raise DistilabelUserError("Tool call is None, but should never be None at this step")
 
@@ -221,7 +223,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             arguments = data.tool_call.arguments
 
             # Track tool call frequency for this specific input
-            statistics[name] = statistics.get(name, 0) + 1
+            statistics[idx] = name
 
             result = self.library[name](**arguments)
             results.append({"function_name": name, "execution_result": str(result)})
@@ -239,14 +241,14 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             else:
                 try:
                     result.append(schema.model_validate_json(message))
-                except Exception:
+                except ValidationError:
                     # The message is malformed, so we skip it
                     result.append(None)
         return result
 
     def _generate_multi_turn_conversation(
         self, inputs: list[dict[str, Any]]
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, int]]]:
         conversations = self._prepare_inputs_for_instruction_generation(inputs)
         # Keep track of the active conversations, as it could happen that for some conversation
         # we can't generate the next turn because the `LLM` returned `None`.
@@ -293,7 +295,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         # Merge the dicts again at the conversation level
         merged_stats_gen = merge_dicts(*stats_gen)
-        merged_stats_tools = self.merge_tool_stats(stats_tools)
+        merged_stats_tools = self.merge_tool_stats(stats_tools, inputs=inputs)
         return (
             self._prepare_conversation_outputs(conversations, final_answers_clean, success_indices),
             merged_stats_gen,
@@ -308,19 +310,22 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         return is_correct
 
-    def merge_tool_stats(self, batch_stats: list[dict[str, int]]) -> dict[str, int]:
+    def merge_tool_stats(self, batch_stats: list[dict[int, str]], inputs: int) -> list[dict[str, int]]:
         """Merge the tool stats into a single dictionary."""
-        merged_stats: dict[str, int] = {}
-        for data in batch_stats:
-            for fn_call, count in data.items():
-                merged_stats[fn_call] = merged_stats.get(fn_call, 0) + count
+        merged_stats = [{} for _ in range(len(inputs))]
+        for turn_stats in batch_stats:
+            for active_index, fn_name in turn_stats.items():
+                merged_stats[active_index][fn_name] = merged_stats[active_index].get(fn_name, 0) + 1
+
         return merged_stats
 
     def _generate_with_pre_query_template(self, inputs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Generate a list of instructions or conversations of the specified number of turns."""
         outputs, statistics_gens, statistics_tools = self._generate_multi_turn_conversation(inputs)
         generations = []
-        for input_data, output, stats_gen in zip(inputs, outputs, statistics_gens, strict=True):
+        for input_data, output, stats_gen, stats_tools in zip(
+            inputs, outputs, statistics_gens, statistics_tools, strict=True
+        ):
             generation = {
                 **input_data,
                 **output,
@@ -328,7 +333,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             }
             generation["distilabel_metadata"] = {
                 f"statistics_gen_{self.name}": stats_gen,
-                f"statistics_tools_{self.name}": statistics_tools,
+                f"statistics_tools_{self.name}": stats_tools,
             }
             generations.append(generation)
         return generations
