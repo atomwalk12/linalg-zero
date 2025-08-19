@@ -314,7 +314,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         self, batch_stats: list[dict[int, str]], inputs: list[dict[str, Any]]
     ) -> list[dict[str, int]]:
         """Merge the tool stats into a single dictionary."""
-        merged_stats = [{} for _ in range(len(inputs))]
+        merged_stats: list[dict[str, int]] = [{} for _ in range(len(inputs))]
         for turn_stats in batch_stats:
             for active_index, fn_name in turn_stats.items():
                 merged_stats[active_index][fn_name] = merged_stats[active_index].get(fn_name, 0) + 1

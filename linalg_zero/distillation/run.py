@@ -64,7 +64,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     ##########################
     # Load dataset/LLM clients
     ##########################
-    llm_planner, llm_synthesizer = create_llm_clients(server, args, AssistantMessage)  # type: ignore[arg-type]
+    llm_planner, llm_synthesizer = create_llm_clients(server, args, AssistantMessage)
     dataset = hf_load_dataset("atomwalk12/linalg-debug-outdated", split="train")
     logger.info(f"Loaded {len(dataset)} examples")
 
