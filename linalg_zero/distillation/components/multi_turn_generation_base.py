@@ -237,12 +237,16 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             if message is None:
                 result.append(None)
             else:
-                result.append(schema.model_validate_json(message))
+                try:
+                    result.append(schema.model_validate_json(message))
+                except Exception:
+                    # The message is malformed, so we skip it
+                    result.append(None)
         return result
 
     def _generate_multi_turn_conversation(
         self, inputs: list[dict[str, Any]]
-    ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, int]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
         conversations = self._prepare_inputs_for_instruction_generation(inputs)
         # Keep track of the active conversations, as it could happen that for some conversation
         # we can't generate the next turn because the `LLM` returned `None`.
@@ -314,9 +318,9 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
     def _generate_with_pre_query_template(self, inputs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Generate a list of instructions or conversations of the specified number of turns."""
-        outputs, statistics_gen, statistics_tools = self._generate_multi_turn_conversation(inputs)
+        outputs, statistics_gens, statistics_tools = self._generate_multi_turn_conversation(inputs)
         generations = []
-        for input_data, output, stats_gen in zip(inputs, outputs, statistics_gen, strict=False):
+        for input_data, output, stats_gen in zip(inputs, outputs, statistics_gens, strict=True):
             generation = {
                 **input_data,
                 **output,

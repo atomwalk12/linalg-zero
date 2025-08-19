@@ -9,7 +9,7 @@ from distilabel.pipeline import Pipeline
 from distilabel.steps import LoadDataFromDicts
 from trl import TrlParser
 
-from datasets import load_dataset as hf_load_dataset  # type: ignore[attr-defined]
+from datasets import load_dataset as hf_load_dataset
 from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
 from linalg_zero.distillation.components.chat_generation import ChatGeneration
 from linalg_zero.distillation.components.code_execution import LinAlgZeroExecutionChecker
