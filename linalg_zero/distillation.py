@@ -63,13 +63,13 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     ############################
     # Build and run the pipeline
     ############################
-    with Pipeline("generation-pipeline") as pipeline:
+    with Pipeline("generation-pipeline").ray() as pipeline:
         # Single step: generate multi-turn conversations
         multi_turn_generator = MultiTurnWithToolUseGenerator(
             name="multi_turn_generator",
             llm=llm,
             dataset=dataset,
-            batch_size=5,  # TODO(A): tweak this
+            batch_size=args.input_batch_size,
             n_turns=args.n_turns,
             system_prompt=get_math_system_prompt(summary=False),
             include_system_prompt=True,
@@ -99,19 +99,15 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     # Push the results to the hub
     #############################
     logger.info("Generation complete!")
-    train_data = distiset["default"]["train"]
+    distilabel_data = distiset["default"]["train"]
 
-    total_examples = len(train_data)
-    total_inputs = len(dataset)
+    total_examples = len(distilabel_data)
 
     # Count successes at each stage
-    execution_successes = sum(1 for row in train_data if row.get("keep_row_after_execution_check", False))
-    math_verify_successes = sum(1 for row in train_data if row.get("keep_row_after_semantic_check", False))
+    math_verify_successes = sum(1 for row in distilabel_data if row["is_correct"])
 
     logger.info("Pipeline completed:")
-    logger.info(f"  Total results: {total_examples}/{total_inputs}")
-    logger.info(f"  Execution successes: {execution_successes}/{total_inputs}")
-    logger.info(f"  Math verify successes: {math_verify_successes}/{total_inputs}")
+    logger.info(f"  Math verify successes: {math_verify_successes}/{total_examples}")
 
     if args.hf_output_dataset:
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")

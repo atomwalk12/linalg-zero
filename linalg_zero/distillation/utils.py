@@ -16,8 +16,7 @@ from distilabel.steps.tasks import (
 )
 from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 from distilabel.typing import FormattedInput, GenerateOutput
-from openai import BaseModel
-from pydantic import NonNegativeInt, PositiveInt
+from pydantic import BaseModel, NonNegativeInt, PositiveInt
 from typing_extensions import override
 
 from datasets import load_dataset as hf_load_dataset

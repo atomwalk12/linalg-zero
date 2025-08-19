@@ -52,8 +52,7 @@ dependencies = [
     "huggingface-hub>=0.33.4",
     "pytest>=7.2.0",
     "sympy>=1.14.0",
-    "pyyaml>=6.0.2",
-    "openai>=1.90.0",
+    "pyyaml>=6.0.2"
 ]
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)
