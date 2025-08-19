@@ -18,12 +18,14 @@ class AssistantMessage(BaseModel):
 
 
 class ThoughtSchema(BaseModel):
-    thought: str = Field(..., description="The reasoning process for selecting tools or providing the final answer.")
+    thought: str = Field(
+        ..., description="Step-by-step reasoning process for selecting tools or providing the final answer."
+    )
     tool_call: FunctionInvocationInfo | None = Field(
         None, description="Tool to use for the next step, or None if problem is solved."
     )
     final_answer: str | None = Field(
         None,
-        description="Set this field with the final answer only after all necessary tool calls have been executed and the problem is completely solved.",
+        description="Enter ONLY the final result (e.g., a single number, a vector, or a matrix) after all necessary tool calls have been executed and the problem is completely solved.",
     )
     completed: bool = Field(..., description="Whether the problem is solved.")
