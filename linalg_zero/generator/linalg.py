@@ -15,7 +15,7 @@ def matrix_determinant_2x2_factory() -> Question:
     return Question(
         text=f"What is the determinant of the matrix [[{a}, {b}], [{c}, {d}]]?",
         answer=str(determinant),
-        difficulty="medium",
+        difficulty=2,
         topic="linear_algebra",
     )
 
@@ -30,7 +30,7 @@ def vector_dot_product_factory() -> Question:
     return Question(
         text=f"What is the dot product of vectors [{v1[0]}, {v1[1]}] and [{v2[0]}, {v2[1]}]?",
         answer=str(dot_product),
-        difficulty="medium",
+        difficulty=2,
         topic="linear_algebra",
     )
 
@@ -45,6 +45,6 @@ def matrix_addition_factory() -> Question:
     return Question(
         text=f"Add the matrices {A} + {B}. Give your answer as a 2x2 matrix.",
         answer=str(result),
-        difficulty="medium",
+        difficulty=2,
         topic="linear_algebra",
     )

@@ -136,14 +136,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         self, conversations: list["ChatType"], final_answers: list[str], success_indices: list[bool]
     ) -> list[dict[str, Any]]:
         """Prepare the output conversation removing the system prompt if necessary.
-        It will return a dictionary with a "conversation" key.
-
-        Args:
-            conversations: the list of generated conversations.
-
-        Returns:
-            A list of dictionaries containing a "conversation" key.
-        """
+        It will return a dictionary with a "conversation" key."""
         outputs: list[dict[str, Any]] = []
         for conversation, final_answer, is_correct in zip(conversations, final_answers, success_indices, strict=True):
             if conversation is None:

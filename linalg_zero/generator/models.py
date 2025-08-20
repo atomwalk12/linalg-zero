@@ -9,6 +9,6 @@ class Question:
 
     text: str
     answer: str
-    difficulty: str = "medium"
+    difficulty: int = 2
     topic: str = "general"
     is_valid: bool = True
