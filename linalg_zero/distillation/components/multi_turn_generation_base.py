@@ -45,7 +45,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         prepared_inputs = []
         for data in inputs:
             conversation = []
-            conversation.append({"role": "system", "content": self.system_prompt})
+            if self.system_prompt:
+                conversation.append({"role": "system", "content": self.system_prompt})
             conversation.append({"role": "user", "content": data["query"]})
 
             prepared_inputs.append(conversation)
@@ -54,6 +55,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
     def create_assistant_message(self, message: ThoughtSchema) -> dict[str, Any]:
         if message.completed:
+            if message.final_answer is None:
+                raise DistilabelUserError("final_answer cannot be None when completed=True")
             result = {
                 "role": "assistant",
                 "content": f"<think>{message.thought}</think>\n\n<answer>{message.final_answer}</answer>",
@@ -85,6 +88,9 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 tool_call_id = msg.get("tool_calls", [{}])[0].get("id")
                 break
 
+        if tool_call_id is None:
+            raise DistilabelUserError("No assistant message with tool_calls found for tool response")
+
         return {
             "role": "tool",
             "tool_call_id": tool_call_id,
@@ -104,14 +110,22 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
             if role == "assistant":
                 if isinstance(message, ThoughtSchema):
-                    formatted_message = self.create_assistant_message(message)
-                    conversation.append(formatted_message)
+                    try:
+                        formatted_message = self.create_assistant_message(message)
+                        conversation.append(formatted_message)
+                    except DistilabelUserError:
+                        # Skip malformed assistant messages - treat as generation failure
+                        continue
                 else:
                     continue
             elif role == "tool":
                 if isinstance(message, dict):
-                    formatted_message = self.create_tool_message(conversation, message)
-                    conversation.append(formatted_message)
+                    try:
+                        formatted_message = self.create_tool_message(conversation, message)
+                        conversation.append(formatted_message)
+                    except DistilabelUserError:
+                        # Skip malformed tool messages - conversation state is corrupted
+                        continue
                 else:
                     continue
             else:
@@ -155,7 +169,11 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             conversation = conversations[idx]
             inputs.append(conversation)
 
-        outputs = self.llm.generate(inputs=inputs, num_generations=1, **self.llm.generation_kwargs)
+        outputs = self.llm.generate(
+            inputs=inputs,
+            num_generations=1,
+            **self.llm.get_generation_kwargs(),
+        )
         # Extract the single message from the conversation and the statistics in separate lists
         messages, statistics = zip(
             *[(output["generations"][0], output["statistics"]) for output in outputs],
@@ -181,7 +199,12 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             if output is not None and message is not None and not message.completed
         ]
 
-        return conversations, new_active_indices, statistics, parsed_active_msgs
+        # Create full-sized array aligned with conversations list
+        full_parsed_messages: list[ThoughtSchema | None] = [None] * len(conversations)
+        for active_idx, parsed_msg in zip(active_indices, parsed_active_msgs, strict=True):
+            full_parsed_messages[active_idx] = parsed_msg
+
+        return conversations, new_active_indices, statistics, full_parsed_messages
 
     def _execute_tool_calls(
         self, conversations: list["ChatType"], active_indices: list[int], parsed_messages: list[ThoughtSchema | None]
@@ -231,7 +254,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         return results, statistics
 
     def extract_structured_output(
-        self, messages: list[str], schema: type[ThoughtSchema]
+        self, messages: list[str | None], schema: type[ThoughtSchema]
     ) -> list[ThoughtSchema | None]:
         """Extract the structured output from the messages."""
         result: list[ThoughtSchema | None] = []
@@ -269,8 +292,9 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 active_indices=active_indices,
             )
 
-            # Use the original active indices to match with parsed messages
-            for idx, message in zip(current_active_indices, parsed_messages, strict=True):
+            # Use the original active indices to access the full parsed messages array
+            for idx in current_active_indices:
+                message = parsed_messages[idx]
                 if message and message.completed:
                     final_answers[idx] = message.final_answer
 
