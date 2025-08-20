@@ -41,6 +41,7 @@ class LinalgZeroTool(BaseTool):
         self._instance_dict[instance_id] = {
             "tool_result": None,
             "ground_truth": json.loads(ground_truth),
+            "stepwise_ground_truth": json.loads("stepwise_ground_truth"),
             "reward": 0.0,
         }
         return instance_id
@@ -90,9 +91,10 @@ class LinalgZeroTool(BaseTool):
         # Prepare the current execution result and ground truth value
         instance_data = self._instance_dict[instance_id]
         result = instance_data["tool_result"]
-        ground_truth = instance_data["ground_truth"]
+        # TODO: Test against stepwise ground truth instead of final answer
+        stepwise_ground_truth = instance_data["stepwise_ground_truth"]
 
-        reward, metadata = get_tool_reward(result, ground_truth)
+        reward, metadata = get_tool_reward(result, stepwise_ground_truth)
 
         # Used to restore statistics after each tool invocation
         self._instance_dict[instance_id]["metadata"] = metadata
