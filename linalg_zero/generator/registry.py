@@ -3,11 +3,11 @@
 import random
 from collections.abc import Callable
 
-from .arithmetic import (
-    arithmetic_addition_factory,
+from linalg_zero.generator.arithmetic import arithmetic_addition_factory
+from linalg_zero.generator.models import Question
+from linalg_zero.generator.sympy.generators.algebra import (
+    polynomial_roots_factory,
 )
-from .linalg import matrix_addition_factory, matrix_determinant_2x2_factory, vector_dot_product_factory
-from .models import Question
 
 
 class FactoryRegistry:
@@ -53,12 +53,10 @@ def create_default_registry() -> FactoryRegistry:
     """Create and populate the default factory registry."""
     registry = FactoryRegistry()
 
-    # Register arithmetic factories
-    registry.register_factory("arithmetic", "addition", arithmetic_addition_factory)
-
     # Register linear algebra factories
-    registry.register_factory("linear_algebra", "matrix_determinant_2x2", matrix_determinant_2x2_factory)
-    registry.register_factory("linear_algebra", "vector_dot_product", vector_dot_product_factory)
-    registry.register_factory("linear_algebra", "matrix_addition", matrix_addition_factory)
+    registry.register_factory("linear_algebra", "polynomial_roots", polynomial_roots_factory)
+
+    # Register topic generators not strictly related to linear algebra
+    registry.register_factory("arithmetic", "addition", arithmetic_addition_factory)
 
     return registry

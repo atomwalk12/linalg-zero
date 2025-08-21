@@ -11,4 +11,5 @@ class Question:
     answer: str
     difficulty: int = 2
     topic: str = "general"
+    problem_type: str = "general"
     is_valid: bool = True

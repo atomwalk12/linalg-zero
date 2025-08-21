@@ -103,6 +103,8 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
     for i, question in enumerate(questions_to_print, 1):
         status = " [INVALID]" if not question.is_valid else ""
         logger.info("Question %d:%s", i, status)
-        logger.info("Topic: %s | Difficulty: %s", question.topic, question.difficulty)
+        logger.info(
+            "Topic: %s | Problem Type: %s | Difficulty: %s", question.topic, question.problem_type, question.difficulty
+        )
         logger.info("Q: %s", question.text)
         logger.info("A: %s", question.answer)
