@@ -25,7 +25,7 @@ def main() -> None:  # pragma: no cover
         return len(question.answer) > 0
 
     generator = DatasetGenerator(topic="linear_algebra", validator_factory=matrix_only_validator)
-    questions = generator.generate_dataset(num_questions=3)
+    questions = generator.generate_dataset(num_questions=10)
     print_dataset(questions)
 
     # --------------------------------------------------

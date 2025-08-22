@@ -209,6 +209,7 @@ select = [
     "TRY",
 ]
 ignore = [
+    "UP038",
     # LineTooLong
     "E501",
     # DoNotAssignLambda
