@@ -1,6 +1,6 @@
 """Core data models for question generation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -13,3 +13,7 @@ class Question:
     topic: str = "general"
     problem_type: str = "general"
     is_valid: bool = True
+    entropy_used: float = 0.0
+    tool_calls_required: int = 0
+    stepwise: list[dict[str, str]] = field(default_factory=list)
+    golden: dict[str, str] = field(default_factory=dict)

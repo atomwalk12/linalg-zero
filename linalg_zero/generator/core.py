@@ -106,5 +106,8 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
         logger.info(
             "Topic: %s | Problem Type: %s | Difficulty: %s", question.topic, question.problem_type, question.difficulty
         )
+        logger.info(
+            "Entropy Used: %.2f | Tool Calls Required: %d", question.entropy_used, question.tool_calls_required
+        )
         logger.info("Q: %s", question.text)
         logger.info("A: %s", question.answer)
