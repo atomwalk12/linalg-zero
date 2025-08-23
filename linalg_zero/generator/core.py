@@ -6,7 +6,6 @@ from linalg_zero.generator.models import Question
 from linalg_zero.generator.registry import create_default_registry
 from linalg_zero.shared.utils import get_logger
 
-# Set up logger
 logger = get_logger(__name__)
 
 

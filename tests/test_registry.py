@@ -4,16 +4,17 @@ import pytest
 
 from linalg_zero.generator.models import Question
 from linalg_zero.generator.registry import FactoryRegistry
+from linalg_zero.generator.utils.difficulty import DifficultyCategory
 
 
 def simple_test_factory() -> Question:
     """Simple factory for testing."""
-    return Question(text="Test", answer="42", topic="test")
+    return Question(text="Test", answer="42", topic="test", difficulty=DifficultyCategory.EASY)
 
 
 def another_test_factory() -> Question:  # pragma: no cover
     """Another simple factory for testing."""
-    return Question(text="Another test", answer="24", topic="test")
+    return Question(text="Another test", answer="24", topic="test", difficulty=DifficultyCategory.EASY)
 
 
 def test_factory_registry_registration() -> None:

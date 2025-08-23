@@ -39,6 +39,7 @@ class ProblemContext:
         self.stepwise_results: list[dict[str, Any]] = []
         self.golden_result: dict[str, str] = {}
         self._step_counter = 0
+        self.constraints: dict[str, Any] = {}
 
     def __enter__(self) -> "ProblemContext":
         return self
