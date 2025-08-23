@@ -186,7 +186,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         if not isinstance(solution, sympy.Matrix):
             raise TypeError(f"The solution should be a vector: {solution}")
 
-        return self.template_engine.math_formatter.format_expression(solution)
+        return self.template_engine.format_answer(solution)
 
     @override
     def verify_problem(self, template: ProblemTemplate) -> bool:

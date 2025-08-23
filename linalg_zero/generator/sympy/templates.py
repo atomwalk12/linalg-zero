@@ -2,10 +2,9 @@ import random
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-import sympy
 from sympy.matrices import MutableDenseMatrix
 
-from linalg_zero.generator.utils.difficulty import get_difficulty_category
+from linalg_zero.generator.utils.difficulty import DifficultyCategory
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
@@ -19,7 +18,7 @@ class QuestionTemplate:
 
     template_string: str
     required_variables: list[str]
-    difficulty_level: int
+    difficulty_level: DifficultyCategory
     question_type: str
 
 
@@ -29,16 +28,26 @@ class MathFormatter:
     """
 
     @staticmethod
-    def format_expression(expr: sympy.Expr) -> str:
-        return str(expr)
+    def format_matrix(matrix: MutableDenseMatrix) -> str:
+        """
+        Format a SymPy matrix, to be displayed in question query.
+        Expected format:
+          Q: What is [[4, -1, 1], [4, 5, -2], [-4, -2/9, 1]] * [[4], [-2], [2/3]]?
+          A: [[56/3], [14/3], [-134/9]]
+        """
+        rows = []
+        for i in range(matrix.rows):
+            row = []
+            for j in range(matrix.cols):
+                element = matrix[i, j]
+                row.append(str(element))
+            rows.append(row)
 
-    @staticmethod
-    def format_equation(lhs: sympy.Expr, rhs: sympy.Expr) -> str:
-        return f"{MathFormatter.format_expression(lhs)} = {MathFormatter.format_expression(rhs)}"
+        formatted_rows = []
+        for row in rows:
+            formatted_rows.append(f"[{', '.join(row)}]")
 
-    @staticmethod
-    def format_matrix(matrix: list[list[sympy.Expr]]) -> str:
-        return str(matrix)
+        return f"[{', '.join(formatted_rows)}]"
 
 
 class TemplateEngine:
@@ -49,25 +58,25 @@ class TemplateEngine:
     human-readable questions using templates and formatters.
     """
 
-    SOLVE_VERBS: ClassVar[dict[str, list[str]]] = {
-        "easy": ["Find", "Calculate"],
-        "medium": ["Find", "Solve", "Determine"],
-        "hard": ["Solve", "Determine", "Evaluate", "Derive"],
+    SOLVE_VERBS: ClassVar[dict[DifficultyCategory, list[str]]] = {
+        DifficultyCategory.EASY: ["Find", "Calculate"],
+        DifficultyCategory.MEDIUM: ["Find", "Solve", "Determine"],
+        DifficultyCategory.HARD: ["Solve", "Determine", "Evaluate", "Derive"],
     }
 
-    QUESTION_STARTERS: ClassVar[dict[str, list[str]]] = {
-        "easy": ["What is", "Find"],
-        "medium": ["Find", "Calculate", "Determine", "Compute"],
-        "hard": ["Evaluate", "Determine", "Derive", "Establish"],
+    QUESTION_STARTERS: ClassVar[dict[DifficultyCategory, list[str]]] = {
+        DifficultyCategory.EASY: ["What is", "Find"],
+        DifficultyCategory.MEDIUM: ["Find", "Calculate", "Determine", "Compute"],
+        DifficultyCategory.HARD: ["Evaluate", "Determine", "Derive", "Establish"],
     }
 
-    COMPUTE_VERBS: ClassVar[dict[str, list[str]]] = {
-        "easy": ["Find"],
-        "medium": ["Calculate", "Compute"],
-        "hard": ["Determine", "Evaluate"],
+    COMPUTE_VERBS: ClassVar[dict[DifficultyCategory, list[str]]] = {
+        DifficultyCategory.EASY: ["Find"],
+        DifficultyCategory.MEDIUM: ["Calculate", "Compute"],
+        DifficultyCategory.HARD: ["Determine", "Evaluate"],
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.math_formatter = MathFormatter()
 
     def generate_question(self, template: QuestionTemplate, variables: dict[str, Any]) -> str:
@@ -93,15 +102,8 @@ class TemplateEngine:
         # 2. Format mathematical expressions stored within variables
         formatted_variables = {}
         for var_name, var_value in variables.items():
-            if isinstance(var_value, sympy.Expr):
-                formatted_variables[var_name] = self.math_formatter.format_expression(var_value)
-            elif isinstance(var_value, (list, tuple)) and len(var_value) == 2:
-                if all(isinstance(x, sympy.Expr) for x in var_value):
-                    formatted_variables[var_name] = self.math_formatter.format_equation(var_value[0], var_value[1])
-                else:
-                    formatted_variables[var_name] = str(var_value)
-            elif isinstance(var_value, (int, float)):
-                formatted_variables[var_name] = str(var_value)
+            if isinstance(var_value, MutableDenseMatrix):
+                formatted_variables[var_name] = self.math_formatter.format_matrix(var_value)
             else:
                 raise TypeError(f"Variable '{var_name}' has unsupported type {type(var_value).__name__}.")
 
@@ -113,18 +115,24 @@ class TemplateEngine:
 
         return question_text
 
-    def create_default_templates(self, question_type: str, difficulty: int) -> list[QuestionTemplate]:
+    def format_answer(self, answer: Any) -> str:
+        """
+        Format a SymPy matrix (can also be a vector), to be displayed in question answer.
+        """
+        if isinstance(answer, MutableDenseMatrix):
+            return self.math_formatter.format_matrix(answer)
+        else:
+            raise TypeError(f"Variable '{answer}' has unsupported type {type(answer).__name__}.")
+
+    def create_default_templates(self, question_type: str, difficulty: DifficultyCategory) -> list[QuestionTemplate]:
         """
         Create default question templates for common problem types.
         This simplifies the creation of question/answer pairs.
         """
         templates = []
 
-        # Convert numeric difficulty to category
-        difficulty_category = get_difficulty_category(difficulty)
-
         if question_type == "solve":
-            solve_verb = random.choice(self.SOLVE_VERBS[difficulty_category])
+            solve_verb = random.choice(self.SOLVE_VERBS[difficulty])
             templates.extend([
                 QuestionTemplate(
                     template_string=f"{solve_verb} {{equation}} for {{variable}}.",
@@ -141,7 +149,7 @@ class TemplateEngine:
             ])
 
         elif question_type == "compute_product":
-            compute_verb = random.choice(self.COMPUTE_VERBS[difficulty_category])
+            compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
 
             templates.extend([
                 QuestionTemplate(
@@ -167,7 +175,10 @@ class TemplateEngine:
         return templates
 
     def select_template(
-        self, templates: list[QuestionTemplate], question_type: str | None = None, difficulty: int | None = None
+        self,
+        templates: list[QuestionTemplate],
+        question_type: str,
+        difficulty: DifficultyCategory,
     ) -> QuestionTemplate:
         """
         Select an appropriate template from a list based on specified criteria.
@@ -176,13 +187,8 @@ class TemplateEngine:
         if not templates:
             raise ValueError("No templates available")
 
-        # Filter by both criteria simultaneously. We look for templates
-        # that match both in terms of question type as well as difficulty level
-        candidates = [
-            t
-            for t in templates
-            if (question_type is None or t.question_type == question_type)
-            and (difficulty is None or t.difficulty_level == difficulty)
-        ]
+        # Filter by both criteria simultaneously. We look for templates that
+        # match both in terms of question type as well as difficulty level
+        candidates = [t for t in templates if t.question_type == question_type and t.difficulty_level == difficulty]
 
         return random.choice(candidates if candidates else templates)
