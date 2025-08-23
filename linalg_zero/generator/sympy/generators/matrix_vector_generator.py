@@ -1,9 +1,12 @@
 import random
+from collections.abc import Callable
+from typing import Any
 
 import sympy
 from sympy.matrices import Matrix
 from typing_extensions import override
 
+from linalg_zero.generator.models import Question
 from linalg_zero.generator.sympy.base import (
     ProblemContext,
     ProblemTemplate,
@@ -12,14 +15,14 @@ from linalg_zero.generator.sympy.base import (
 )
 from linalg_zero.generator.sympy.entropy import EntropyController
 from linalg_zero.generator.sympy.templates import TemplateEngine
-from linalg_zero.generator.utils.difficulty import get_difficulty_category
+from linalg_zero.generator.utils.difficulty import DifficultyCategory
 from linalg_zero.grpo.verify import verify_answers
 
 
 class MatrixVectorBaseGenerator(SympyProblemGenerator):
     """Base class for matrix-vector problem generators."""
 
-    def __init__(self, entropy: float = 3.0, difficulty_level: int = 2, **kwargs):
+    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         super().__init__(entropy, difficulty_level, **kwargs)
 
         # Scale dimension with entropy using floor division
@@ -92,7 +95,7 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
 
 
 class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
-    def __init__(self, entropy: float = 3.0, difficulty_level: int = 2, **kwargs):
+    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix-vector multiplication generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
 
@@ -106,14 +109,16 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         vector_entropy = context.entropy * 0.9
 
         # Determine matrix dimensions based on difficulty category
-        difficulty_category = get_difficulty_category(context.difficulty_level)
-        if difficulty_category == "easy":
+        difficulty_category = context.difficulty_level
+        if difficulty_category == DifficultyCategory.EASY:
             rows, cols = 2, 2
-        elif difficulty_category == "medium":
+        elif difficulty_category == DifficultyCategory.MEDIUM:
             rows, cols = 3, 3
-        else:  # hard
+        elif difficulty_category == DifficultyCategory.HARD:
             rows = random.randint(3, self.max_dimension)
             cols = random.randint(3, self.max_dimension)
+        else:
+            raise ValueError(f"Invalid difficulty category: {difficulty_category}")
 
         # Generate matrix A and vector x
         matrix_A = self._generate_matrix(rows, cols, matrix_entropy, entropy_controller)
@@ -200,13 +205,15 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
 
         computed_answer = matrix * vector
 
-        if not verify_answers(computed_answer, ground_truth):
+        if not verify_answers(str(computed_answer), str(ground_truth)):
             raise ValueError(f"Verification failed for {computed_answer} and {ground_truth}")
 
         return True
 
 
-def create_matrix_vector_multiplication_factory(entropy: float = 3.0, difficulty: int = 3):
+def create_matrix_vector_multiplication_factory(
+    entropy: float, difficulty: DifficultyCategory
+) -> Callable[[], Question]:
     """Helper to create matrix-vector multiplication factory with specific parameters."""
     return create_sympy_factory(
         MatrixVectorMultiplicationGenerator,

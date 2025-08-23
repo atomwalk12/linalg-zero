@@ -7,6 +7,7 @@ from linalg_zero.generator.models import Question
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     create_matrix_vector_multiplication_factory,
 )
+from linalg_zero.generator.utils.difficulty import DifficultyCategory
 
 
 class FactoryRegistry:
@@ -56,7 +57,7 @@ def create_default_registry() -> FactoryRegistry:
     registry.register_factory(
         "linear_algebra",
         "matrix_vector_multiplication",
-        create_matrix_vector_multiplication_factory(entropy=3.0, difficulty=3),
+        create_matrix_vector_multiplication_factory(entropy=3.0, difficulty=DifficultyCategory.MEDIUM),
     )
 
     return registry

@@ -1,25 +1,35 @@
 """Difficulty modification utilities."""
 
 from collections.abc import Callable
+from enum import Enum
 
 # Minimum and maximum tool calls for difficulty
 MIN_DIFFICULTY = 1
 MAX_DIFFICULTY = 10
 
 
+class DifficultyCategory(Enum):
+    """Enum for difficulty categories used in problem generation."""
+
+    EASY = 1
+    MEDIUM = 2
+    HARD = 3
+
+    def __str__(self) -> str:
+        """Return the string value for compatibility with existing code."""
+        if self == DifficultyCategory.EASY:
+            return "easy"
+        elif self == DifficultyCategory.MEDIUM:
+            return "medium"
+        elif self == DifficultyCategory.HARD:
+            return "hard"
+        else:
+            raise ValueError(f"Invalid difficulty category: {self}")
+
+
 def clamp_difficulty(difficulty: int) -> int:
     """Clamp difficulty to valid range (1 to 10 tool calls)."""
     return max(MIN_DIFFICULTY, min(difficulty, MAX_DIFFICULTY))
-
-
-def get_difficulty_category(difficulty: int) -> str:
-    """Get category name for a difficulty level (for display purposes)."""
-    if difficulty <= 1:
-        return "easy"
-    elif difficulty <= 3:
-        return "medium"
-    else:
-        return "hard"
 
 
 def make_difficulty_booster(boost_level: int) -> Callable[[int], int]:

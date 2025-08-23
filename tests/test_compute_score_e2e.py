@@ -227,7 +227,7 @@ class TestCalcRewardE2E:
 
         score = calc_reward(solution_str, ground_truth)
 
-        assert isinstance(score, (int, float))  # noqa: UP038
+        assert isinstance(score, (int, float))
         assert score == 1.2
 
     def test_with_additional_kwargs(self):

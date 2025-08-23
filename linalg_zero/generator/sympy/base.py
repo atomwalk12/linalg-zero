@@ -1,11 +1,14 @@
+import json
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
+from types import TracebackType
 from typing import Any
 
 import sympy
 
 from linalg_zero.generator.models import Question
+from linalg_zero.generator.utils.difficulty import DifficultyCategory
 
 
 @dataclass
@@ -20,7 +23,7 @@ class ProblemTemplate:
     question_templates: list[str]
     context_info: dict[str, Any]
     difficulty_markers: dict[str, float]
-    difficulty: int
+    difficulty: DifficultyCategory
 
 
 class ProblemContext:
@@ -28,19 +31,19 @@ class ProblemContext:
     Context manager for state information around the resolution process.
     """
 
-    def __init__(self, entropy: float, difficulty_level: int = 2):
+    def __init__(self, entropy: float, difficulty_level: DifficultyCategory):
         self.entropy = entropy
         self.difficulty_level = difficulty_level
         self.used_entropy = 0.0
         self.tool_calls_count = 0
-        self.stepwise_results: list[dict[str, str]] = []
+        self.stepwise_results: list[dict[str, Any]] = []
         self.golden_result: dict[str, str] = {}
         self._step_counter = 0
 
-    def __enter__(self):
+    def __enter__(self) -> "ProblemContext":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type, exc_val: Exception, exc_tb: TracebackType) -> None:
         pass
 
     def record_entropy_usage(self, amount: float) -> None:
@@ -69,7 +72,7 @@ class ProblemContext:
             step_data = {"tool": operation_type, "result": result, "step_id": step_id}
 
             if depends_on:
-                step_data["depends_on"] = depends_on
+                step_data["depends_on"] = json.dumps(depends_on)
 
             if is_final:
                 self.golden_result = {"final_answer": result, "from_step_id": step_id}
@@ -89,8 +92,8 @@ class SympyProblemGenerator(ABC):
 
     def __init__(
         self,
-        entropy: float = 3.0,
-        difficulty_level: int = 2,
+        entropy: float,
+        difficulty_level: DifficultyCategory,
         problem_type: str = "unknown",
         topic: str = "linear_algebra",
     ):
@@ -157,18 +160,18 @@ class SympyProblemGenerator(ABC):
 
 def create_sympy_factory(
     generator_class: type,
-    entropy: float = 3.0,
-    difficulty_level: int = 2,
+    entropy: float,
+    difficulty_level: DifficultyCategory,
     problem_type: str = "unknown",
     topic: str = "linear_algebra",
-    **kwargs,
+    **kwargs: Any,
 ) -> Callable[[], Question]:
     """
     Convenience function for generating a factory function for registry registration.
     """
 
     def factory() -> Question:
-        generator = generator_class(
+        generator: SympyProblemGenerator = generator_class(
             entropy=entropy, difficulty_level=difficulty_level, problem_type=problem_type, topic=topic, **kwargs
         )
         return generator.generate()

@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass, field
 
+from linalg_zero.generator.utils.difficulty import DifficultyCategory
+
 
 @dataclass
 class Question:
@@ -9,7 +11,7 @@ class Question:
 
     text: str
     answer: str
-    difficulty: int = 2
+    difficulty: DifficultyCategory
     topic: str = "general"
     problem_type: str = "general"
     is_valid: bool = True

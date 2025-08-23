@@ -16,7 +16,7 @@ class EntropyController:
     https://github.com/google-deepmind/mathematics_dataset/
     """
 
-    def __init__(self, total_entropy: float = 3.0, random_seed: int | None = None):
+    def __init__(self, total_entropy: float, random_seed: int | None = None):
         """
         Initialize entropy controller with total entropy budget.
         """
@@ -66,23 +66,14 @@ class EntropyController:
 
         return sympy.Integer(value)
 
-    def generate_rational(
-        self, entropy: float, signed: bool = True, force_non_integer: bool = False
-    ) -> sympy.Rational:
-        """Generate random rational number with entropy-controlled complexity."""
-        if force_non_integer:
-            return self._generate_non_integer_rational(entropy, signed)
-        else:
-            # 50% probability of returning integer vs non-integer rational
-            if random.choice([False, True]):
-                return sympy.Rational(self.generate_integer(entropy, signed))  # type: ignore[return-value]
-            else:
-                return self._generate_non_integer_rational(entropy, signed)
-
-    def _generate_non_integer_rational(self, entropy: float, signed: bool) -> sympy.Rational:
+    def generate_rational(self, entropy: float, signed: bool) -> sympy.Rational:
         """Generate a non-integer rational following mathematics_dataset approach."""
         numer_entropy = random.uniform(0, entropy)
         denom_entropy = entropy - numer_entropy
         numer = self.generate_integer(numer_entropy, signed, min_abs=1)
         denom = self.generate_integer(denom_entropy, False, min_abs=2, coprime_to=numer)
-        return sympy.Rational(numer, denom)  # type: ignore[return-value]
+        rational = sympy.Rational(numer, denom)
+        if isinstance(rational, sympy.Rational):
+            return rational
+        else:
+            raise TypeError(f"This can never happen: {rational}")
