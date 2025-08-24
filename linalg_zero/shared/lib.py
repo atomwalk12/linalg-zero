@@ -1,11 +1,12 @@
-"""Linear algebra functions library for demonstrating function calling verification."""
-
 import math
 from collections.abc import Callable
-from typing import Any, get_origin, get_type_hints
+from typing import Any
 
-import sympy as sp
+from sympy import Matrix, ShapeError
 from transformers.utils.chat_template_utils import get_json_schema
+
+from linalg_zero.generator.sympy.templates import MathFormatter
+from linalg_zero.shared.types import assert_lib_returns
 
 
 def add_numbers(a: float, b: float) -> float:
@@ -49,7 +50,9 @@ def divide_numbers(dividend: float, divisor: float) -> float:
     return float(dividend) / float(divisor)
 
 
-def multiply_matrices(matrix_a: list[list[float]], matrix_b: list[list[float]]) -> list[list[float]]:
+def multiply_matrices(
+    matrix_a: list[list[float | int]], matrix_b: list[list[float | int]], precision: int = -1
+) -> list[list[float | int]]:
     """Multiply two matrices using SymPy.
 
     Examples:
@@ -65,15 +68,18 @@ def multiply_matrices(matrix_a: list[list[float]], matrix_b: list[list[float]]) 
     Returns:
         The product matrix as a list of lists.
     """
-    # Convert to SymPy matrices
-    sym_a = sp.Matrix(matrix_a)
-    sym_b = sp.Matrix(matrix_b)
+    try:
+        sym_a = Matrix(matrix_a)
+        sym_b = Matrix(matrix_b)
+        result_matrix: Matrix = sym_a * sym_b
+        result = MathFormatter.sympy_to_primitive(result_matrix, precision=precision)
 
-    # Perform multiplication
-    result_matrix = sym_a * sym_b
-
-    # Convert back to list of lists with float values
-    return [[float(result_matrix[i, j]) for j in range(result_matrix.cols)] for i in range(result_matrix.rows)]
+        if isinstance(result, list) and all(isinstance(row, list) for row in result):
+            return result
+        else:
+            raise TypeError(f"Expected list of lists, got {type(result)}")
+    except ShapeError as e:
+        raise ValueError(f"Matrix dimensions incompatible for multiplication: {e}") from e
 
 
 def transpose_matrix(matrix: list[list[float]]) -> list[list[float]]:
@@ -229,33 +235,11 @@ def get_tools() -> list[dict[str, Any]]:
     return [get_json_schema(func) for func in get_lib().values()]
 
 
-def assert_lib_returns(tested_types: set[type]) -> list[type]:
+def get_lib_types_list() -> list[type]:
     """
-    This function extracts all function return types from the library.
-    The reward functions used during GRPO were tested against these types.
+    Get the list of library return types.
+    This is a check to ensure grpo training uses well-tested types in math-verify.
+    This only influences the reward functions, and will likely work with other types
+    as well. Make sure the types defined below coincide by using this function.
     """
-    lib_functions = get_lib()
-    return_types = set()
-
-    for func in lib_functions.values():
-        type_hints = get_type_hints(func)
-        if "return" in type_hints:
-            type_hint = type_hints["return"]
-            base_type = get_origin(type_hint) or type_hint
-
-            if base_type not in tested_types:
-                raise ValueError(f"Unexpected return type: {type_hint}")
-
-            return_types.add(base_type)
-
-    if len(return_types) == 0:
-        raise ValueError("No return types found")
-
-    return list(return_types)
-
-
-# This is a check to ensure grpo training uses well-tested types in math-verify.
-# This only influences the reward functions, and will likely work with other
-# types as well. Make sure the types defined below coincide.
-LibTypesList = assert_lib_returns({float, int, list})
-LibTypes = float | int | list
+    return assert_lib_returns({float, int, list}, get_lib())

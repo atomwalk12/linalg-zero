@@ -1,10 +1,15 @@
+import json
 import random
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
+from sympy import Float, Integer, Number
+from sympy.core import Expr
 from sympy.matrices import MutableDenseMatrix
+from sympy.matrices.dense import Matrix
 
 from linalg_zero.generator.utils.difficulty import DifficultyCategory
+from linalg_zero.shared.types import LibTypes
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
@@ -28,26 +33,53 @@ class MathFormatter:
     """
 
     @staticmethod
-    def format_matrix(matrix: MutableDenseMatrix) -> str:
-        """
-        Format a SymPy matrix, to be displayed in question query.
-        Expected format:
-          Q: What is [[4, -1, 1], [4, 5, -2], [-4, -2/9, 1]] * [[4], [-2], [2/3]]?
-          A: [[56/3], [14/3], [-134/9]]
-        """
-        rows = []
-        for i in range(matrix.rows):
-            row = []
-            for j in range(matrix.cols):
-                element = matrix[i, j]
-                row.append(str(element))
-            rows.append(row)
+    def round_sympy_element(element: LibTypes, precision: int = -1) -> LibTypes:
+        """Round a SymPy element to a precision of 2."""
+        if isinstance(element, int | float):
+            if precision != -1:
+                return round(element, precision)
+            else:
+                return element
+        elif isinstance(element, list):
+            return [MathFormatter.round_sympy_element(e, precision) for e in element]
+        else:
+            raise TypeError(f"Unsupported element type: {type(element)}")
 
-        formatted_rows = []
-        for row in rows:
-            formatted_rows.append(f"[{', '.join(row)}]")
+    @staticmethod
+    def sympy_to_primitive(sympy_result: Expr, precision: int = -1) -> LibTypes:
+        """Convert sympy result to primitive type for verification."""
+        result: LibTypes | None = None
+        if isinstance(sympy_result, Matrix):
+            list_of_lists = sympy_result.tolist()
+            result = [[MathFormatter._sympy_element_to_python(element) for element in _] for _ in list_of_lists]
+        elif isinstance(sympy_result, (Number, Integer, Float)):
+            result = MathFormatter._sympy_element_to_python(sympy_result)
+        else:
+            raise TypeError(f"Unsupported element type: {type(sympy_result)}")
 
-        return f"[{', '.join(formatted_rows)}]"
+        if precision != -1:
+            return MathFormatter.round_sympy_element(result, precision)
+        else:
+            return result
+
+    @staticmethod
+    def _sympy_element_to_python(element: Integer | Float | Number) -> float | int:
+        """Convert SymPy element to Python primitive, following quantum matrixutils pattern."""
+        if hasattr(element, "is_Integer") and element.is_Integer:
+            value = element.__int__()
+            if isinstance(value, int):
+                return value
+            else:
+                raise ValueError(f"Expected int, got {type(value)}")
+        elif (hasattr(element, "is_Float") and element.is_Float) or (
+            hasattr(element, "is_Number") and element.is_Number
+        ):
+            value = element.__float__()
+            if isinstance(value, float):
+                return value
+            else:
+                raise ValueError(f"Expected float, got {type(value)}")
+        raise ValueError(f"Unsupported element type: {type(element)}")
 
 
 class TemplateEngine:
@@ -79,7 +111,7 @@ class TemplateEngine:
     def __init__(self) -> None:
         self.math_formatter = MathFormatter()
 
-    def generate_question(self, template: QuestionTemplate, variables: dict[str, Any]) -> str:
+    def generate_question(self, template: QuestionTemplate, variables: dict[str, Any], precision: int = -1) -> str:
         """
         Generate natural language question text that will be included as the
         "query" field in the final dataset entry.
@@ -88,13 +120,6 @@ class TemplateEngine:
         before performing template substitution.
         """
         # 1. Validation checks
-        for var_name, var_value in variables.items():
-            if not isinstance(var_value, MutableDenseMatrix):
-                raise TypeError(
-                    f"Variable '{var_name}' has unsupported type {type(var_value).__name__}. "
-                    f"Supported types: sympy.Expr, str, list, tuple, int, float"
-                )
-
         missing_vars = set(template.required_variables) - set(variables.keys())
         if missing_vars:
             raise ValueError(f"Missing required variables: {missing_vars}")
@@ -103,7 +128,7 @@ class TemplateEngine:
         formatted_variables = {}
         for var_name, var_value in variables.items():
             if isinstance(var_value, MutableDenseMatrix):
-                formatted_variables[var_name] = self.math_formatter.format_matrix(var_value)
+                formatted_variables[var_name] = self.math_formatter.sympy_to_primitive(var_value, precision)
             else:
                 raise TypeError(f"Variable '{var_name}' has unsupported type {type(var_value).__name__}.")
 
@@ -115,12 +140,13 @@ class TemplateEngine:
 
         return question_text
 
-    def format_answer(self, answer: Any) -> str:
+    def format_answer(self, answer: Any, precision: int = -1) -> str:
         """
         Format a SymPy matrix (can also be a vector), to be displayed in question answer.
         """
         if isinstance(answer, MutableDenseMatrix):
-            return self.math_formatter.format_matrix(answer)
+            result = self.math_formatter.sympy_to_primitive(answer, precision)
+            return json.dumps(result)
         else:
             raise TypeError(f"Variable '{answer}' has unsupported type {type(answer).__name__}.")
 

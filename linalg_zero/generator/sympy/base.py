@@ -9,6 +9,7 @@ import sympy
 
 from linalg_zero.generator.models import Question
 from linalg_zero.generator.utils.difficulty import DifficultyCategory
+from linalg_zero.shared.types import LibTypes
 
 
 @dataclass
@@ -19,7 +20,8 @@ class ProblemTemplate:
 
     expression: sympy.Expr
     variables: list[sympy.Symbol]
-    solution: sympy.Expr | list[sympy.Expr] | str
+    sympy_solution: sympy.Expr | list[sympy.Expr] | str
+    lib_result: LibTypes
     question_templates: list[str]
     context_info: dict[str, Any]
     difficulty_markers: dict[str, float]
@@ -55,8 +57,8 @@ class ProblemContext:
 
     def record_tool_call(
         self,
-        operation_type: str = "general",
-        result: str = "",
+        function_name: str,
+        result: LibTypes,
         is_final: bool = False,
         depends_on: list[str] | None = None,
     ) -> str:
@@ -70,13 +72,14 @@ class ProblemContext:
         step_id = str(self._step_counter)
 
         if result:
-            step_data = {"tool": operation_type, "result": result, "step_id": step_id}
+            result_json = json.dumps(result)
+            step_data = {"tool": function_name, "result": result_json, "step_id": step_id}
 
             if depends_on:
                 step_data["depends_on"] = json.dumps(depends_on)
 
             if is_final:
-                self.golden_result = {"final_answer": result, "from_step_id": step_id}
+                self.golden_result = {"final_answer": result_json, "from_step_id": step_id}
 
             self.stepwise_results.append(step_data)
 

@@ -2,8 +2,7 @@ import random
 from collections.abc import Callable
 from typing import Any
 
-import sympy
-from sympy.matrices import Matrix
+from sympy import Integer, Matrix
 from typing_extensions import override
 
 from linalg_zero.generator.models import Question
@@ -14,9 +13,10 @@ from linalg_zero.generator.sympy.base import (
     create_sympy_factory,
 )
 from linalg_zero.generator.sympy.entropy import EntropyController
-from linalg_zero.generator.sympy.templates import TemplateEngine
+from linalg_zero.generator.sympy.templates import MathFormatter, TemplateEngine
 from linalg_zero.generator.utils.difficulty import DifficultyCategory
 from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.shared.lib import multiply_matrices
 
 
 class MatrixVectorBaseGenerator(SympyProblemGenerator):
@@ -56,7 +56,7 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
 
                 # Avoid zero elements to maintain interesting problems
                 if element == 0:
-                    element = sympy.Integer(1) if random.random() < 0.5 else sympy.Integer(-1)
+                    element = Integer(1) if random.random() < 0.5 else Integer(-1)
 
                 row.append(element)
             matrix_elements.append(row)
@@ -87,7 +87,7 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
 
             # Avoid all-zero vectors
             if i == 0 and element == 0:
-                element = sympy.Integer(1)
+                element = Integer(1)
 
             vector_elements.append(element)
 
@@ -98,6 +98,8 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix-vector multiplication generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
+        self.precision = -1
+        self.math_formatter = MathFormatter()
 
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """Generate matrix-vector multiplication problem content."""
@@ -123,20 +125,13 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         # Generate matrix A and vector x
         matrix_A = self._generate_matrix(rows, cols, matrix_entropy, entropy_controller)
         context.record_entropy_usage(matrix_entropy)
-        step1_id = context.record_tool_call("matrix_generation", str(matrix_A))
 
         vector_x = self._generate_vector(cols, vector_entropy, entropy_controller)
         context.record_entropy_usage(vector_entropy)
-        step2_id = context.record_tool_call("vector_generation", str(vector_x))
-
-        # Compute b = A*x
-        vector_b = matrix_A * vector_x
-        _ = context.record_tool_call(
-            "matrix_vector_multiplication", str(vector_b), is_final=True, depends_on=[step1_id, step2_id]
-        )
+        sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_A, vector_x)
+        _ = context.record_tool_call("multiply_matrices", lib_result, is_final=True)
 
         problem_expression = matrix_A * vector_x
-        solution = vector_b
         problem_type = "compute_product"
 
         # Generate question templates
@@ -145,7 +140,8 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         return ProblemTemplate(
             expression=problem_expression,
             variables=[],
-            solution=solution,
+            sympy_solution=sympy_sol,
+            lib_result=lib_result,
             question_templates=[t.template_string for t in question_templates],
             context_info={
                 "matrix_dimensions": (rows, cols),
@@ -176,7 +172,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
                 templates, "compute_product", self.difficulty_level
             )
             question_text = self.template_engine.generate_question(
-                template=selected_template, variables={"matrix": matrix, "vector": vector}
+                template=selected_template, variables={"matrix": matrix, "vector": vector}, precision=self.precision
             )
         else:
             raise ValueError("No templates available for matrix-vector multiplication")
@@ -186,29 +182,43 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     @override
     def format_solution(self, template: ProblemTemplate) -> str:
         """The solution string used as the ground truth in the final dataset entry."""
-        solution = template.solution
+        solution = template.sympy_solution
 
-        if not isinstance(solution, sympy.Matrix):
+        if not isinstance(solution, Matrix):
             raise TypeError(f"The solution should be a vector: {solution}")
 
-        return self.template_engine.format_answer(solution)
+        return self.template_engine.format_answer(solution, precision=self.precision)
 
     @override
     def verify_problem(self, template: ProblemTemplate) -> bool:
         """
         Verify the mathematical correctness using end-to-end math_verify verification.
+        This is the single point where we ensure sympy and lib.py results match.
         """
-        # Compute what the actual answer should be, then verify
-        matrix = template.context_info["matrix"]
-        vector = template.context_info["vector"]
-        ground_truth = template.solution
+        lib_result = template.lib_result
+        sympy_solution = template.sympy_solution
 
-        computed_answer = matrix * vector
+        sympy_primitive = self.math_formatter.sympy_to_primitive(sympy_solution, precision=self.precision)
 
-        if not verify_answers(str(computed_answer), str(ground_truth)):
-            raise ValueError(f"Verification failed for {computed_answer} and {ground_truth}")
+        # Use the same verification function for both generation and training
+        if not verify_answers(str(sympy_primitive), str(lib_result)):
+            raise ValueError(f"Verification failed: sympy={sympy_primitive} vs lib={lib_result}")
 
         return True
+
+    def _multiply_matrices_sympy(self, matrix_a: Matrix, matrix_b: Matrix) -> tuple[Matrix, list[list[float]]]:
+        """Multiply two sympy matrices using lib.py function."""
+        # Prepare library input
+        a_list = self.math_formatter.sympy_to_primitive(matrix_a)
+        b_list = self.math_formatter.sympy_to_primitive(matrix_b)
+        assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
+
+        lib_result = multiply_matrices(a_list, b_list, precision=self.precision)
+
+        # Compute sympy reference with same precision
+        sympy_result = matrix_a * matrix_b
+
+        return sympy_result, lib_result
 
 
 def create_matrix_vector_multiplication_factory(
