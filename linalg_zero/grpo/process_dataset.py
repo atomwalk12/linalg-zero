@@ -13,7 +13,7 @@ from argilla import Dataset
 from verl.tools.schemas import OpenAIFunctionToolSchema
 
 import datasets
-from linalg_zero.shared.lib import LibTypesList, get_lib
+from linalg_zero.shared.lib import get_lib, get_lib_types_list
 from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_function_schema, push_to_hub
 
@@ -69,7 +69,7 @@ def normalize_dataset_schema(ground_truth: str, stepwise_ground_truths: str) -> 
     are both in JSON format.
     """
 
-    if type(json.loads(ground_truth)) not in LibTypesList:
+    if type(json.loads(ground_truth)) not in get_lib_types_list():
         raise ValueError(f"Ground truth is not a valid type: {type(ground_truth)}")
 
     if len(json.loads(stepwise_ground_truths)) == 0:
@@ -87,7 +87,7 @@ def normalize_dataset_schema(ground_truth: str, stepwise_ground_truths: str) -> 
     stepwise_ground_arr = json.loads(stepwise_ground_truths)
     for stepwise_truth in stepwise_ground_arr:
         for key, value in stepwise_truth.items():
-            if type(value) not in LibTypesList:
+            if type(value) not in get_lib_types_list():
                 raise ValueError(f"Stepwise truth is not a valid type: {type(stepwise_truth)}")
 
             if key not in lib_names:
