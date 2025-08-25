@@ -4,6 +4,9 @@ import random
 from collections.abc import Callable
 
 from linalg_zero.generator.models import Question
+from linalg_zero.generator.sympy.generators.inverse_solver import (
+    create_matrix_vector_equation_solver_factory,
+)
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     create_matrix_vector_multiplication_factory,
 )
@@ -58,6 +61,11 @@ def create_default_registry() -> FactoryRegistry:
         "linear_algebra",
         "matrix_vector_multiplication",
         create_matrix_vector_multiplication_factory(entropy=3.0, difficulty=DifficultyCategory.MEDIUM),
+    )
+    registry.register_factory(
+        "linear_algebra",
+        "matrix_vector_inverse_solver",
+        create_matrix_vector_equation_solver_factory(entropy=3.0, difficulty=DifficultyCategory.MEDIUM),
     )
 
     return registry

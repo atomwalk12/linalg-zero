@@ -5,6 +5,7 @@ from typing import Any
 from sympy import Matrix, ShapeError
 from transformers.utils.chat_template_utils import get_json_schema
 
+from linalg_zero.generator import Precision
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.types import assert_lib_returns
 
@@ -50,9 +51,7 @@ def divide_numbers(dividend: float, divisor: float) -> float:
     return float(dividend) / float(divisor)
 
 
-def multiply_matrices(
-    matrix_a: list[list[float | int]], matrix_b: list[list[float | int]], precision: int = -1
-) -> list[list[float | int]]:
+def multiply_matrices(matrix_a: list[list[float | int]], matrix_b: list[list[float | int]]) -> list[list[float | int]]:
     """Multiply two matrices using SymPy.
 
     Examples:
@@ -72,7 +71,7 @@ def multiply_matrices(
         sym_a = Matrix(matrix_a)
         sym_b = Matrix(matrix_b)
         result_matrix: Matrix = sym_a * sym_b
-        result = MathFormatter.sympy_to_primitive(result_matrix, precision=precision)
+        result = MathFormatter.sympy_to_primitive(result_matrix, precision=Precision.MULTIPLY_MATRICES)
 
         if isinstance(result, list) and all(isinstance(row, list) for row in result):
             return result
@@ -163,6 +162,39 @@ def matrix_trace(matrix: list[list[float]]) -> float:
     return sum(matrix[i][i] for i in range(len(matrix)))
 
 
+def solve_linear_system(matrix_a: list[list[float | int]], vector_b: list[float | int]) -> list[float | int]:
+    """Solve the linear system Ax = b for x using SymPy.
+
+    Examples:
+        >>> solve_linear_system([[2, 1], [1, 3]], [7, 8])
+        [2.0, 3.0]
+        >>> solve_linear_system([[1, 0], [0, 1]], [5, 3])  # Identity matrix
+        [5.0, 3.0]
+
+    Args:
+        matrix_a: The coefficient matrix as a list of lists.
+        vector_b: The right-hand side vector as a list.
+
+    Returns:
+        The solution vector x as a list.
+    """
+    try:
+        sym_a = Matrix(matrix_a)
+        sym_b = Matrix(vector_b)
+
+        solution_matrix = sym_a.LUsolve(sym_b)
+
+        result = MathFormatter.sympy_to_primitive(solution_matrix, precision=Precision.SOLVE_LINEAR_SYSTEM)
+
+        if isinstance(result, list):
+            return result
+
+    except Exception as e:
+        raise ValueError(f"Cannot solve linear system: {e}") from e
+
+    raise TypeError(f"Expected list, got {type(result)}")
+
+
 def permutation_count(n: int, k: int) -> int:
     """Calculate the number of permutations of k elements from a set of n elements.
 
@@ -226,6 +258,7 @@ def get_lib() -> dict[str, Callable[..., Any]]:
         "add_numbers": add_numbers,
         "divide_numbers": divide_numbers,
         "multiply_matrices": multiply_matrices,
+        "solve_linear_system": solve_linear_system,
         "frobenius_norm": frobenius_norm,
     }
 

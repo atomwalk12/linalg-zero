@@ -5,6 +5,7 @@ from typing import Any
 from sympy import Integer, Matrix
 from typing_extensions import override
 
+from linalg_zero.generator import Precision
 from linalg_zero.generator.models import Question
 from linalg_zero.generator.sympy.base import (
     ProblemContext,
@@ -105,7 +106,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix-vector multiplication generator."""
         super().__init__(entropy, difficulty_level, integers_only=True, **kwargs)
-        self.precision = -1
+        self.precision = Precision.MULTIPLY_MATRICES
         self.math_formatter = MathFormatter()
 
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
@@ -217,7 +218,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         b_list = self.math_formatter.sympy_to_primitive(matrix_b)
         assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
 
-        lib_result = multiply_matrices(a_list, b_list, precision=self.precision)
+        lib_result = multiply_matrices(a_list, b_list)
         sympy_result = matrix_a * matrix_b
 
         return sympy_result, lib_result
