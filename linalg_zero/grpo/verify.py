@@ -27,19 +27,25 @@ def parse_string(s: str) -> LibTypes | None:
     return None
 
 
-def verify_answers(ground_truth: LibTypes, target_answer: LibTypes, timeout: int = 5) -> bool:
+def verify_answers(ground_truth: LibTypes | None, target_answer: LibTypes | None, timeout: int = 5) -> bool:
     """Verify if the target answer matches the ground truth using math_verify."""
 
-    if isinstance(ground_truth, list):
-        gt = Matrix(ground_truth)
-        target = Matrix(target_answer)
-    elif isinstance(ground_truth, float):
-        gt = Float(ground_truth)
-        target = Float(target_answer)
-    elif isinstance(ground_truth, int):
-        gt = Integer(ground_truth)
-        target = Integer(target_answer)
-    else:
-        raise TypeError(f"Unsupported answer type: {type(ground_truth)}")
+    def convert_to_sympy(answer: LibTypes) -> Matrix | Float | Integer:
+        """Convert the answer to a SymPy object."""
+        if isinstance(answer, list):
+            # NOTE[atom]: this throws a deprecation warning
+            return Matrix(answer)
+        elif isinstance(answer, float):
+            return Float(answer)
+        elif isinstance(answer, int):
+            return Integer(answer)
+        else:
+            raise TypeError(f"Unsupported answer type: {type(answer)}")
+
+    if ground_truth is None or target_answer is None:
+        return False
+
+    target = convert_to_sympy(target_answer)
+    gt = convert_to_sympy(ground_truth)
 
     return verify(gt, target, timeout_seconds=timeout)

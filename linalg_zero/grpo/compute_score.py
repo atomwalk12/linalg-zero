@@ -64,6 +64,7 @@ def calc_reward(solution_str: str, ground_truth: str, **kwargs: Any) -> float:
     Calculates the reward for the complete trajectory. It is the solution retrieved
     after all interactions (computed by the get_interaction_answer) finish.
     """
+    # TODO[atom]: this is the only place where a json string is expected instead of a primitive type
     parser = XMLParser()
     parsed: LibTypes = json.loads(ground_truth)
     reward, _ = get_interaction_reward(parser, solution_str, parsed)

@@ -324,10 +324,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         is_correct = []
         for _input, lib_result in zip(inputs, final_answers, strict=True):
             # TODO[atom]: perhaps this could be changed to store a list, float or int directly
-            if parsed_lib_result := parse_string(lib_result):
-                is_correct.append(verify_answers(_input["ground_truth"], parsed_lib_result))
-            else:
-                is_correct.append(False)
+            is_correct.append(verify_answers(_input["ground_truth"], parse_string(lib_result)))
 
         return is_correct
 
