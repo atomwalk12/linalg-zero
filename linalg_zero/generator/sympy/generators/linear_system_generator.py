@@ -14,6 +14,7 @@ from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.generator.utils.difficulty import DifficultyCategory
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import solve_linear_system
+from linalg_zero.shared.types import LibTypes
 
 
 class LinearSystemGenerator(MatrixVectorBaseGenerator):
@@ -168,6 +169,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         sympy_solution = template.sympy_solution
 
         ground_truth = self.math_formatter.sympy_to_primitive(sympy_solution, precision=self.precision)
+        assert isinstance(ground_truth, LibTypes)  # noqa: S101
 
         # Use the same verification function for both generation and training
         if not verify_answers(ground_truth, lib_result):
@@ -181,6 +183,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         """Solve linear system Ax = b using lib.py function."""
         matrix_a_sympy = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
         vector_b_sympy = MathFormatter.sympy_to_primitive(vector_b, precision=self.precision)
+        assert isinstance(matrix_a_sympy, list) and isinstance(vector_b_sympy, list)  # noqa: S101
 
         # Prepare library input
         lib_result = solve_linear_system(matrix_a_sympy, vector_b_sympy)

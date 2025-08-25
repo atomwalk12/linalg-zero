@@ -18,6 +18,7 @@ from linalg_zero.generator.sympy.templates import MathFormatter, TemplateEngine
 from linalg_zero.generator.utils.difficulty import DifficultyCategory
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import multiply_matrices
+from linalg_zero.shared.types import LibTypes
 
 
 class MatrixVectorBaseGenerator(SympyProblemGenerator):
@@ -205,6 +206,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         """
         lib_result = template.lib_result
         ground_truth = self.math_formatter.sympy_to_primitive(template.sympy_solution, precision=self.precision)
+        assert isinstance(ground_truth, LibTypes)  # noqa: S101
 
         if not verify_answers(ground_truth, lib_result):
             raise ValueError(f"Verification failed: sympy={ground_truth} vs lib={lib_result}")

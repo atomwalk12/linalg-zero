@@ -4,7 +4,7 @@ import random
 from collections.abc import Callable
 
 from linalg_zero.generator.models import Question
-from linalg_zero.generator.sympy.generators.inverse_solver import (
+from linalg_zero.generator.sympy.generators.linear_system_generator import (
     create_matrix_vector_equation_solver_factory,
 )
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
