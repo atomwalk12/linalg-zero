@@ -322,8 +322,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     def check_final_answers(self, final_answers: list[str], inputs: list[dict[str, Any]]) -> list[bool]:
         """Check if the final answers are correct."""
         is_correct = []
-        for answer, _input in zip(final_answers, inputs, strict=True):
-            is_correct.append(verify_answers(answer, _input["ground_truth"]))
+        for lib_result, _input in zip(final_answers, inputs, strict=True):
+            is_correct.append(verify_answers(_input["ground_truth"], lib_result))
 
         return is_correct
 

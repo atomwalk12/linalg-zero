@@ -3,10 +3,9 @@ import random
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from sympy import Float, Integer, Number
+from sympy import Float, Integer, Number, Symbol
 from sympy.core import Expr
 from sympy.matrices import MutableDenseMatrix
-from sympy.matrices.dense import Matrix
 
 from linalg_zero.generator.utils.difficulty import DifficultyCategory
 from linalg_zero.shared.types import LibTypes
@@ -46,10 +45,10 @@ class MathFormatter:
             raise TypeError(f"Unsupported element type: {type(element)}")
 
     @staticmethod
-    def sympy_to_primitive(sympy_result: Expr, precision: int = -1) -> LibTypes:
+    def sympy_to_primitive(sympy_result: Expr, precision: int = -1) -> LibTypes | str:
         """Convert sympy result to primitive type for verification."""
-        result: LibTypes | None = None
-        if isinstance(sympy_result, Matrix):
+        result: LibTypes | str | None = None
+        if isinstance(sympy_result, MutableDenseMatrix):
             list_of_lists = sympy_result.tolist()
             result = [[MathFormatter._sympy_element_to_python(element) for element in _] for _ in list_of_lists]
         elif isinstance(sympy_result, (Number, Integer, Float)):
@@ -57,13 +56,13 @@ class MathFormatter:
         else:
             raise TypeError(f"Unsupported element type: {type(sympy_result)}")
 
-        if precision != -1:
+        if precision != -1 and not isinstance(result, str):
             return MathFormatter.round_sympy_element(result, precision)
         else:
             return result
 
     @staticmethod
-    def _sympy_element_to_python(element: Integer | Float | Number) -> float | int:
+    def _sympy_element_to_python(element: Integer | Float | Number | Symbol) -> float | int | str:
         """Convert SymPy element to Python primitive, following quantum matrixutils pattern."""
         if hasattr(element, "is_Integer") and element.is_Integer:
             value = element.__int__()
@@ -79,6 +78,9 @@ class MathFormatter:
                 return value
             else:
                 raise ValueError(f"Expected float, got {type(value)}")
+        elif isinstance(element, Symbol):
+            # This is used by the inverse solver because of variables that are not numbers
+            return str(element)
         raise ValueError(f"Unsupported element type: {type(element)}")
 
 
@@ -161,14 +163,14 @@ class TemplateEngine:
             solve_verb = random.choice(self.SOLVE_VERBS[difficulty])
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{solve_verb} {{equation}} for {{variable}}.",
-                    required_variables=["equation", "variable"],
+                    template_string=f"{solve_verb} {{matrix}}*{{x_symbols}} = {{target_b}} for {{x_symbols}}.",
+                    required_variables=["matrix", "x_symbols", "target_b"],
                     difficulty_level=difficulty,
                     question_type="solve",
                 ),
                 QuestionTemplate(
-                    template_string="What is {variable} in {equation}?",
-                    required_variables=["equation", "variable"],
+                    template_string="What is {x_symbols} in {matrix}*{x_symbols} = {target_b}?",
+                    required_variables=["matrix", "x_symbols", "target_b"],
                     difficulty_level=difficulty,
                     question_type="solve",
                 ),
