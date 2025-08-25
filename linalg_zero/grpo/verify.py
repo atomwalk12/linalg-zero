@@ -1,7 +1,30 @@
+import ast
+
 from math_verify import verify
 from sympy import Float, Integer, Matrix
 
 from linalg_zero.shared.types import LibTypes
+
+
+def parse_string(s: str) -> LibTypes | None:
+    """
+    Parse string to the most appropriate library type, or None if unsuccessful.
+    """
+    s = s.strip()
+
+    if not s:
+        return None
+
+    try:
+        parsed = ast.literal_eval(s)
+
+        if isinstance(parsed, (int, float, list, tuple)):
+            return list(parsed) if isinstance(parsed, tuple) else parsed
+
+    except (ValueError, SyntaxError):
+        pass
+
+    return None
 
 
 def verify_answers(ground_truth: LibTypes, target_answer: LibTypes, timeout: int = 5) -> bool:

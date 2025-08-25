@@ -10,7 +10,7 @@ from linalg_zero.grpo.compute_score import (
     get_interaction_reward,
 )
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
-from linalg_zero.shared.lib import LibTypes
+from linalg_zero.shared.types import LibTypes
 
 logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))

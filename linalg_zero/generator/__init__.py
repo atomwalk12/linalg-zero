@@ -6,3 +6,4 @@ class Precision(Enum):
 
     SOLVE_LINEAR_SYSTEM = -1
     MULTIPLY_MATRICES = -1
+    FULL = -1

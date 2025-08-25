@@ -7,6 +7,7 @@ from sympy import Float, Integer, Number, Symbol
 from sympy.core import Expr
 from sympy.matrices import MutableDenseMatrix
 
+from linalg_zero.generator import Precision
 from linalg_zero.generator.utils.difficulty import DifficultyCategory
 from linalg_zero.shared.types import LibTypes
 from linalg_zero.shared.utils import get_logger
@@ -32,11 +33,11 @@ class MathFormatter:
     """
 
     @staticmethod
-    def round_sympy_element(element: LibTypes, precision: int = -1) -> LibTypes:
+    def round_sympy_element(element: LibTypes, precision: Precision = Precision.FULL) -> LibTypes:
         """Round a SymPy element to a precision of 2."""
         if isinstance(element, int | float):
-            if precision != -1:
-                return round(element, precision)
+            if precision != Precision.FULL:
+                return round(element, precision.value)
             else:
                 return element
         elif isinstance(element, list):
@@ -45,7 +46,7 @@ class MathFormatter:
             raise TypeError(f"Unsupported element type: {type(element)}")
 
     @staticmethod
-    def sympy_to_primitive(sympy_result: Expr, precision: int = -1) -> LibTypes | str:
+    def sympy_to_primitive(sympy_result: Expr, precision: Precision = Precision.FULL) -> LibTypes | str:
         """Convert sympy result to primitive type for verification."""
         result: LibTypes | str | None = None
         if isinstance(sympy_result, MutableDenseMatrix):
@@ -56,7 +57,7 @@ class MathFormatter:
         else:
             raise TypeError(f"Unsupported element type: {type(sympy_result)}")
 
-        if precision != -1 and not isinstance(result, str):
+        if precision != Precision.FULL and not isinstance(result, str):
             return MathFormatter.round_sympy_element(result, precision)
         else:
             return result
@@ -113,7 +114,9 @@ class TemplateEngine:
     def __init__(self) -> None:
         self.math_formatter = MathFormatter()
 
-    def generate_question(self, template: QuestionTemplate, variables: dict[str, Any], precision: int = -1) -> str:
+    def generate_question(
+        self, template: QuestionTemplate, variables: dict[str, Any], precision: Precision = Precision.FULL
+    ) -> str:
         """
         Generate natural language question text that will be included as the
         "query" field in the final dataset entry.
@@ -142,7 +145,7 @@ class TemplateEngine:
 
         return question_text
 
-    def format_answer(self, answer: Any, precision: int = -1) -> str:
+    def format_answer(self, answer: Any, precision: Precision = Precision.FULL) -> str:
         """
         Format a SymPy matrix (can also be a vector), to be displayed in question answer.
         """

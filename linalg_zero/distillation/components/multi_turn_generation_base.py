@@ -13,7 +13,7 @@ from distilabel.utils.dicts import merge_dicts
 from pydantic import Field, PositiveInt, ValidationError
 
 from linalg_zero.distillation.data import ThoughtSchema
-from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.grpo.verify import parse_string, verify_answers
 
 if TYPE_CHECKING:
     from distilabel.typing import ChatType
@@ -322,8 +322,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     def check_final_answers(self, final_answers: list[str], inputs: list[dict[str, Any]]) -> list[bool]:
         """Check if the final answers are correct."""
         is_correct = []
-        for lib_result, _input in zip(final_answers, inputs, strict=True):
-            is_correct.append(verify_answers(_input["ground_truth"], lib_result))
+        for _input, lib_result in zip(inputs, final_answers, strict=True):
+            is_correct.append(verify_answers(_input["ground_truth"], parse_string(lib_result)))
 
         return is_correct
 
