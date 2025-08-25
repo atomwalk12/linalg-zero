@@ -1,11 +1,11 @@
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import verify_answers
-from linalg_zero.shared.lib import LibTypes
+from linalg_zero.shared.types import LibTypes
 
 
 def reward_tool_output(tool_output: LibTypes, ground_truth: LibTypes) -> float:
     """Reward function that checks if the tool output matches the ground truth."""
-    return 1.0 if verify_answers(str(tool_output), str(ground_truth)) else 0.0
+    return 1.0 if verify_answers(ground_truth, tool_output) else 0.0
 
 
 def reward_response_format(parser: XMLParser, completion: list[dict] | str, ground_truth: LibTypes) -> float:
@@ -47,7 +47,7 @@ def reward_final_answer(parser: XMLParser, completion: list[dict] | str, ground_
     answer = parser.extract_answer(message)
     if answer is None:
         return 0.0
-    return 1.0 if verify_answers(str(answer), str(ground_truth)) else 0.0
+    return 1.0 if verify_answers(ground_truth, answer) else 0.0
 
 
 def reward_num_tool_calls(parser: XMLParser, completion: list[dict]) -> float:

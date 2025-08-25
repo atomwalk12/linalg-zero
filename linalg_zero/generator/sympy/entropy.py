@@ -66,7 +66,7 @@ class EntropyController:
 
         return sympy.Integer(value)
 
-    def generate_rational(self, entropy: float, signed: bool) -> sympy.Rational:
+    def generate_rational(self, entropy: float, signed: bool = True) -> sympy.Rational:
         """Generate a non-integer rational following mathematics_dataset approach."""
         numer_entropy = random.uniform(0, entropy)
         denom_entropy = entropy - numer_entropy

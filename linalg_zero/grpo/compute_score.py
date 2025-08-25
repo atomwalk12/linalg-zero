@@ -8,7 +8,7 @@ from linalg_zero.grpo.reward_funcs import (
     reward_tool_output,
 )
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
-from linalg_zero.shared.lib import LibTypes
+from linalg_zero.shared.types import LibTypes
 
 
 def get_tool_reward(ground_truth: LibTypes, tool_output: LibTypes) -> tuple[float, dict]:

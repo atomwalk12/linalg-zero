@@ -1,19 +1,22 @@
-from math_verify import parse, verify
+from math_verify import verify
+from sympy import Float, Integer, Matrix
+
+from linalg_zero.shared.types import LibTypes
 
 
-def verify_answers(completion_answer: str, ground_truth_answer: str, timeout_seconds: int = 5) -> bool:
-    """
-    Compare completion answer against ground truth using math_verify's \\boxed{} notation.
+def verify_answers(ground_truth: LibTypes, target_answer: LibTypes, timeout: int = 5) -> bool:
+    """Verify if the target answer matches the ground truth using math_verify."""
 
-    Args:
-        completion_answer: Model's answer text from within the <answer> tags
-        ground_truth_answer: Expected answer as given during dataset generation
-        timeout_seconds: Verification timeout
+    if isinstance(ground_truth, list):
+        gt = Matrix(ground_truth)
+        target = Matrix(target_answer)
+    elif isinstance(ground_truth, float):
+        gt = Float(ground_truth)
+        target = Float(target_answer)
+    elif isinstance(ground_truth, int):
+        gt = Integer(ground_truth)
+        target = Integer(target_answer)
+    else:
+        raise TypeError(f"Unsupported answer type: {type(ground_truth)}")
 
-    Returns:
-        True if answers match, False otherwise
-    """
-    completion_parsed = parse(f"\\boxed{{{completion_answer}}}", parsing_timeout=timeout_seconds)
-    ground_truth_parsed = parse(f"\\boxed{{{ground_truth_answer}}}", parsing_timeout=timeout_seconds)
-
-    return verify(completion_parsed, ground_truth_parsed, timeout_seconds=timeout_seconds)
+    return verify(gt, target, timeout_seconds=timeout)
