@@ -134,7 +134,7 @@ class CompositeResultBuilder:
             difficulty=DifficultyCategory.EASY,
         )
 
-    def _build_main_expression(self):
+    def _build_main_expression(self) -> Expr | list[Expr]:
         """Build the main expression (single vs list)."""
         return self.expressions[0] if len(self.expressions) == 1 else self.expressions
 

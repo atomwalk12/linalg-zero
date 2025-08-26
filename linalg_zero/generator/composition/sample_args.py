@@ -20,7 +20,7 @@ def uniform_positive_integers_with_sum(count: int, sum_: int) -> list[int]:
     return [right - left for left, right in zip([0, *separators], [*separators, sum_], strict=False)]
 
 
-def uniform_non_negative_integers_with_sum(count, sum_):
+def uniform_non_negative_integers_with_sum(count: int, sum_: int) -> list[int]:
     """Returns list of size `count` of integers >= 0, summing to `sum_`."""
     positive = uniform_positive_integers_with_sum(count, sum_ + count)
     return [i - 1 for i in positive]
