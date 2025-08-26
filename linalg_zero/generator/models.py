@@ -7,8 +7,8 @@ from sympy import Expr, Symbol
 from linalg_zero.shared.types import LibTypes
 
 if TYPE_CHECKING:
+    from linalg_zero.generator.context import CompositionContext
     from linalg_zero.generator.sympy.base import CompositionStrategy, SympyProblemGenerator
-    from linalg_zero.generator.sympy.context import CompositionContext
 
 
 class DifficultyCategory(Enum):

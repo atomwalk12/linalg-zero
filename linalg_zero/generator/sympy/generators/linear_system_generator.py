@@ -5,6 +5,7 @@ import sympy
 from typing_extensions import override
 
 from linalg_zero.generator import Precision
+from linalg_zero.generator.composition.sample_args import SampleArgs
 from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import MatrixVectorBaseGenerator
@@ -62,12 +63,16 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         # Set constraint for matrix invertibility
         context.constraints["matrix_invertible"] = True
 
-        entropy_controller = EntropyController(context.entropy)
+        # Split entropy between matrix and vector generation using Dirichlet distribution
+        sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
 
-        # Allocate entropy between matrix and vector generation
-        # Use a more conservative split to ensure reasonable numbers
-        matrix_entropy = context.entropy * 1.0  # Full entropy for matrix
-        vector_entropy = context.entropy * 0.9  # Slightly less for vector
+        component_args = sample_args.split(count=2)
+        matrix_sample_args, vector_sample_args = component_args
+
+        matrix_entropy = matrix_sample_args.entropy
+        vector_entropy = vector_sample_args.entropy
+
+        entropy_controller = EntropyController(context.entropy)
 
         # Determine matrix dimensions based on difficulty category
         difficulty_category = context.difficulty_level

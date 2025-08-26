@@ -5,6 +5,7 @@ from sympy import Matrix
 from typing_extensions import override
 
 from linalg_zero.generator import Precision
+from linalg_zero.generator.composition.sample_args import SampleArgs
 from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import (
     ProblemContext,
@@ -28,11 +29,15 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """Generate matrix-vector multiplication problem content."""
 
-        entropy_controller = EntropyController(context.entropy)
+        # Create SampleArgs for entropy distribution
+        sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
 
-        # Allocate entropy between matrix and vector generation
-        matrix_entropy = context.entropy * 1.0
-        vector_entropy = context.entropy * 0.9
+        # Split entropy between matrix and vector generation using Dirichlet distribution
+        component_args = sample_args.split(count=2)
+        matrix_sample_args, vector_sample_args = component_args
+
+        matrix_entropy = matrix_sample_args.entropy
+        vector_entropy = vector_sample_args.entropy
 
         # Determine matrix dimensions based on difficulty category
         difficulty_category = context.difficulty_level
@@ -47,6 +52,8 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
             raise ValueError(f"Invalid difficulty category: {difficulty_category}")
 
         # Generate matrix A and vector x
+        entropy_controller = EntropyController(context.entropy)
+
         matrix_A = self._generate_matrix(rows, cols, matrix_entropy, entropy_controller)
         context.record_entropy_usage(matrix_entropy)
 
