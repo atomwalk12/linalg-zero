@@ -1,89 +1,51 @@
-import json
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from dataclasses import dataclass
-from types import TracebackType
-from typing import Any
 
-import sympy
+from linalg_zero.generator.composition.sample_args import SampleArgs
+from linalg_zero.generator.context import CompositionContext, ProblemContext
+from linalg_zero.generator.models import (
+    ComponentResult,
+    DifficultyCategory,
+    ProblemTemplate,
+    Question,
+)
 
-from linalg_zero.generator.models import Question
-from linalg_zero.generator.utils.difficulty import DifficultyCategory
-from linalg_zero.shared.types import LibTypes
 
-
-@dataclass
-class ProblemTemplate:
+class ProblemComponent(ABC):
     """
-    Data class with the main components for a problem.
-    """
+    Abstract base class for composable problem components.
 
-    expression: sympy.Expr
-    variables: list[sympy.Symbol]
-    sympy_solution: sympy.Expr | list[sympy.Expr] | str
-    lib_result: LibTypes
-    question_templates: list[str]
-    context_info: dict[str, Any]
-    difficulty_markers: dict[str, float]
-    difficulty: DifficultyCategory
-
-
-class ProblemContext:
-    """
-    Context manager for state information around the resolution process.
+    A component represents an atomic piece of a mathematical problem that can
+    be combined with other components to create more complex problems.
     """
 
-    def __init__(self, entropy: float, difficulty_level: DifficultyCategory):
-        self.entropy = entropy
-        self.difficulty_level = difficulty_level
-        self.used_entropy = 0.0
-        self.tool_calls_count = 0
-        self.stepwise_results: list[dict[str, Any]] = []
-        self.golden_result: dict[str, str] = {}
-        self._step_counter = 0
-        self.constraints: dict[str, Any] = {}
+    def __init__(self, name: str):
+        self.name = name
 
-    def __enter__(self) -> "ProblemContext":
-        return self
-
-    def __exit__(self, exc_type: type, exc_val: Exception, exc_tb: TracebackType) -> None:
+    @abstractmethod
+    def generate(self, context: CompositionContext) -> ComponentResult:
+        """
+        Generate the component's mathematical content.
+        """
         pass
 
-    def record_entropy_usage(self, amount: float) -> None:
+    def can_execute(self, context: CompositionContext) -> bool:
         """
-        Record entropy usage for tracking problem complexity.
+        Check if this component can execute given the current context.
         """
-        self.used_entropy += amount
+        return True
 
-    def record_tool_call(
-        self,
-        function_name: str,
-        result: LibTypes,
-        is_final: bool = False,
-        depends_on: list[str] | None = None,
-    ) -> str:
+
+class CompositionStrategy(ABC):
+    """Abstract base class for problem composition strategies."""
+
+    @abstractmethod
+    def compose(
+        self, components: list[ProblemComponent], sample_args: SampleArgs, base_context: CompositionContext
+    ) -> list[ComponentResult]:
         """
-        Record a tool call with its result. It tracks the dependencies between
-        steps which will later be used to verify correctness during GRPO.
+        Execute composition strategy on the given components.
         """
-
-        self.tool_calls_count += 1
-        self._step_counter += 1
-        step_id = str(self._step_counter)
-
-        if result:
-            result_json = json.dumps(result)
-            step_data = {"tool": function_name, "result": result_json, "step_id": step_id}
-
-            if depends_on:
-                step_data["depends_on"] = json.dumps(depends_on)
-
-            if is_final:
-                self.golden_result = {"final_answer": result_json, "from_step_id": step_id}
-
-            self.stepwise_results.append(step_data)
-
-        return step_id
+        pass
 
 
 class SympyProblemGenerator(ABC):
@@ -149,7 +111,7 @@ class SympyProblemGenerator(ABC):
             is_valid = self.verify_problem(template)
 
             return Question(
-                text=question_text,
+                question=question_text,
                 answer=answer_text,
                 difficulty=self.difficulty_level,
                 topic=self.topic,
@@ -160,24 +122,3 @@ class SympyProblemGenerator(ABC):
                 stepwise=context.stepwise_results,
                 golden=context.golden_result,
             )
-
-
-def create_sympy_factory(
-    generator_class: type,
-    entropy: float,
-    difficulty_level: DifficultyCategory,
-    problem_type: str = "unknown",
-    topic: str = "linear_algebra",
-    **kwargs: Any,
-) -> Callable[[], Question]:
-    """
-    Convenience function for generating a factory function for registry registration.
-    """
-
-    def factory() -> Question:
-        generator: SympyProblemGenerator = generator_class(
-            entropy=entropy, difficulty_level=difficulty_level, problem_type=problem_type, topic=topic, **kwargs
-        )
-        return generator.generate()
-
-    return factory
