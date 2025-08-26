@@ -1,5 +1,3 @@
-"""Tests for default registry setup and integration."""
-
 from linalg_zero.generator.registry import create_default_registry
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.grpo.verify import parse_string, verify_answers
 
 
 class TestVerifyAnswersCorrectness:
@@ -21,7 +21,9 @@ class TestVerifyAnswersCorrectness:
         ]
 
         for completion, ground_truth in test_cases:
-            result = verify_answers(ground_truth, completion)
+            parsed_ground_truth = parse_string(ground_truth)
+            parsed_completion = parse_string(completion)
+            result = verify_answers(parsed_ground_truth, parsed_completion)
             assert result is True, f"Failed: {completion} should equal {ground_truth}"
 
     def test_incorrect_exact_mismatches(self):
@@ -35,7 +37,9 @@ class TestVerifyAnswersCorrectness:
         ]
 
         for completion, ground_truth in test_cases:
-            result = verify_answers(ground_truth, completion)
+            parsed_ground_truth = parse_string(ground_truth)
+            parsed_completion = parse_string(completion)
+            result = verify_answers(parsed_ground_truth, parsed_completion)
             assert result is False, f"Failed: {completion} should NOT equal {ground_truth}"
 
     def test_current_behavior_strict_matching(self):
@@ -52,7 +56,9 @@ class TestVerifyAnswersCorrectness:
         ]
 
         for completion, ground_truth, expected in test_cases:
-            result = verify_answers(ground_truth, completion)
+            parsed_ground_truth = parse_string(ground_truth)
+            parsed_completion = parse_string(completion)
+            result = verify_answers(parsed_ground_truth, parsed_completion)
             assert result == expected, f"Failed: '{completion}' vs '{ground_truth}' expected {expected}, got {result}"
 
     def test_no_answer_tags_fallback(self):
@@ -66,10 +72,15 @@ class TestVerifyAnswersCorrectness:
         ]
 
         for completion, ground_truth in test_cases[:-1]:
-            result = verify_answers(ground_truth, completion)
+            parsed_ground_truth = parse_string(ground_truth)
+            parsed_completion = parse_string(completion)
+            result = verify_answers(parsed_ground_truth, parsed_completion)
             assert result is True, f"Failed: '{completion}' should match '{ground_truth}'"
 
-        result = verify_answers("42", "The answer is 42")
+        # Test that unparseable text returns False
+        parsed_ground_truth = parse_string("42")
+        parsed_completion = parse_string("The answer is 42")  # This should return None
+        result = verify_answers(parsed_ground_truth, parsed_completion)
         assert result is False, "Text without answer tags should not flexibly extract numbers"
 
     def test_malformed_input_edge_cases(self):
@@ -86,7 +97,9 @@ class TestVerifyAnswersCorrectness:
         ]
 
         for completion, ground_truth in malformed_cases:
-            result = verify_answers(ground_truth, completion)
+            parsed_ground_truth = parse_string(ground_truth)
+            parsed_completion = parse_string(completion)
+            result = verify_answers(parsed_ground_truth, parsed_completion)
             assert result is False, f"Malformed input should be False: '{completion}' vs '{ground_truth}'"
 
     def test_verify_mathematical_equivalence(self):
@@ -99,7 +112,9 @@ class TestVerifyAnswersCorrectness:
         ]
 
         for completion, ground_truth in equivalence_cases:
-            result = verify_answers(ground_truth, completion)
+            parsed_ground_truth = parse_string(ground_truth)
+            parsed_completion = parse_string(completion)
+            result = verify_answers(parsed_ground_truth, parsed_completion)
             assert result is True, f"Mathematical equivalence failed: '{completion}' should equal '{ground_truth}'"
 
     def test_empty_and_invalid_inputs(self):
@@ -113,7 +128,9 @@ class TestVerifyAnswersCorrectness:
         ]
 
         for completion, ground_truth in edge_cases:
-            result = verify_answers(ground_truth, completion)
+            parsed_ground_truth = parse_string(ground_truth)
+            parsed_completion = parse_string(completion)
+            result = verify_answers(parsed_ground_truth, parsed_completion)
             assert result is False, f"Edge case should be False: '{completion}' vs '{ground_truth}'"
 
     @pytest.mark.parametrize(
@@ -136,7 +153,9 @@ class TestVerifyAnswersCorrectness:
     )
     def test_verify_answers_comprehensive(self, completion, ground_truth, should_match):
         """Comprehensive test of verify_answers behavior."""
-        result = verify_answers(ground_truth, completion)
+        parsed_ground_truth = parse_string(ground_truth)
+        parsed_completion = parse_string(completion)
+        result = verify_answers(parsed_ground_truth, parsed_completion)
 
         if should_match is not None:
             assert result == should_match, (
