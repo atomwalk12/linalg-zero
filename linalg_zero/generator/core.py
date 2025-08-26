@@ -40,7 +40,7 @@ class QuestionGenerator:
     @staticmethod
     def _default_validator(question: Question) -> bool:
         """Default validator - checks basic requirements."""
-        return len(question.text) > 0 and len(question.answer) > 0
+        return len(question.question) > 0 and len(question.answer) > 0
 
 
 class DatasetGenerator:
@@ -134,6 +134,6 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
     for i, question in enumerate(questions_to_print, 1):
         status = " [INVALID]" if not question.is_valid else ""
         logger.info("Question %d:%s", i, status)
-        logger.info("Q: %s", question.text)
+        logger.info("Q: %s", question.question)
         logger.info("A: %s", question.answer)
         logger.info("")
