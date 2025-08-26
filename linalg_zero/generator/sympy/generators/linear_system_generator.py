@@ -1,17 +1,15 @@
 import random
-from collections.abc import Callable
 from typing import Any
 
 import sympy
 from typing_extensions import override
 
 from linalg_zero.generator import Precision
-from linalg_zero.generator.models import Question
-from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate, create_sympy_factory
-from linalg_zero.generator.sympy.entropy import EntropyController
+from linalg_zero.generator.models import DifficultyCategory
+from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import MatrixVectorBaseGenerator
+from linalg_zero.generator.sympy.number_generator import EntropyController
 from linalg_zero.generator.sympy.templates import MathFormatter
-from linalg_zero.generator.utils.difficulty import DifficultyCategory
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import solve_linear_system
 from linalg_zero.shared.types import LibTypes
@@ -192,16 +190,3 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         sympy_result = matrix_a.LUsolve(vector_b)
 
         return sympy_result, lib_result
-
-
-def create_matrix_vector_equation_solver_factory(
-    entropy: float, difficulty: DifficultyCategory
-) -> Callable[[], Question]:
-    """Helper to create matrix-vector equation solver factory with specific parameters."""
-    return create_sympy_factory(
-        LinearSystemGenerator,
-        entropy=entropy,
-        difficulty_level=difficulty,
-        problem_type="matrix_vector_equation_solving",
-        topic="linear_algebra",
-    )

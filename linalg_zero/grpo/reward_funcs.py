@@ -45,7 +45,7 @@ def reward_final_answer(parser: XMLParser, completion: list[dict] | str, ground_
         message = completion
 
     answer = parser.extract_answer(message)
-    target = parse_string(answer)
+    target = parse_string(answer) if answer is not None else None
     if target is None:
         return 0.0
     return 1.0 if verify_answers(ground_truth, target) else 0.0
