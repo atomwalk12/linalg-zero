@@ -34,7 +34,9 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
 
     def generate(self, context: CompositionContext) -> ComponentResult:
         # This context is used for communication and state tracking
-        problem_context = ProblemContext(entropy=context.entropy, difficulty_level=context.difficulty_level)
+        problem_context = ProblemContext(
+            entropy=context.entropy, difficulty_level=context.difficulty_level, step_counter=context._step_counter
+        )
 
         # Now, we perform the 3 key steps involved in component generation
         generator: SympyProblemGenerator = self.generator_class(
@@ -67,6 +69,10 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
                 context_updates[f"{self.name}_{update_key}"] = template.sympy_solution
             else:
                 context_updates[f"{self.name}_{update_key}"] = template.context_info.get(template_key)
+
+        context.stepwise_results.extend(problem_context.stepwise_results)
+        context.golden_result.update(problem_context.golden_result)
+        context._step_counter = problem_context._step_counter
 
         return ComponentResult(
             template=formatted_template,

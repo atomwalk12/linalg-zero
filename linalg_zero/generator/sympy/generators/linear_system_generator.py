@@ -1,7 +1,6 @@
 from typing import Any
 
 import sympy
-from typing_extensions import override
 
 from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
@@ -12,9 +11,7 @@ from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
 from linalg_zero.generator.sympy.templates import MathFormatter
-from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import solve_linear_system
-from linalg_zero.shared.types import LibTypes
 
 
 class LinearSystemGenerator(MatrixVectorBaseGenerator):
@@ -24,19 +21,12 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     This generator creates "Solve Ax = b for x" problems using backwards construction:
     generate matrix A and solution vector x first, then compute b = Ax, and present
     the equation Ax = b asking to solve for x.
-
-    Mathematical Process:
-        1. Generate invertible matrix A and solution vector x using difficulty configuration
-        2. Compute b = A * x (backwards construction gives us target)
-        3. Present problem as "Solve Ax = b for x"
-        4. Uses exactly 1 tool call (atomic operation)
     """
 
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize linear system solver generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
         self.precision = Precision.SOLVE_LINEAR_SYSTEM
-        self.math_formatter = MathFormatter()
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type="linear_system_solving")
@@ -107,54 +97,16 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
             difficulty=self.difficulty_level,
         )
 
-    def format_question(self, template: ProblemTemplate) -> str:
-        """Format matrix-vector equation solving problem as natural language question."""
-        # Use the template engine for consistent question formatting
+    def get_problem_type(self) -> str:
+        """Return the problem type string used for template selection."""
+        return "solve"
+
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Return the variables dictionary to pass to the template engine."""
         matrix_a = template.context_info["matrix_A"]
         target_b = template.context_info["target_b"]
         x_symbols = template.context_info["x_symbols"]
-
-        # Get templates for solving equations
-        templates = self.template_engine.create_default_templates("solve", self.difficulty_level)
-        if templates:
-            selected_template = self.template_engine.select_template(templates, "solve", self.difficulty_level)
-            question_text = self.template_engine.generate_question(
-                template=selected_template,
-                variables={"matrix": matrix_a, "x_symbols": x_symbols, "target_b": target_b},
-                precision=self.precision,
-            )
-        else:
-            raise ValueError("No templates available for linear system solving")
-
-        return question_text
-
-    @override
-    def format_solution(self, template: ProblemTemplate) -> str:
-        """The solution string used as the ground truth in the final dataset entry."""
-        solution = template.sympy_solution
-
-        if not isinstance(solution, sympy.Matrix):
-            raise TypeError(f"The solution should be a vector: {solution}")
-
-        return self.template_engine.format_answer(solution, precision=self.precision)
-
-    @override
-    def verify_problem(self, template: ProblemTemplate) -> bool:
-        """
-        Verify the mathematical correctness using end-to-end math_verify verification.
-        This is the single point where we ensure sympy and lib.py results match.
-        """
-        lib_result = template.lib_result
-        sympy_solution = template.sympy_solution
-
-        ground_truth = self.math_formatter.sympy_to_primitive(sympy_solution, precision=self.precision)
-        assert isinstance(ground_truth, LibTypes)  # noqa: S101
-
-        # Use the same verification function for both generation and training
-        if not verify_answers(ground_truth, lib_result):
-            raise ValueError(f"Verification failed: sympy={ground_truth} vs lib={lib_result}")
-
-        return True
+        return {"matrix": matrix_a, "x_symbols": x_symbols, "target_b": target_b}
 
     def _solve_linear_system_sympy(
         self, matrix_a: sympy.Matrix, vector_b: sympy.Matrix

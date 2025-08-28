@@ -152,6 +152,10 @@ class TemplateEngine:
         if isinstance(answer, MutableDenseMatrix):
             result = self.math_formatter.sympy_to_primitive(answer, precision)
             return json.dumps(result)
+        elif isinstance(answer, Integer):
+            return str(int(answer))
+        elif isinstance(answer, Float):
+            return str(float(answer))
         else:
             raise TypeError(f"Variable '{answer}' has unsupported type {type(answer).__name__}.")
 

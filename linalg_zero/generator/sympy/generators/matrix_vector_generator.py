@@ -1,7 +1,6 @@
 from typing import Any
 
 from sympy import Matrix
-from typing_extensions import override
 
 from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
@@ -14,10 +13,7 @@ from linalg_zero.generator.sympy.base import (
     ProblemTemplate,
 )
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
-from linalg_zero.generator.sympy.templates import MathFormatter
-from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import multiply_matrices
-from linalg_zero.shared.types import LibTypes
 
 
 class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
@@ -25,7 +21,6 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         """Initialize matrix-vector multiplication generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
         self.precision = Precision.MULTIPLY_MATRICES
-        self.math_formatter = MathFormatter()
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(
@@ -87,57 +82,21 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
             difficulty=self.difficulty_level,
         )
 
-    def format_question(self, template: ProblemTemplate) -> str:
-        """Formats the problem as a natural language question (the user's query)."""
+    def get_problem_type(self) -> str:
+        """Return the problem type string used for template selection."""
+        return "compute_product"
 
-        # Use the template engine for consistent question formatting
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Return the variables dictionary to pass to the template engine."""
         matrix = template.context_info["matrix"]
         vector = template.context_info["vector"]
-
-        # Get templates for matrix-vector multiplication
-        templates = self.template_engine.create_default_templates("compute_product", self.difficulty_level)
-        if templates:
-            selected_template = self.template_engine.select_template(
-                templates, "compute_product", self.difficulty_level
-            )
-            question_text = self.template_engine.generate_question(
-                template=selected_template, variables={"matrix": matrix, "vector": vector}, precision=self.precision
-            )
-        else:
-            raise ValueError("No templates available for matrix-vector multiplication")
-
-        return question_text
-
-    @override
-    def format_solution(self, template: ProblemTemplate) -> str:
-        """The solution string used as the ground truth in the final dataset entry."""
-        solution = template.sympy_solution
-
-        if not isinstance(solution, Matrix):
-            raise TypeError(f"The solution should be a vector: {solution}")
-
-        return self.template_engine.format_answer(solution, precision=self.precision)
-
-    @override
-    def verify_problem(self, template: ProblemTemplate) -> bool:
-        """
-        Verify the mathematical correctness using end-to-end math_verify verification.
-        This is the single point where we ensure sympy and lib.py results match.
-        """
-        lib_result = template.lib_result
-        ground_truth = self.math_formatter.sympy_to_primitive(template.sympy_solution, precision=self.precision)
-        assert isinstance(ground_truth, LibTypes)  # noqa: S101
-
-        if not verify_answers(ground_truth, lib_result):
-            raise ValueError(f"Verification failed: sympy={ground_truth} vs lib={lib_result}")
-
-        return True
+        return {"matrix": matrix, "vector": vector}
 
     def _multiply_matrices_sympy(self, matrix_a: Matrix, matrix_b: Matrix) -> tuple[Matrix, list[list[float]]]:
         """Multiply two sympy matrices using lib.py function."""
 
-        a_list = self.math_formatter.sympy_to_primitive(matrix_a)
-        b_list = self.math_formatter.sympy_to_primitive(matrix_b)
+        a_list = self.formatter.sympy_to_primitive(matrix_a)
+        b_list = self.formatter.sympy_to_primitive(matrix_b)
         assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
 
         lib_result = multiply_matrices(a_list, b_list)

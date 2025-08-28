@@ -1,7 +1,6 @@
 from typing import Any
 
 from sympy import Float, Integer, Matrix, Rational
-from typing_extensions import override
 
 from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
@@ -12,9 +11,7 @@ from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
 from linalg_zero.generator.sympy.templates import MathFormatter
-from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import determinant
-from linalg_zero.shared.types import LibTypes
 
 
 class DeterminantGenerator(MatrixVectorBaseGenerator):
@@ -26,7 +23,6 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         """Initialize determinant generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
         self.precision = Precision.DETERMINANT
-        self.math_formatter = MathFormatter()
 
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type="determinant_calculation")
 
@@ -74,51 +70,14 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
             difficulty=self.difficulty_level,
         )
 
-    def format_question(self, template: ProblemTemplate) -> str:
-        """Format determinant calculation problem as natural language question."""
-        # Use the template engine for consistent question formatting
+    def get_problem_type(self) -> str:
+        """Return the problem type string used for template selection."""
+        return "calculate_determinant"
+
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Return the variables dictionary to pass to the template engine."""
         matrix = template.context_info["matrix"]
-
-        # Get templates for determinant calculation
-        templates = self.template_engine.create_default_templates("calculate_determinant", self.difficulty_level)
-        if templates:
-            selected_template = self.template_engine.select_template(
-                templates, "calculate_determinant", self.difficulty_level
-            )
-            question_text = self.template_engine.generate_question(
-                template=selected_template, variables={"matrix": matrix}, precision=self.precision
-            )
-        else:
-            raise ValueError("No templates available for determinant calculation")
-
-        return question_text
-
-    @override
-    def format_solution(self, template: ProblemTemplate) -> str:
-        """Format the solution as an integer."""
-        solution = template.sympy_solution
-
-        if not isinstance(solution, (Integer, Float, Rational)):
-            raise TypeError(f"Solution is not a number: {solution}")
-
-        return str(int(solution))
-
-    @override
-    def verify_problem(self, template: ProblemTemplate) -> bool:
-        """
-        Verify the mathematical correctness using end-to-end verification.
-        This ensures sympy and lib.py results match.
-        """
-        lib_result = template.lib_result
-        sympy_solution = template.sympy_solution
-
-        ground_truth = self.math_formatter.sympy_to_primitive(sympy_solution, precision=self.precision)
-        assert isinstance(ground_truth, LibTypes)  # noqa: S101
-
-        if not verify_answers(ground_truth, lib_result):
-            raise ValueError(f"Verification failed: sympy={ground_truth} vs lib={lib_result}")
-
-        return True
+        return {"matrix": matrix}
 
     def _calculate_determinant_sympy(self, matrix_a: Matrix) -> tuple[Float | Integer | Rational, float]:
         """Calculate determinant using both SymPy and lib.py function."""

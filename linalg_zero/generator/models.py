@@ -98,6 +98,7 @@ class CompositeResultBuilder:
         self.expressions: list = []
         self.variables: list[Symbol] = []
         self.solutions: list = []
+        self.lib_results: list = []
         self.question_templates: list[str] = []
         self.context_info: dict[str, Any] = {}
         self.component_templates: list[ProblemTemplate] = []
@@ -110,11 +111,8 @@ class CompositeResultBuilder:
         self.component_templates.append(template)
         self.variables.extend(template.variables)
 
-        # Handle solutions (can be single values or lists)
-        if isinstance(template.sympy_solution, list):
-            self.solutions.extend(template.sympy_solution)
-        else:
-            self.solutions.append(template.sympy_solution)
+        self.solutions.append(template.sympy_solution)
+        self.lib_results.append(template.lib_result)
 
         self.question_templates.extend(template.question_templates)
         self.context_info.update(template.context_info)
@@ -127,7 +125,7 @@ class CompositeResultBuilder:
             expression=self._build_main_expression(),
             variables=self._deduplicate_variables(),
             sympy_solution=self.solutions,
-            lib_result=self.solutions,
+            lib_result=self.lib_results,
             question_templates=self.question_templates or ["Solve the following problem:"],
             context_info=self._build_context_info(comp_context, component_results),
             difficulty_markers=self._build_difficulty_markers(comp_context),

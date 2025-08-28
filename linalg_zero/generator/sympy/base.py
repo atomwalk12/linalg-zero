@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from linalg_zero.generator.context import CompositionContext, ProblemContext
 from linalg_zero.generator.difficulty_config import SampleArgs, get_problem_config
@@ -8,6 +9,9 @@ from linalg_zero.generator.models import (
     ProblemTemplate,
     Question,
 )
+from linalg_zero.generator.sympy.templates import MathFormatter, TemplateEngine
+from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.shared.types import LibTypes
 
 
 class ProblemComponent(ABC):
@@ -68,6 +72,8 @@ class SympyProblemGenerator(ABC):
         self.problem_type = problem_type
         self.topic = topic
         self.config = get_problem_config(difficulty_level, problem_type, topic)
+        self.template_engine = TemplateEngine()
+        self.formatter = MathFormatter()
 
     @abstractmethod
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
@@ -77,30 +83,61 @@ class SympyProblemGenerator(ABC):
         pass
 
     @abstractmethod
+    def get_problem_type(self) -> str:
+        """Return the problem type string used for template selection."""
+        pass
+
+    @abstractmethod
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Return the variables dictionary to pass to the template engine."""
+        pass
+
     def format_question(self, template: ProblemTemplate) -> str:
         """
         Convert SymPy content into a natural language query.
         """
-        pass
+        # Get problem-specific information from subclass
+        problem_type = self.get_problem_type()
+        variables = self.get_template_variables(template)
 
-    @abstractmethod
+        # Get templates for the problem type
+        templates = self.template_engine.create_default_templates(problem_type, self.difficulty_level)
+        if templates:
+            selected_template = self.template_engine.select_template(templates, problem_type, self.difficulty_level)
+            question_text = self.template_engine.generate_question(
+                template=selected_template, variables=variables, precision=self.precision
+            )
+        else:
+            raise ValueError(f"No templates available for {problem_type}")
+
+        return question_text
+
     def format_solution(self, template: ProblemTemplate) -> str:
-        """
-        Format the solution in a format recognisable by math-verify.
-        """
-        pass
+        """The solution string used as the ground truth in the final dataset entry."""
+        return self.template_engine.format_answer(template.sympy_solution, precision=self.precision)
 
-    @abstractmethod
     def verify_problem(self, template: ProblemTemplate) -> bool:
-        """Safety net to ensure the input/output is valid. Should always return True."""
-        pass
+        """
+        Verify the mathematical correctness using end-to-end verification.
+        This ensures sympy and lib.py results match.
+        """
+        lib_result = template.lib_result
+        sympy_solution = template.sympy_solution
+
+        ground_truth = self.formatter.sympy_to_primitive(sympy_solution, precision=self.precision)
+        assert isinstance(ground_truth, LibTypes)  # noqa: S101
+
+        if not verify_answers(ground_truth, lib_result):
+            raise ValueError(f"Verification failed: sympy={ground_truth} vs lib={lib_result}")
+
+        return True
 
     def generate(self) -> Question:
         """
         Orchestrates the problem generation process by generating a SymPy
         problem template, formatting it and verifying it.
         """
-        with ProblemContext(self.entropy, self.difficulty_level) as context:
+        with ProblemContext(self.entropy, self.difficulty_level, 0) as context:
             # Generate mathematical content
             template = self.generate_mathematical_content(context)
 

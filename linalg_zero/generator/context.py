@@ -13,14 +13,14 @@ class ProblemContext:
     Context manager for state information around the resolution process.
     """
 
-    def __init__(self, entropy: float, difficulty_level: DifficultyCategory):
+    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, step_counter: int):
         self.entropy = entropy
         self.difficulty_level = difficulty_level
         self.used_entropy = 0.0
         self.tool_calls_count = 0
         self.stepwise_results: list[dict[str, Any]] = []
         self.golden_result: dict[str, str] = {}
-        self._step_counter = 0
+        self._step_counter = step_counter
         self.constraints: dict[str, Any] = {}
 
     def __enter__(self) -> "ProblemContext":
@@ -48,7 +48,6 @@ class ProblemContext:
         """
 
         self.tool_calls_count += 1
-        self._step_counter += 1
         step_id = str(self._step_counter)
 
         if result:
@@ -63,6 +62,8 @@ class ProblemContext:
 
             self.stepwise_results.append(step_data)
 
+        self._step_counter += 1
+
         return step_id
 
 
@@ -72,8 +73,8 @@ class CompositionContext(ProblemContext):
     across composed problem components.
     """
 
-    def __init__(self, entropy: float, difficulty_level: DifficultyCategory):
-        super().__init__(entropy, difficulty_level)
+    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, step_counter: int):
+        super().__init__(entropy, difficulty_level, step_counter)
         self.shared_state: dict[str, Any] = {}
         self.component_results: list[ComponentResult] = []
         self.global_variables: dict[str, sympy.Symbol] = {}

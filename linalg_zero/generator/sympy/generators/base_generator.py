@@ -6,7 +6,6 @@ from sympy import Integer, Matrix, Rational
 from linalg_zero.generator.entropy_control import EntropyController
 from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
-from linalg_zero.generator.sympy.templates import TemplateEngine
 
 
 class MatrixVectorBaseGenerator(SympyProblemGenerator):
@@ -14,7 +13,6 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
 
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         super().__init__(entropy, difficulty_level=difficulty_level, **kwargs)
-        self.template_engine = TemplateEngine()
 
     def _generate_matrix(self, rows: int, cols: int, entropy: float, controller: EntropyController) -> Matrix:
         """Generate a matrix consisting of integers or rationals."""

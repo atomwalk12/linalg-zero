@@ -1,5 +1,3 @@
-"""Factory registration and initialization."""
-
 import random
 from collections.abc import Callable
 

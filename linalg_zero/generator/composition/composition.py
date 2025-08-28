@@ -1,4 +1,6 @@
-from collections.abc import Callable
+from typing import Any
+
+from typing_extensions import override
 
 from linalg_zero.generator.context import CompositionContext
 from linalg_zero.generator.difficulty_config import SampleArgs
@@ -10,7 +12,8 @@ from linalg_zero.generator.sympy.base import (
     ProblemTemplate,
     SympyProblemGenerator,
 )
-from linalg_zero.generator.sympy.templates import MathFormatter, Precision
+from linalg_zero.generator.sympy.templates import Precision
+from linalg_zero.grpo.verify import verify_answers
 
 
 class SequentialComposition(CompositionStrategy):
@@ -35,13 +38,20 @@ class SequentialComposition(CompositionStrategy):
                 continue
 
             # Create a context copy with the allocated entropy for this component
-            component_context = CompositionContext(comp_sample_args.entropy, base_context.difficulty_level)
+            component_context = CompositionContext(
+                comp_sample_args.entropy, base_context.difficulty_level, base_context._step_counter
+            )
             component_context.constraints = base_context.constraints.copy()
             component_context.shared_state = base_context.shared_state.copy()
             component_context.global_variables = base_context.global_variables.copy()
 
             result = component.generate(component_context)
             base_context.record_component_result(result)
+
+            base_context.stepwise_results.extend(component_context.stepwise_results)
+            base_context.golden_result.update(component_context.golden_result)
+            base_context._step_counter = component_context._step_counter
+
             results.append(result)
 
         return results
@@ -63,25 +73,20 @@ class CompositeProblem(SympyProblemGenerator):
         difficulty_level: DifficultyCategory,
         problem_type: str,
         topic: str,
-        template_engine: Callable | None = None,
-        verification_engine: Callable | None = None,
     ):
-        # Use concrete sample args directly
-        total_entropy = sample_args.entropy
-
         super().__init__(
-            entropy=total_entropy, difficulty_level=difficulty_level, problem_type=problem_type, topic=topic
+            entropy=sample_args.entropy, difficulty_level=difficulty_level, problem_type=problem_type, topic=topic
         )
 
         self.components = components
         self.composition_strategy = composition_strategy
         self.sample_args = sample_args
-        self.formatter = MathFormatter()
 
+    @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """Generate composed mathematical content."""
         # Convert to CompositionContext
-        comp_context = CompositionContext(self.sample_args.entropy, context.difficulty_level)
+        comp_context = CompositionContext(self.sample_args.entropy, context.difficulty_level, context._step_counter)
         comp_context.constraints = context.constraints.copy()
 
         # Execute all components and store their results
@@ -110,6 +115,17 @@ class CompositeProblem(SympyProblemGenerator):
         original_context.golden_result = comp_context.golden_result
         original_context._step_counter = comp_context._step_counter
 
+    @override
+    def get_problem_type(self) -> str:
+        """Not used for composite problems."""
+        raise NotImplementedError("Not used for composite problems.")
+
+    @override
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Not used for composite problems."""
+        raise NotImplementedError("Not used for composite problems.")
+
+    @override
     def format_question(self, template: ProblemTemplate) -> str:
         """Format composite problem as natural language multi-step question."""
         context_info = template.context_info
@@ -121,9 +137,7 @@ class CompositeProblem(SympyProblemGenerator):
             else:
                 raise ValueError(f"Unknown composition type: {composition_type}")
         else:
-            # Single expression
-            expr = template.expression[0] if isinstance(template.expression, list) else template.expression
-            return f"Solve: {expr}"
+            raise ValueError("Composite problem should have multiple expressions.")
 
     def _format_sequential_question(self, template: ProblemTemplate) -> str:
         """Format sequential composition by delegating to individual generators."""
@@ -143,6 +157,7 @@ class CompositeProblem(SympyProblemGenerator):
 
         return "\n\n".join(step_descriptions)
 
+    @override
     def format_solution(self, template: ProblemTemplate) -> str:
         """Format composite problem solution using MathFormatter for clean output."""
 
@@ -160,7 +175,13 @@ class CompositeProblem(SympyProblemGenerator):
                 formatted_parts.append(f"Part {i}: {formatted_sol}")
             return "; ".join(formatted_parts)
 
+    @override
     def verify_problem(self, template: ProblemTemplate) -> bool:
         """Verify the problem is mathematically correct."""
-        # There is nothing to check since the problems are verified within individual components
+        for sympy_solution, lib_result in zip(template.sympy_solution, template.lib_result, strict=True):
+            sympy_solution = self.formatter.sympy_to_primitive(sympy_solution, precision=Precision.FULL)
+
+            if not verify_answers(sympy_solution, lib_result):
+                raise ValueError(f"Verification failed: sympy={sympy_solution} vs lib={lib_result}")
+
         return True
