@@ -11,6 +11,15 @@ from linalg_zero.shared.utils import get_logger
 logger = get_logger(__name__)
 
 
+class Precision(Enum):
+    """Precision for formatting mathematical expressions."""
+
+    MATRIX_VECTOR_MULTIPLICATION = -1
+    LINEAR_SYSTEM_SOLVER = -1
+    DETERMINANT = -1
+    FULL = -1
+
+
 class ToolCallDifficulty(Enum):
     """Tool call based difficulty levels."""
 

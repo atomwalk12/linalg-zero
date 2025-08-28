@@ -3,8 +3,8 @@ from typing import Any
 from sympy import Matrix
 from typing_extensions import override
 
-from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
+    Precision,
     validate_tool_calls,
 )
 from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
@@ -28,7 +28,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
 
     @property
     def precision(self) -> Precision:
-        return Precision.MULTIPLY_MATRICES
+        return Precision.MATRIX_VECTOR_MULTIPLICATION
 
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:

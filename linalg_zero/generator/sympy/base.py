@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from linalg_zero.generator import Precision
 from linalg_zero.generator.context import CompositionContext, ProblemContext
-from linalg_zero.generator.difficulty_config import SampleArgs, get_problem_config
+from linalg_zero.generator.difficulty_config import Precision, SampleArgs, get_problem_config
 from linalg_zero.generator.models import (
     ComponentResult,
     DifficultyCategory,

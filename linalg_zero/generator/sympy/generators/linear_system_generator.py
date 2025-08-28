@@ -3,8 +3,8 @@ from typing import Any
 import sympy
 from typing_extensions import override
 
-from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
+    Precision,
     validate_tool_calls,
 )
 from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
@@ -34,7 +34,8 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
 
     @property
     def precision(self) -> Precision:
-        return Precision.SOLVE_LINEAR_SYSTEM
+        """The precision of the problem."""
+        return Precision.LINEAR_SYSTEM_SOLVER
 
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:

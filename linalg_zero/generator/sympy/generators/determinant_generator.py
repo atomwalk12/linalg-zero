@@ -3,8 +3,8 @@ from typing import Any
 from sympy import Float, Integer, Matrix, Rational
 from typing_extensions import override
 
-from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
+    Precision,
     validate_tool_calls,
 )
 from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
@@ -29,6 +29,7 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
 
     @property
     def precision(self) -> Precision:
+        """The precision of the problem."""
         return Precision.DETERMINANT
 
     @override

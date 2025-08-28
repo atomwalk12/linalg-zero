@@ -7,7 +7,7 @@ from sympy import Float, Integer, Number, Symbol
 from sympy.core import Expr
 from sympy.matrices import MutableDenseMatrix
 
-from linalg_zero.generator import Precision
+from linalg_zero.generator.difficulty_config import Precision
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.shared.types import LibTypes
 from linalg_zero.shared.utils import get_logger

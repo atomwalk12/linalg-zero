@@ -5,7 +5,7 @@ from sympy import Matrix, ShapeError
 from sympy.matrices.exceptions import NonSquareMatrixError
 from transformers.utils.chat_template_utils import get_json_schema
 
-from linalg_zero.generator import Precision
+from linalg_zero.generator.difficulty_config import Precision
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.types import assert_lib_returns
 
@@ -30,7 +30,7 @@ def multiply_matrices(matrix_a: list[list[float | int]], matrix_b: list[list[flo
         sym_a = Matrix(matrix_a)
         sym_b = Matrix(matrix_b)
         result_matrix: Matrix = sym_a * sym_b
-        result = MathFormatter.sympy_to_primitive(result_matrix, precision=Precision.MULTIPLY_MATRICES)
+        result = MathFormatter.sympy_to_primitive(result_matrix, precision=Precision.MATRIX_VECTOR_MULTIPLICATION)
 
         if isinstance(result, list) and all(isinstance(row, list) for row in result):
             return result
@@ -96,7 +96,7 @@ def solve_linear_system(matrix_a: list[list[float | int]], vector_b: list[float 
 
         solution_matrix = sym_a.LUsolve(sym_b)
 
-        result = MathFormatter.sympy_to_primitive(solution_matrix, precision=Precision.SOLVE_LINEAR_SYSTEM)
+        result = MathFormatter.sympy_to_primitive(solution_matrix, precision=Precision.LINEAR_SYSTEM_SOLVER)
 
         if isinstance(result, list):
             return result
