@@ -28,6 +28,8 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
                     # Avoid zero denominators and ensure non-zero numerators for variety
                     if numerator == 0:
                         numerator = random.choice([1, -1])
+                    if denominator == 0:
+                        denominator = random.choice([1, -1])
                     element = Rational(numerator, denominator)
                 else:
                     number = controller.generate_integer(entropy)
@@ -51,8 +53,11 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
                 # 20% chance of rational numbers for vectors
                 numerator = controller.generate_integer(entropy)
                 denominator = controller.generate_integer(entropy)
+
                 if numerator == 0:
                     numerator = random.choice([1, -1])
+                if denominator == 0:
+                    denominator = random.choice([1, -1])
                 element = Rational(numerator, denominator)
             else:
                 number = controller.generate_integer(entropy)

@@ -3,7 +3,7 @@ import random
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from sympy import Float, Integer, Number, Symbol
+from sympy import Float, Integer, Number, Rational, Symbol
 from sympy.core import Expr
 from sympy.matrices import MutableDenseMatrix
 
@@ -41,7 +41,15 @@ class MathFormatter:
             else:
                 return element
         elif isinstance(element, list):
-            return [MathFormatter.round_sympy_element(e, precision) for e in element]
+            result = []
+            for e in element:
+                if isinstance(e, (int, float, list)):
+                    result.append(MathFormatter.round_sympy_element(e, precision))
+                elif isinstance(e, str):
+                    result.append(e)
+                else:
+                    raise TypeError(f"Unsupported element type in list: {type(e)} (value: {e})")
+            return result
         else:
             raise TypeError(f"Unsupported element type: {type(element)}")
 
@@ -147,13 +155,9 @@ class TemplateEngine:
         """
         Format a SymPy matrix (can also be a vector), to be displayed in question answer.
         """
-        if isinstance(answer, MutableDenseMatrix):
+        if isinstance(answer, MutableDenseMatrix | Integer | Float | Rational):
             result = self.math_formatter.sympy_to_primitive(answer, precision)
             return json.dumps(result)
-        elif isinstance(answer, Integer):
-            return str(int(answer))
-        elif isinstance(answer, Float):
-            return str(float(answer))
         else:
             raise TypeError(f"Variable '{answer}' has unsupported type {type(answer).__name__}.")
 

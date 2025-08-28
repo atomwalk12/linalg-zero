@@ -84,12 +84,17 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
 
     def _calculate_determinant_sympy(self, matrix_a: Matrix) -> tuple[Float | Integer | Rational, float]:
         """Calculate determinant using both SymPy and lib.py function."""
+        # Convert to primitives (this applies precision constraints)
         matrix_a_primitive = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
         assert isinstance(matrix_a_primitive, list)  # noqa: S101
 
+        # Calculate using lib.py with the primitives
         lib_result = determinant(matrix_a_primitive)
 
-        sympy_result = matrix_a.det()
+        # Convert primitives back to SymPy Matrix at the same precision level
+        # This ensures both calculations work with the same precision
+        matrix_a_precision_matched = Matrix(matrix_a_primitive)
+        sympy_result = matrix_a_precision_matched.det()
         assert isinstance(sympy_result, (Float, Integer, Rational))  # noqa: S101
 
         return sympy_result, lib_result

@@ -94,12 +94,18 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
 
     def _multiply_matrices_sympy(self, matrix_a: Matrix, matrix_b: Matrix) -> tuple[Matrix, list[list[float]]]:
         """Multiply two sympy matrices using lib.py function."""
-
+        # Convert to primitives (this applies precision constraints)
         a_list = self.formatter.sympy_to_primitive(matrix_a, precision=self.precision)
         b_list = self.formatter.sympy_to_primitive(matrix_b, precision=self.precision)
         assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
 
+        # Calculate using lib.py with the primitives
         lib_result = multiply_matrices(a_list, b_list)
-        sympy_result = matrix_a * matrix_b
+
+        # Convert primitives back to SymPy matrices at the same precision level
+        # This ensures both calculations work with the same precision
+        matrix_a_precision_matched = Matrix(a_list)
+        matrix_b_precision_matched = Matrix(b_list)
+        sympy_result = matrix_a_precision_matched * matrix_b_precision_matched
 
         return sympy_result, lib_result

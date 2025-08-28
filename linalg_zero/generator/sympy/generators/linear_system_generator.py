@@ -1,6 +1,7 @@
 from typing import Any
 
 import sympy
+from sympy.matrices import Matrix
 from typing_extensions import override
 
 from linalg_zero.generator.difficulty_config import (
@@ -115,14 +116,18 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         self, matrix_a: sympy.Matrix, vector_b: sympy.Matrix
     ) -> tuple[sympy.Matrix, list[float | int]]:
         """Solve linear system Ax = b using lib.py function."""
+        # Convert to primitives (this applies precision constraints)
         matrix_a_sympy = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
         vector_b_sympy = MathFormatter.sympy_to_primitive(vector_b, precision=self.precision)
         assert isinstance(matrix_a_sympy, list) and isinstance(vector_b_sympy, list)  # noqa: S101
 
-        # Prepare library input
+        # Calculate using lib.py
         lib_result = solve_linear_system(matrix_a_sympy, vector_b_sympy)
 
-        # Compute sympy reference solution
-        sympy_result = matrix_a.LUsolve(vector_b)
+        # Convert primitives back to SymPy matrices at the same precision level
+        # This ensures both calculations work with the same precision
+        matrix_a_precision_matched = Matrix(matrix_a_sympy)
+        vector_b_precision_matched = Matrix(vector_b_sympy)
+        sympy_result = matrix_a_precision_matched.LUsolve(vector_b_precision_matched)
 
         return sympy_result, lib_result

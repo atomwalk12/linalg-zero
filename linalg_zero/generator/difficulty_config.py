@@ -14,9 +14,9 @@ logger = get_logger(__name__)
 class Precision(Enum):
     """Precision for formatting mathematical expressions."""
 
-    MATRIX_VECTOR_MULTIPLICATION = -1
-    LINEAR_SYSTEM_SOLVER = -1
-    DETERMINANT = -1
+    MATRIX_VECTOR_MULTIPLICATION = 2
+    LINEAR_SYSTEM_SOLVER = 4
+    DETERMINANT = 2
     FULL = -1
 
 
