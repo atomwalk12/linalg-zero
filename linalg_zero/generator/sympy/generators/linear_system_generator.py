@@ -24,9 +24,9 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     the equation Ax = b asking to solve for x.
     """
 
-    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
+    def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize linear system solver generator."""
-        super().__init__(entropy, difficulty_level, **kwargs)
+        super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.LINEAR_SYSTEM_SOLVER  # noqa: S101
 
         # Validate that this problem type uses exactly 1 tool call

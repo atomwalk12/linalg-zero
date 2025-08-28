@@ -64,16 +64,20 @@ class SympyProblemGenerator(ABC):
 
     def __init__(
         self,
-        entropy: float,
         difficulty_level: DifficultyCategory,
         problem_type: Task,
         topic: Topic,
+        entropy: float | None = None,
     ):
-        self.entropy = entropy
         self.difficulty_level = difficulty_level
         self.problem_type = problem_type
         self.topic = topic
         self.config = get_problem_config(difficulty_level, topic, problem_type)
+
+        # If no entropy provided (or 0), sample from config - used by simple generators
+        # If entropy provided, use it - used by composition generators
+        self.entropy = entropy if entropy is not None and entropy > 0 else self.config.sample_entropy
+
         self.template_engine = TemplateEngine()
         self.formatter = MathFormatter()
 

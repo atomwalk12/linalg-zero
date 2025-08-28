@@ -11,8 +11,8 @@ from linalg_zero.generator.sympy.base import SympyProblemGenerator
 class MatrixVectorBaseGenerator(SympyProblemGenerator):
     """Base class for matrix-vector problem generators."""
 
-    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
-        super().__init__(entropy, difficulty_level, **kwargs)
+    def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
+        super().__init__(difficulty_level=difficulty_level, **kwargs)
 
     def _generate_matrix(self, rows: int, cols: int, entropy: float, controller: EntropyController) -> Matrix:
         """Generate a matrix consisting of integers or rationals."""

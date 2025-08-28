@@ -16,35 +16,30 @@ from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
 )
 
 
-def create_linear_system_generator(entropy: float, difficulty: DifficultyCategory) -> Callable[[], Question]:
+def create_linear_system_generator(difficulty: DifficultyCategory) -> Callable[[], Question]:
     """Helper to create linear system generator with specific parameters."""
     return create_sympy_factory(
         LinearSystemGenerator,
-        entropy=entropy,
         difficulty_level=difficulty,
         problem_type=Task.LINEAR_SYSTEM_SOLVER,
         topic=Topic.LINEAR_ALGEBRA,
     )
 
 
-def create_matrix_vector_multiplication_factory(
-    entropy: float, difficulty: DifficultyCategory
-) -> Callable[[], Question]:
+def create_matrix_vector_multiplication_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
     """Helper to create matrix-vector multiplication factory with specific parameters."""
     return create_sympy_factory(
         MatrixVectorMultiplicationGenerator,
-        entropy=entropy,
         difficulty_level=difficulty,
         problem_type=Task.MATRIX_VECTOR_MULTIPLICATION,
         topic=Topic.LINEAR_ALGEBRA,
     )
 
 
-def create_determinant_factory(entropy: float, difficulty: DifficultyCategory) -> Callable[[], Question]:
+def create_determinant_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
     """Helper to create determinant factory with specific parameters."""
     return create_sympy_factory(
         DeterminantGenerator,
-        entropy=entropy,
         difficulty_level=difficulty,
         problem_type=Task.DETERMINANT,
         topic=Topic.LINEAR_ALGEBRA,
@@ -79,7 +74,6 @@ def create_composite_factory(
 
 def create_sympy_factory(
     generator_class: type,
-    entropy: float,
     difficulty_level: DifficultyCategory,
     problem_type: Task,
     topic: Topic,
@@ -91,7 +85,6 @@ def create_sympy_factory(
 
     def factory() -> Question:
         generator: SympyProblemGenerator = generator_class(
-            entropy=entropy,
             difficulty_level=difficulty_level,
             problem_type=problem_type,
             topic=topic,

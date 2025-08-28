@@ -20,9 +20,9 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
     This generator creates problems asking to compute the determinant of a square matrix.
     """
 
-    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
+    def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize determinant generator."""
-        super().__init__(entropy, difficulty_level, **kwargs)
+        super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.DETERMINANT  # noqa: S101
 
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)

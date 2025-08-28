@@ -41,10 +41,10 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
 
         # Now, we perform the 3 key steps involved in component generation
         generator: SympyProblemGenerator = self.generator_class(
-            entropy=problem_context.entropy,
             difficulty_level=context.difficulty_level,
             problem_type=self.component_type,
             topic=self.topic,
+            entropy=problem_context.entropy,
         )
         template: ProblemTemplate = generator.generate_mathematical_content(problem_context)
         formatted_question = generator.format_question(template)

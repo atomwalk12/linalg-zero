@@ -18,9 +18,9 @@ from linalg_zero.shared.lib import multiply_matrices
 
 
 class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
-    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
+    def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix-vector multiplication generator."""
-        super().__init__(entropy, difficulty_level, **kwargs)
+        super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
 
         # Validate that this problem type uses exactly 1 tool call

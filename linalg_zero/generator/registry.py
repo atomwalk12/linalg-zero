@@ -8,9 +8,7 @@ from linalg_zero.generator.composition.components import (
 from linalg_zero.generator.composition.composition import (
     SequentialComposition,
 )
-from linalg_zero.generator.difficulty_config import (
-    get_problem_config,
-)
+from linalg_zero.generator.difficulty_config import get_problem_config
 from linalg_zero.generator.generator_factories import (
     create_composite_factory,
     create_determinant_factory,
@@ -89,26 +87,23 @@ class FactoryRegistry:
 def create_default_registry() -> FactoryRegistry:
     """Create and populate the default factory registry."""
     registry = FactoryRegistry()
-    default_config = get_problem_config(DifficultyCategory.MEDIUM, Topic.LINEAR_ALGEBRA, Task.COMPOSITE_SEQUENTIAL)
 
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.DETERMINANT,
-        create_determinant_factory(entropy=default_config.sample_entropy, difficulty=DifficultyCategory.EASY),
+        create_determinant_factory(difficulty=DifficultyCategory.EASY),
     )
 
     # Register linear algebra generators
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_VECTOR_MULTIPLICATION,
-        create_matrix_vector_multiplication_factory(
-            entropy=default_config.sample_entropy, difficulty=DifficultyCategory.MEDIUM
-        ),
+        create_matrix_vector_multiplication_factory(difficulty=DifficultyCategory.MEDIUM),
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.LINEAR_SYSTEM_SOLVER,
-        create_linear_system_generator(entropy=default_config.sample_entropy, difficulty=DifficultyCategory.MEDIUM),
+        create_linear_system_generator(difficulty=DifficultyCategory.MEDIUM),
     )
 
     # Sequential composition

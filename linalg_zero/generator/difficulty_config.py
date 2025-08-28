@@ -84,8 +84,13 @@ DIFFICULTY_CONFIGS = {
 
 
 def get_problem_config(difficulty: DifficultyCategory, topic: Topic, problem_type: Task) -> ProblemConfig:
-    """Get configuration for a given difficulty level."""
+    """Get problem configuration for a given difficulty level, topic, and problem type."""
     return DIFFICULTY_CONFIGS[difficulty]
+
+
+def sample_entropy(difficulty: DifficultyCategory, topic: Topic, problem_type: Task) -> float:
+    """Get sampled entropy for a given difficulty level."""
+    return get_problem_config(difficulty, topic, problem_type).sample_entropy
 
 
 def validate_tool_calls(expected: int, actual: int, problem_type: Task) -> bool:
