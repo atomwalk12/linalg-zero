@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
-from linalg_zero.generator.composition.sample_args import SampleArgs
 from linalg_zero.generator.context import CompositionContext, ProblemContext
+from linalg_zero.generator.difficulty_config import SampleArgs, get_problem_config
 from linalg_zero.generator.models import (
     ComponentResult,
     DifficultyCategory,
@@ -60,13 +60,14 @@ class SympyProblemGenerator(ABC):
         self,
         entropy: float,
         difficulty_level: DifficultyCategory,
-        problem_type: str = "unknown",
-        topic: str = "linear_algebra",
+        problem_type: str,
+        topic: str,
     ):
         self.entropy = entropy
         self.difficulty_level = difficulty_level
         self.problem_type = problem_type
         self.topic = topic
+        self.config = get_problem_config(difficulty_level, problem_type, topic)
 
     @abstractmethod
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:

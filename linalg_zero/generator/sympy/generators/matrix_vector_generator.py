@@ -5,10 +5,9 @@ from typing_extensions import override
 
 from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
-    EntropyController,
-    SampleArgs,
     validate_tool_calls,
 )
+from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
 from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import (
     ProblemContext,

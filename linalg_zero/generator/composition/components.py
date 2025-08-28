@@ -5,7 +5,13 @@ from linalg_zero.generator.composition.composition import (
     CompositionContext,
     ProblemComponent,
 )
-from linalg_zero.generator.sympy.base import ProblemTemplate, SympyProblemGenerator
+from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate, SympyProblemGenerator
+from linalg_zero.generator.sympy.generators.linear_system_generator import (
+    LinearSystemGenerator,
+)
+from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
+    MatrixVectorMultiplicationGenerator,
+)
 
 
 class SympyGeneratorWrapperComponent(ProblemComponent):
@@ -14,25 +20,28 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
     def __init__(
         self,
         name: str,
-        generator_class: type,
+        generator_class: type[SympyProblemGenerator],
         component_type: str,
+        topic: str,
         context_update_mapping: dict[str, str],
         **kwargs: Any,
     ) -> None:
         super().__init__(name, **kwargs)
         self.generator_class = generator_class
         self.component_type = component_type
+        self.topic = topic
         self.context_update_mapping = context_update_mapping
 
     def generate(self, context: CompositionContext) -> ComponentResult:
-        from linalg_zero.generator.sympy.base import ProblemContext
-
         # This context is used for communication and state tracking
         problem_context = ProblemContext(entropy=context.entropy, difficulty_level=context.difficulty_level)
 
         # Now, we perform the 3 key steps involved in component generation
         generator: SympyProblemGenerator = self.generator_class(
-            entropy=problem_context.entropy, difficulty_level=context.difficulty_level
+            entropy=problem_context.entropy,
+            difficulty_level=context.difficulty_level,
+            problem_type=self.component_type,
+            topic=self.topic,
         )
         template: ProblemTemplate = generator.generate_mathematical_content(problem_context)
         formatted_question = generator.format_question(template)
@@ -72,14 +81,11 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
     """Wrapper for the MatrixVectorMultiplicationGenerator."""
 
     def __init__(self, name: str = "matrix_vector_mult", **kwargs: Any) -> None:
-        from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
-            MatrixVectorMultiplicationGenerator,
-        )
-
         super().__init__(
             name=name,
             generator_class=MatrixVectorMultiplicationGenerator,
             component_type="matrix_vector_multiplication",
+            topic="linear_algebra",
             context_update_mapping={"matrix": "matrix", "vector": "vector", "result": "sympy_solution"},
             **kwargs,
         )
@@ -89,14 +95,11 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the LinearSystemGenerator."""
 
     def __init__(self, name: str = "linear_system_solver", **kwargs: Any) -> None:
-        from linalg_zero.generator.sympy.generators.linear_system_generator import (
-            LinearSystemGenerator,
-        )
-
         super().__init__(
             name=name,
             generator_class=LinearSystemGenerator,
             component_type="linear_system",
+            topic="linear_algebra",
             context_update_mapping={
                 "matrix_A": "matrix_A",
                 "x_symbols": "x_symbols",

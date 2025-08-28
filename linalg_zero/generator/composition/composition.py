@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
-from linalg_zero.generator.composition.sample_args import SampleArgs
 from linalg_zero.generator.context import CompositionContext
+from linalg_zero.generator.difficulty_config import SampleArgs
 from linalg_zero.generator.models import ComponentResult, CompositeResultBuilder, DifficultyCategory
 from linalg_zero.generator.sympy.base import (
     CompositionStrategy,
@@ -61,8 +61,8 @@ class CompositeProblem(SympyProblemGenerator):
         composition_strategy: CompositionStrategy,
         sample_args: SampleArgs,
         difficulty_level: DifficultyCategory,
-        problem_type: str = "composite",
-        topic: str = "mixed",
+        problem_type: str,
+        topic: str,
         template_engine: Callable | None = None,
         verification_engine: Callable | None = None,
     ):

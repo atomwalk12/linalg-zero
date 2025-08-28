@@ -3,9 +3,7 @@ from typing import Any
 
 from sympy import Integer, Matrix, Rational
 
-from linalg_zero.generator.difficulty_config import (
-    EntropyController,
-)
+from linalg_zero.generator.entropy_control import EntropyController
 from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
 from linalg_zero.generator.sympy.templates import TemplateEngine
