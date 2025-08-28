@@ -1,3 +1,4 @@
+from linalg_zero.generator.models import Task, Topic
 from linalg_zero.generator.registry import create_default_registry
 
 
@@ -7,11 +8,11 @@ def test_create_default_registry() -> None:
 
     # Check topics are registered
     topics = registry.list_topics()
-    assert "linear_algebra" in topics
+    assert Topic.LINEAR_ALGEBRA in topics
 
     # Check linear algebra problem types
-    linalg_problems = registry.list_problem_types("linear_algebra")
-    assert "matrix_vector_multiplication" in linalg_problems
+    linalg_problems = registry.list_problem_types(Topic.LINEAR_ALGEBRA)
+    assert Task.MATRIX_VECTOR_MULTIPLICATION in linalg_problems
 
 
 def test_default_registry_factories_work() -> None:
@@ -19,9 +20,9 @@ def test_default_registry_factories_work() -> None:
     registry = create_default_registry()
 
     # Test matrix vector multiplication
-    mv_factory = registry.get_factory("linear_algebra", "matrix_vector_multiplication")
+    mv_factory = registry.get_factory(Topic.LINEAR_ALGEBRA, Task.MATRIX_VECTOR_MULTIPLICATION)
     question = mv_factory()
-    assert question.topic == "linear_algebra"
+    assert question.topic == Topic.LINEAR_ALGEBRA
     assert len(question.answer) > 0
 
 
@@ -30,6 +31,6 @@ def test_random_factory_selection() -> None:
     registry = create_default_registry()
 
     # Get random linear algebra factory
-    random_factory = registry.get_random_factory("linear_algebra")
+    random_factory = registry.get_random_factory(Topic.LINEAR_ALGEBRA)
     question = random_factory()
-    assert question.topic == "linear_algebra"
+    assert question.topic == Topic.LINEAR_ALGEBRA
