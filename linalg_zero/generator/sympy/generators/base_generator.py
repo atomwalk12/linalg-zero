@@ -12,7 +12,7 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
     """Base class for matrix-vector problem generators."""
 
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
-        super().__init__(entropy, difficulty_level=difficulty_level, **kwargs)
+        super().__init__(entropy, difficulty_level, **kwargs)
 
     def _generate_matrix(self, rows: int, cols: int, entropy: float, controller: EntropyController) -> Matrix:
         """Generate a matrix consisting of integers or rationals."""

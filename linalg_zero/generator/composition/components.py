@@ -5,6 +5,7 @@ from linalg_zero.generator.composition.composition import (
     CompositionContext,
     ProblemComponent,
 )
+from linalg_zero.generator.models import Task, Topic
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate, SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.linear_system_generator import (
     LinearSystemGenerator,
@@ -19,10 +20,10 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
 
     def __init__(
         self,
-        name: str,
+        name: Task,
         generator_class: type[SympyProblemGenerator],
-        component_type: str,
-        topic: str,
+        component_type: Task,
+        topic: Topic,
         context_update_mapping: dict[str, str],
         **kwargs: Any,
     ) -> None:
@@ -86,12 +87,12 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
 class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the MatrixVectorMultiplicationGenerator."""
 
-    def __init__(self, name: str = "matrix_vector_mult", **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
         super().__init__(
             name=name,
             generator_class=MatrixVectorMultiplicationGenerator,
-            component_type="matrix_vector_multiplication",
-            topic="linear_algebra",
+            component_type=Task.MATRIX_VECTOR_MULTIPLICATION,
+            topic=Topic.LINEAR_ALGEBRA,
             context_update_mapping={"matrix": "matrix", "vector": "vector", "result": "sympy_solution"},
             **kwargs,
         )
@@ -100,12 +101,12 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
 class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the LinearSystemGenerator."""
 
-    def __init__(self, name: str = "linear_system_solver", **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
         super().__init__(
             name=name,
             generator_class=LinearSystemGenerator,
-            component_type="linear_system",
-            topic="linear_algebra",
+            component_type=Task.LINEAR_SYSTEM_SOLVER,
+            topic=Topic.LINEAR_ALGEBRA,
             context_update_mapping={
                 "matrix_A": "matrix_A",
                 "x_symbols": "x_symbols",

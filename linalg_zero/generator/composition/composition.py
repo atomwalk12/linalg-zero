@@ -4,7 +4,7 @@ from typing_extensions import override
 
 from linalg_zero.generator.context import CompositionContext
 from linalg_zero.generator.difficulty_config import SampleArgs
-from linalg_zero.generator.models import ComponentResult, CompositeResultBuilder, DifficultyCategory
+from linalg_zero.generator.models import ComponentResult, CompositeResultBuilder, DifficultyCategory, Task, Topic
 from linalg_zero.generator.sympy.base import (
     CompositionStrategy,
     ProblemComponent,
@@ -14,6 +14,7 @@ from linalg_zero.generator.sympy.base import (
 )
 from linalg_zero.generator.sympy.templates import Precision
 from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.shared.types import LibTypes
 
 
 class SequentialComposition(CompositionStrategy):
@@ -41,6 +42,8 @@ class SequentialComposition(CompositionStrategy):
             component_context = CompositionContext(
                 comp_sample_args.entropy, base_context.difficulty_level, base_context._step_counter
             )
+
+            # NOTE[atom]: these variables can be useful to share state between components
             component_context.constraints = base_context.constraints.copy()
             component_context.shared_state = base_context.shared_state.copy()
             component_context.global_variables = base_context.global_variables.copy()
@@ -71,8 +74,8 @@ class CompositeProblem(SympyProblemGenerator):
         composition_strategy: CompositionStrategy,
         sample_args: SampleArgs,
         difficulty_level: DifficultyCategory,
-        problem_type: str,
-        topic: str,
+        problem_type: Task,
+        topic: Topic,
     ):
         super().__init__(
             entropy=sample_args.entropy, difficulty_level=difficulty_level, problem_type=problem_type, topic=topic
@@ -114,11 +117,6 @@ class CompositeProblem(SympyProblemGenerator):
         original_context.stepwise_results = comp_context.stepwise_results
         original_context.golden_result = comp_context.golden_result
         original_context._step_counter = comp_context._step_counter
-
-    @override
-    def get_problem_type(self) -> str:
-        """Not used for composite problems."""
-        raise NotImplementedError("Not used for composite problems.")
 
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
@@ -180,6 +178,9 @@ class CompositeProblem(SympyProblemGenerator):
         """Verify the problem is mathematically correct."""
         for sympy_solution, lib_result in zip(template.sympy_solution, template.lib_result, strict=True):
             sympy_solution = self.formatter.sympy_to_primitive(sympy_solution, precision=Precision.FULL)
+
+            assert isinstance(lib_result, LibTypes)  # noqa: S101
+            assert isinstance(sympy_solution, LibTypes)  # noqa: S101
 
             if not verify_answers(sympy_solution, lib_result):
                 raise ValueError(f"Verification failed: sympy={sympy_solution} vs lib={lib_result}")

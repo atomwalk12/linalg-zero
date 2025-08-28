@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from linalg_zero.generator.entropy_control import SampleArgs
-from linalg_zero.generator.models import DifficultyCategory
+from linalg_zero.generator.models import DifficultyCategory, Task, Topic
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
@@ -75,13 +75,13 @@ DIFFICULTY_CONFIGS = {
 
 
 def get_problem_config(
-    difficulty: DifficultyCategory, problem_type: str, topic: str = "linear_algebra"
+    difficulty: DifficultyCategory, problem_type: Task, topic: Topic = Topic.LINEAR_ALGEBRA
 ) -> ProblemConfig:
     """Get configuration for a given difficulty level."""
     return DIFFICULTY_CONFIGS[difficulty]
 
 
-def validate_tool_calls(expected: int, actual: int, problem_type: str) -> bool:
+def validate_tool_calls(expected: int, actual: int, problem_type: Task) -> bool:
     """Validate that a problem uses the expected number of tool calls."""
     if actual != expected:
         raise ValueError(

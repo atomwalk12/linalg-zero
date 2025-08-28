@@ -1,7 +1,7 @@
 import logging
 
 from linalg_zero.generator.core import DatasetGenerator, print_dataset
-from linalg_zero.generator.models import Question
+from linalg_zero.generator.models import Question, Topic
 from linalg_zero.generator.registry import create_default_registry
 from linalg_zero.shared.utils import get_logger, setup_logging
 
@@ -24,9 +24,9 @@ def main() -> None:  # pragma: no cover
         # A filter to only include questions that satisfy specific conditions
         return len(question.answer) > 0
 
-    generator = DatasetGenerator(topic="linear_algebra", validator_factory=matrix_only_validator)
-    questions = generator.generate_dataset(num_questions=100)
-    print_dataset(questions)
+    generator = DatasetGenerator(topic=Topic.LINEAR_ALGEBRA, validator_factory=matrix_only_validator)
+    dataset = generator.generate_dataset(num_questions=100)
+    print_dataset(dataset)
 
     # --------------------------------------------------
     # This is an example on generating other topic types

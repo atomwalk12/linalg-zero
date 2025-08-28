@@ -1,13 +1,14 @@
 from typing import Any
 
 from sympy import Matrix
+from typing_extensions import override
 
 from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
     validate_tool_calls,
 )
 from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
-from linalg_zero.generator.models import DifficultyCategory
+from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import (
     ProblemContext,
     ProblemTemplate,
@@ -21,12 +22,12 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         """Initialize matrix-vector multiplication generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
         self.precision = Precision.MULTIPLY_MATRICES
+        assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
 
         # Validate that this problem type uses exactly 1 tool call
-        validate_tool_calls(
-            expected=self.config.target_tool_calls, actual=1, problem_type="matrix_vector_multiplication"
-        )
+        validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
 
+    @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """Generate matrix-vector multiplication problem content."""
 
@@ -53,13 +54,12 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         vector_x = self._generate_vector(cols, vector_entropy, entropy_controller)
         context.record_entropy_usage(vector_entropy)
         sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_A, vector_x)
-        context.record_tool_call("multiply_matrices", lib_result, is_final=True)
+        context.record_tool_call(self.problem_type, lib_result, is_final=True)
 
         problem_expression = matrix_A * vector_x
-        problem_type = "compute_product"
 
         # Generate question templates
-        question_templates = self.template_engine.create_default_templates(problem_type, self.difficulty_level)
+        question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)
 
         return ProblemTemplate(
             expression=problem_expression,
@@ -69,7 +69,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
             question_templates=[t.template_string for t in question_templates],
             context_info={
                 "matrix_dimensions": (rows, cols),
-                "problem_type": problem_type,
+                "problem_type": self.problem_type,
                 "matrix": matrix_A,
                 "vector": vector_x,
             },
@@ -82,10 +82,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
             difficulty=self.difficulty_level,
         )
 
-    def get_problem_type(self) -> str:
-        """Return the problem type string used for template selection."""
-        return "compute_product"
-
+    @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return the variables dictionary to pass to the template engine."""
         matrix = template.context_info["matrix"]

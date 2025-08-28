@@ -11,6 +11,21 @@ if TYPE_CHECKING:
     from linalg_zero.generator.sympy.base import CompositionStrategy, SympyProblemGenerator
 
 
+class Topic(Enum):
+    """Enum for topics used in problem generation."""
+
+    LINEAR_ALGEBRA = "linear_algebra"
+
+
+class Task(Enum):
+    """Enum for problem types used in problem generation."""
+
+    DETERMINANT = "determinant"
+    LINEAR_SYSTEM_SOLVER = "linear_system_solver"
+    MATRIX_VECTOR_MULTIPLICATION = "matrix_vector_multiplication"
+    COMPOSITE_SEQUENTIAL = "sequential"
+
+
 class DifficultyCategory(Enum):
     """Enum for difficulty categories used in problem generation."""
 
@@ -37,8 +52,8 @@ class Question:
     question: str
     answer: str
     difficulty: DifficultyCategory
-    topic: str = "general"
-    problem_type: str = "general"
+    topic: Topic
+    problem_type: Task
     is_valid: bool = True
     entropy_used: float = 0.0
     tool_calls_required: int = 0

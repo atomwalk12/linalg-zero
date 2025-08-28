@@ -14,10 +14,10 @@ from linalg_zero.generator.difficulty_config import (
 from linalg_zero.generator.generator_factories import (
     create_composite_factory,
     create_determinant_factory,
-    create_matrix_vector_equation_solver_factory,
+    create_linear_system_generator,
     create_matrix_vector_multiplication_factory,
 )
-from linalg_zero.generator.models import DifficultyCategory, Question
+from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.base import (
     CompositionStrategy,
     ProblemComponent,
@@ -28,15 +28,15 @@ class FactoryRegistry:
     """Registry for managing different question factories."""
 
     def __init__(self) -> None:
-        self._factories: dict[str, dict[str, Callable[[], Question]]] = {}
+        self._factories: dict[Topic, dict[Task, Callable[[], Question]]] = {}
 
-    def register_factory(self, topic: str, problem_type: str, factory: Callable[[], Question]) -> None:
+    def register_factory(self, topic: Topic, problem_type: Task, factory: Callable[[], Question]) -> None:
         """Register a factory function."""
         if topic not in self._factories:
             self._factories[topic] = {}
         self._factories[topic][problem_type] = factory
 
-    def get_factory(self, topic: str, problem_type: str) -> Callable[[], Question]:
+    def get_factory(self, topic: Topic, problem_type: Task) -> Callable[[], Question]:
         """Get a specific factory by topic and problem type."""
         if topic not in self._factories:
             raise ValueError(f"Unknown topic: {topic}")
@@ -44,7 +44,7 @@ class FactoryRegistry:
             raise ValueError(f"Unknown problem type: {problem_type}")
         return self._factories[topic][problem_type]
 
-    def get_random_factory(self, topic: str) -> Callable[[], Question]:
+    def get_random_factory(self, topic: Topic) -> Callable[[], Question]:
         """Get a random factory from the specified topic."""
         if topic not in self._factories:
             raise ValueError(f"Unknown topic: {topic}")
@@ -52,11 +52,11 @@ class FactoryRegistry:
         random_type = random.choice(problem_types)
         return self._factories[topic][random_type]
 
-    def list_topics(self) -> list[str]:
+    def list_topics(self) -> list[Topic]:
         """List all available topics."""
         return list(self._factories.keys())
 
-    def list_problem_types(self, topic: str) -> list[str]:
+    def list_problem_types(self, topic: Topic) -> list[Task]:
         """List all problem types for a given topic."""
         if topic not in self._factories:
             raise ValueError(f"Unknown topic: {topic}")
@@ -64,8 +64,8 @@ class FactoryRegistry:
 
     def register_composite_factory(
         self,
-        topic: str,
-        problem_type: str,
+        topic: Topic,
+        problem_type: Task,
         components: list[ProblemComponent],
         composition_strategy: CompositionStrategy,
         difficulty_level: DifficultyCategory,
@@ -92,34 +92,32 @@ def create_default_registry() -> FactoryRegistry:
     default_config = get_problem_config(DifficultyCategory.MEDIUM, "composite_linear_algebra")
 
     registry.register_factory(
-        "linear_algebra",
-        "determinant",
+        Topic.LINEAR_ALGEBRA,
+        Task.DETERMINANT,
         create_determinant_factory(entropy=default_config.sample_entropy, difficulty=DifficultyCategory.EASY),
     )
 
     # Register linear algebra generators
     registry.register_factory(
-        "linear_algebra",
-        "matrix_vector_multiplication",
+        Topic.LINEAR_ALGEBRA,
+        Task.MATRIX_VECTOR_MULTIPLICATION,
         create_matrix_vector_multiplication_factory(
             entropy=default_config.sample_entropy, difficulty=DifficultyCategory.MEDIUM
         ),
     )
     registry.register_factory(
-        "linear_algebra",
-        "matrix_vector_inverse_solver",
-        create_matrix_vector_equation_solver_factory(
-            entropy=default_config.sample_entropy, difficulty=DifficultyCategory.MEDIUM
-        ),
+        Topic.LINEAR_ALGEBRA,
+        Task.LINEAR_SYSTEM_SOLVER,
+        create_linear_system_generator(entropy=default_config.sample_entropy, difficulty=DifficultyCategory.MEDIUM),
     )
 
     # Sequential composition
     registry.register_composite_factory(
-        topic="linear_algebra",
-        problem_type="composite_sequential",
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.COMPOSITE_SEQUENTIAL,
         components=[
-            MatrixVectorMultiplicationWrapperComponent("mult_component"),
-            LinearSystemSolverWrapperComponent("solve_component"),
+            MatrixVectorMultiplicationWrapperComponent(name=Task.MATRIX_VECTOR_MULTIPLICATION),
+            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER),
         ],
         composition_strategy=SequentialComposition(),
         difficulty_level=DifficultyCategory.MEDIUM,

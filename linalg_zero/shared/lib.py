@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import Any
 
 from sympy import Matrix, ShapeError
+from sympy.matrices.exceptions import NonSquareMatrixError
 from transformers.utils.chat_template_utils import get_json_schema
 
 from linalg_zero.generator import Precision
@@ -65,6 +66,8 @@ def determinant(matrix: list[list[float]]) -> float:
         if isinstance(result, (int, float)):
             return float(result)
 
+    except NonSquareMatrixError as e:
+        raise ValueError("Matrix must be square") from e
     except Exception as e:
         raise ValueError(f"Cannot calculate determinant: {e}") from e
 

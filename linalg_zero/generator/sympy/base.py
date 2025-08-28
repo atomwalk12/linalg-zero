@@ -8,6 +8,8 @@ from linalg_zero.generator.models import (
     DifficultyCategory,
     ProblemTemplate,
     Question,
+    Task,
+    Topic,
 )
 from linalg_zero.generator.sympy.templates import MathFormatter, TemplateEngine
 from linalg_zero.grpo.verify import verify_answers
@@ -22,7 +24,7 @@ class ProblemComponent(ABC):
     be combined with other components to create more complex problems.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: Task):
         self.name = name
 
     @abstractmethod
@@ -64,8 +66,8 @@ class SympyProblemGenerator(ABC):
         self,
         entropy: float,
         difficulty_level: DifficultyCategory,
-        problem_type: str,
-        topic: str,
+        problem_type: Task,
+        topic: Topic,
     ):
         self.entropy = entropy
         self.difficulty_level = difficulty_level
@@ -83,11 +85,6 @@ class SympyProblemGenerator(ABC):
         pass
 
     @abstractmethod
-    def get_problem_type(self) -> str:
-        """Return the problem type string used for template selection."""
-        pass
-
-    @abstractmethod
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return the variables dictionary to pass to the template engine."""
         pass
@@ -97,7 +94,7 @@ class SympyProblemGenerator(ABC):
         Convert SymPy content into a natural language query.
         """
         # Get problem-specific information from subclass
-        problem_type = self.get_problem_type()
+        problem_type = self.problem_type
         variables = self.get_template_variables(template)
 
         # Get templates for the problem type

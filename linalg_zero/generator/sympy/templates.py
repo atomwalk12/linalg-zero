@@ -8,7 +8,7 @@ from sympy.core import Expr
 from sympy.matrices import MutableDenseMatrix
 
 from linalg_zero.generator import Precision
-from linalg_zero.generator.models import DifficultyCategory
+from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.shared.types import LibTypes
 from linalg_zero.shared.utils import get_logger
 
@@ -24,7 +24,7 @@ class QuestionTemplate:
     template_string: str
     required_variables: list[str]
     difficulty_level: DifficultyCategory
-    question_type: str
+    question_type: Task
 
 
 class MathFormatter:
@@ -159,31 +159,31 @@ class TemplateEngine:
         else:
             raise TypeError(f"Variable '{answer}' has unsupported type {type(answer).__name__}.")
 
-    def create_default_templates(self, question_type: str, difficulty: DifficultyCategory) -> list[QuestionTemplate]:
+    def create_default_templates(self, question_type: Task, difficulty: DifficultyCategory) -> list[QuestionTemplate]:
         """
         Create default question templates for common problem types.
         This simplifies the creation of question/answer pairs.
         """
         templates = []
 
-        if question_type == "solve":
+        if question_type == Task.LINEAR_SYSTEM_SOLVER:
             solve_verb = random.choice(self.SOLVE_VERBS[difficulty])
             templates.extend([
                 QuestionTemplate(
                     template_string=f"{solve_verb} {{matrix}}*{{x_symbols}} = {{target_b}} for {{x_symbols}}.",
                     required_variables=["matrix", "x_symbols", "target_b"],
                     difficulty_level=difficulty,
-                    question_type="solve",
+                    question_type=Task.LINEAR_SYSTEM_SOLVER,
                 ),
                 QuestionTemplate(
                     template_string="What is {x_symbols} in {matrix}*{x_symbols} = {target_b}?",
                     required_variables=["matrix", "x_symbols", "target_b"],
                     difficulty_level=difficulty,
-                    question_type="solve",
+                    question_type=Task.LINEAR_SYSTEM_SOLVER,
                 ),
             ])
 
-        elif question_type == "compute_product":
+        elif question_type == Task.MATRIX_VECTOR_MULTIPLICATION:
             compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
 
             templates.extend([
@@ -191,23 +191,23 @@ class TemplateEngine:
                     template_string=f"{compute_verb} {{matrix}} * {{vector}}.",
                     required_variables=["matrix", "vector"],
                     difficulty_level=difficulty,
-                    question_type="compute_product",
+                    question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
                 ),
                 QuestionTemplate(
                     template_string="What is {matrix} * {vector}?",
                     required_variables=["matrix", "vector"],
                     difficulty_level=difficulty,
-                    question_type="compute_product",
+                    question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
                 ),
                 QuestionTemplate(
                     template_string=f"{compute_verb} the product {{matrix}} * {{vector}}.",
                     required_variables=["matrix", "vector"],
                     difficulty_level=difficulty,
-                    question_type="compute_product",
+                    question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
                 ),
             ])
 
-        elif question_type == "calculate_determinant":
+        elif question_type == Task.DETERMINANT:
             compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
 
             templates.extend([
@@ -215,19 +215,19 @@ class TemplateEngine:
                     template_string=f"{compute_verb} the determinant of {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
-                    question_type="calculate_determinant",
+                    question_type=Task.DETERMINANT,
                 ),
                 QuestionTemplate(
                     template_string="What is the determinant of {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
-                    question_type="calculate_determinant",
+                    question_type=Task.DETERMINANT,
                 ),
                 QuestionTemplate(
                     template_string="Find det({matrix}).",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
-                    question_type="calculate_determinant",
+                    question_type=Task.DETERMINANT,
                 ),
             ])
 
@@ -236,7 +236,7 @@ class TemplateEngine:
     def select_template(
         self,
         templates: list[QuestionTemplate],
-        question_type: str,
+        question_type: Task,
         difficulty: DifficultyCategory,
     ) -> QuestionTemplate:
         """

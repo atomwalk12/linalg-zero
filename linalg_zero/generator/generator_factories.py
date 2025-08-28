@@ -7,7 +7,7 @@ from linalg_zero.generator.composition.composition import (
     ProblemComponent,
 )
 from linalg_zero.generator.difficulty_config import SampleArgs
-from linalg_zero.generator.models import DifficultyCategory, Question
+from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.determinant_generator import DeterminantGenerator
 from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
@@ -16,16 +16,14 @@ from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
 )
 
 
-def create_matrix_vector_equation_solver_factory(
-    entropy: float, difficulty: DifficultyCategory
-) -> Callable[[], Question]:
-    """Helper to create matrix-vector equation solver factory with specific parameters."""
+def create_linear_system_generator(entropy: float, difficulty: DifficultyCategory) -> Callable[[], Question]:
+    """Helper to create linear system generator with specific parameters."""
     return create_sympy_factory(
         LinearSystemGenerator,
         entropy=entropy,
         difficulty_level=difficulty,
-        problem_type="matrix_vector_equation_solving",
-        topic="linear_algebra",
+        problem_type=Task.LINEAR_SYSTEM_SOLVER,
+        topic=Topic.LINEAR_ALGEBRA,
     )
 
 
@@ -37,8 +35,8 @@ def create_matrix_vector_multiplication_factory(
         MatrixVectorMultiplicationGenerator,
         entropy=entropy,
         difficulty_level=difficulty,
-        problem_type="matrix_vector_multiplication",
-        topic="linear_algebra",
+        problem_type=Task.MATRIX_VECTOR_MULTIPLICATION,
+        topic=Topic.LINEAR_ALGEBRA,
     )
 
 
@@ -48,8 +46,8 @@ def create_determinant_factory(entropy: float, difficulty: DifficultyCategory) -
         DeterminantGenerator,
         entropy=entropy,
         difficulty_level=difficulty,
-        problem_type="calculate_determinant",
-        topic="linear_algebra",
+        problem_type=Task.DETERMINANT,
+        topic=Topic.LINEAR_ALGEBRA,
     )
 
 
@@ -58,8 +56,8 @@ def create_composite_factory(
     composition_strategy: CompositionStrategy,
     sample_args: SampleArgs,
     difficulty_level: DifficultyCategory,
-    problem_type: str,
-    topic: str,
+    problem_type: Task,
+    topic: Topic,
 ) -> Callable[[], Question]:
     """
     Factory function for creating composite problem generators.
@@ -83,8 +81,8 @@ def create_sympy_factory(
     generator_class: type,
     entropy: float,
     difficulty_level: DifficultyCategory,
-    problem_type: str = "unknown",
-    topic: str = "linear_algebra",
+    problem_type: Task,
+    topic: Topic,
     **kwargs: Any,
 ) -> Callable[[], Question]:
     """

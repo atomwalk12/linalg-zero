@@ -1,13 +1,14 @@
 from typing import Any
 
 from sympy import Float, Integer, Matrix, Rational
+from typing_extensions import override
 
 from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
     validate_tool_calls,
 )
 from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
-from linalg_zero.generator.models import DifficultyCategory
+from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
 from linalg_zero.generator.sympy.templates import MathFormatter
@@ -23,9 +24,11 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         """Initialize determinant generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
         self.precision = Precision.DETERMINANT
+        assert self.problem_type == Task.DETERMINANT  # noqa: S101
 
-        validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type="determinant_calculation")
+        validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
 
+    @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """
         Generate determinant calculation problem content.
@@ -45,13 +48,12 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         context.record_entropy_usage(matrix_entropy)
 
         sympy_det, lib_result = self._calculate_determinant_sympy(matrix_A)
-        context.record_tool_call("determinant", lib_result, is_final=True)
+        context.record_tool_call(self.problem_type, lib_result, is_final=True)
 
         # Generate question templates
         problem_expression = matrix_A
-        problem_type = "calculate_determinant"
 
-        question_templates = self.template_engine.create_default_templates(problem_type, self.difficulty_level)
+        question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)
 
         return ProblemTemplate(
             expression=problem_expression,
@@ -70,10 +72,7 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
             difficulty=self.difficulty_level,
         )
 
-    def get_problem_type(self) -> str:
-        """Return the problem type string used for template selection."""
-        return "calculate_determinant"
-
+    @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return the variables dictionary to pass to the template engine."""
         matrix = template.context_info["matrix"]

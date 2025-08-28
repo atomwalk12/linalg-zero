@@ -1,13 +1,14 @@
 from typing import Any
 
 import sympy
+from typing_extensions import override
 
 from linalg_zero.generator import Precision
 from linalg_zero.generator.difficulty_config import (
     validate_tool_calls,
 )
 from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
-from linalg_zero.generator.models import DifficultyCategory
+from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
 from linalg_zero.generator.sympy.templates import MathFormatter
@@ -27,10 +28,12 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         """Initialize linear system solver generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
         self.precision = Precision.SOLVE_LINEAR_SYSTEM
+        assert self.problem_type == Task.LINEAR_SYSTEM_SOLVER  # noqa: S101
 
         # Validate that this problem type uses exactly 1 tool call
-        validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type="linear_system_solving")
+        validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
 
+    @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """
         Generate linear system solving problem content.
@@ -64,16 +67,15 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         vector_b = matrix_A * solution_x
 
         sympy_sol, lib_result = self._solve_linear_system_sympy(matrix_A, vector_b)
-        context.record_tool_call("solve_linear_system", lib_result, is_final=True)
+        context.record_tool_call(self.problem_type, lib_result, is_final=True)
 
         # Create symbolic variables for rendering the equation
         x_symbols = sympy.Matrix([sympy.Symbol(f"x_{i + 1}") for i in range(size)])
 
         # Problem: "Solve Ax = b for x"
         problem_expression = sympy.Eq(matrix_A * x_symbols, vector_b)
-        problem_type = "solve_for_vector"
 
-        question_templates = self.template_engine.create_default_templates("solve", self.difficulty_level)
+        question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)
 
         return ProblemTemplate(
             expression=problem_expression,
@@ -83,7 +85,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
             question_templates=[t.template_string for t in question_templates],
             context_info={
                 "matrix_dimensions": (size, size),
-                "problem_type": problem_type,
+                "problem_type": self.problem_type,
                 "matrix_A": matrix_A,
                 "x_symbols": x_symbols,
                 "target_b": vector_b,
@@ -97,10 +99,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
             difficulty=self.difficulty_level,
         )
 
-    def get_problem_type(self) -> str:
-        """Return the problem type string used for template selection."""
-        return "solve"
-
+    @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return the variables dictionary to pass to the template engine."""
         matrix_a = template.context_info["matrix_A"]
