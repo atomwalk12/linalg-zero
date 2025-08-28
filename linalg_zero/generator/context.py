@@ -101,7 +101,7 @@ class CompositionContext(ProblemContext):
 
         # Update entropy usage and validate budget
         self.used_entropy += result.entropy_consumed
-        if self.used_entropy > self.entropy:
+        if self.used_entropy > self.entropy + 1e-12:
             raise ValueError(f"Entropy budget exceeded: used {self.used_entropy:.3f}, available {self.entropy:.3f}")
 
         self.tool_calls_count += result.tool_calls_used
