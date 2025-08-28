@@ -1,5 +1,4 @@
 import json
-from asyncio import Task
 from types import TracebackType
 from typing import Any
 
@@ -79,13 +78,12 @@ class CompositionContext(ProblemContext):
         self.shared_state: dict[str, Any] = {}
         self.component_results: list[ComponentResult] = []
         self.global_variables: dict[str, sympy.Symbol] = {}
-        self._variable_namespaces: dict[str, list[str]] = {}
 
-    def share_variable(self, name: Task, symbol: sympy.Symbol) -> None:
+    def share_variable(self, name: str, symbol: sympy.Symbol) -> None:
         """Make a variable available to other components."""
         self.global_variables[name] = symbol
 
-    def get_shared_variable(self, name: Task) -> sympy.Symbol | None:
+    def get_shared_variable(self, name: str) -> sympy.Symbol | None:
         """Retrieve a shared variable from another component."""
         return self.global_variables.get(name)
 
@@ -114,4 +112,4 @@ class CompositionContext(ProblemContext):
 
         # Register shared variables
         for var in result.shared_variables:
-            self.share_variable(str(var), var)
+            self.share_variable(var, var)

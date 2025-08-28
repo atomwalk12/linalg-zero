@@ -1,8 +1,9 @@
 import logging
 
-from linalg_zero.generator.core import DatasetGenerator, print_dataset
+from linalg_zero.generator.core import DatasetGenerator
 from linalg_zero.generator.models import Question, Topic
 from linalg_zero.generator.registry import create_default_registry
+from linalg_zero.generator.utils import print_dataset
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 

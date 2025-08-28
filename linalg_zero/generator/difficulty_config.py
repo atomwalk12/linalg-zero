@@ -74,9 +74,7 @@ DIFFICULTY_CONFIGS = {
 }
 
 
-def get_problem_config(
-    difficulty: DifficultyCategory, problem_type: Task, topic: Topic = Topic.LINEAR_ALGEBRA
-) -> ProblemConfig:
+def get_problem_config(difficulty: DifficultyCategory, topic: Topic, problem_type: Task) -> ProblemConfig:
     """Get configuration for a given difficulty level."""
     return DIFFICULTY_CONFIGS[difficulty]
 

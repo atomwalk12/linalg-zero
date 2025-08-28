@@ -71,7 +71,7 @@ class FactoryRegistry:
         difficulty_level: DifficultyCategory,
     ) -> None:
         """Register a composite factory"""
-        config = get_problem_config(difficulty_level, problem_type, topic)
+        config = get_problem_config(difficulty_level, topic, problem_type)
         num_components = len(components)
 
         factory = create_composite_factory(
@@ -89,7 +89,7 @@ class FactoryRegistry:
 def create_default_registry() -> FactoryRegistry:
     """Create and populate the default factory registry."""
     registry = FactoryRegistry()
-    default_config = get_problem_config(DifficultyCategory.MEDIUM, "composite_linear_algebra")
+    default_config = get_problem_config(DifficultyCategory.MEDIUM, Topic.LINEAR_ALGEBRA, Task.COMPOSITE_SEQUENTIAL)
 
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,

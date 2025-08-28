@@ -73,7 +73,7 @@ class ProblemTemplate:
     lib_result: LibTypes
     question_templates: list[str]
     context_info: dict[str, Any]
-    difficulty_markers: dict[str, float]
+    difficulty_markers: dict[str, float | tuple]
     difficulty: DifficultyCategory
 
 
@@ -99,7 +99,7 @@ class ComponentResult:
     template: ProblemTemplate
     generator: "SympyProblemGenerator"
     context_updates: dict[str, Any] = field(default_factory=dict)
-    shared_variables: list[Symbol] = field(default_factory=list)
+    shared_variables: list[str] = field(default_factory=list)
     entropy_consumed: float = 0.0
     tool_calls_used: int = 0
 

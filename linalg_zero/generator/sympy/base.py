@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from linalg_zero.generator import Precision
 from linalg_zero.generator.context import CompositionContext, ProblemContext
 from linalg_zero.generator.difficulty_config import SampleArgs, get_problem_config
 from linalg_zero.generator.models import (
@@ -73,9 +74,14 @@ class SympyProblemGenerator(ABC):
         self.difficulty_level = difficulty_level
         self.problem_type = problem_type
         self.topic = topic
-        self.config = get_problem_config(difficulty_level, problem_type, topic)
+        self.config = get_problem_config(difficulty_level, topic, problem_type)
         self.template_engine = TemplateEngine()
         self.formatter = MathFormatter()
+
+    @property
+    def precision(self) -> Precision:
+        """The precision of the problem."""
+        raise NotImplementedError("Implemented by subclasses.")
 
     @abstractmethod
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:

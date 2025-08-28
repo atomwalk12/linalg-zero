@@ -33,7 +33,7 @@ class MathFormatter:
     """
 
     @staticmethod
-    def round_sympy_element(element: LibTypes, precision: Precision = Precision.FULL) -> LibTypes:
+    def round_sympy_element(element: LibTypes, precision: Precision) -> LibTypes:
         """Round a SymPy element to a precision of 2."""
         if isinstance(element, int | float):
             if precision != Precision.FULL:
@@ -46,7 +46,7 @@ class MathFormatter:
             raise TypeError(f"Unsupported element type: {type(element)}")
 
     @staticmethod
-    def sympy_to_primitive(sympy_result: Expr, precision: Precision = Precision.FULL) -> LibTypes | str:
+    def sympy_to_primitive(sympy_result: Expr, precision: Precision) -> LibTypes | str:
         """Convert sympy result to primitive type for verification."""
         result: LibTypes | str | None = None
         if isinstance(sympy_result, MutableDenseMatrix):
@@ -114,9 +114,7 @@ class TemplateEngine:
     def __init__(self) -> None:
         self.math_formatter = MathFormatter()
 
-    def generate_question(
-        self, template: QuestionTemplate, variables: dict[str, Any], precision: Precision = Precision.FULL
-    ) -> str:
+    def generate_question(self, template: QuestionTemplate, variables: dict[str, Any], precision: Precision) -> str:
         """
         Generate natural language question text that will be included as the
         "query" field in the final dataset entry.
@@ -145,7 +143,7 @@ class TemplateEngine:
 
         return question_text
 
-    def format_answer(self, answer: Any, precision: Precision = Precision.FULL) -> str:
+    def format_answer(self, answer: Any, precision: Precision) -> str:
         """
         Format a SymPy matrix (can also be a vector), to be displayed in question answer.
         """

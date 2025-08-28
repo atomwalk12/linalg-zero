@@ -4,7 +4,13 @@ from typing_extensions import override
 
 from linalg_zero.generator.context import CompositionContext
 from linalg_zero.generator.difficulty_config import SampleArgs
-from linalg_zero.generator.models import ComponentResult, CompositeResultBuilder, DifficultyCategory, Task, Topic
+from linalg_zero.generator.models import (
+    ComponentResult,
+    CompositeResultBuilder,
+    DifficultyCategory,
+    Task,
+    Topic,
+)
 from linalg_zero.generator.sympy.base import (
     CompositionStrategy,
     ProblemComponent,
@@ -12,7 +18,6 @@ from linalg_zero.generator.sympy.base import (
     ProblemTemplate,
     SympyProblemGenerator,
 )
-from linalg_zero.generator.sympy.templates import Precision
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.types import LibTypes
 
@@ -159,25 +164,34 @@ class CompositeProblem(SympyProblemGenerator):
     def format_solution(self, template: ProblemTemplate) -> str:
         """Format composite problem solution using MathFormatter for clean output."""
 
+        component_results: list[ComponentResult] = template.context_info.get("component_results", [])
+
         if not isinstance(template.sympy_solution, list):
             raise TypeError("The sympy solution should be a list because the number of provided components is a list.")
 
         if len(template.sympy_solution) == 1:
-            solution = template.sympy_solution[0]
-            formatted = self.formatter.sympy_to_primitive(solution, precision=Precision.FULL)
-            return str(formatted)
-        else:
-            formatted_parts = []
-            for i, sol in enumerate(template.sympy_solution, 1):
-                formatted_sol = self.formatter.sympy_to_primitive(sol, precision=Precision.FULL)
-                formatted_parts.append(f"Part {i}: {formatted_sol}")
-            return "; ".join(formatted_parts)
+            raise ValueError("Composite problem should have multiple solutions.")
+
+        formatted_parts = []
+        for i, (sol, component_result) in enumerate(zip(template.sympy_solution, component_results, strict=True), 1):
+            precision = component_result.generator.precision
+            formatted_sol = self.formatter.sympy_to_primitive(sol, precision=precision)
+            formatted_parts.append(f"Part {i}: {formatted_sol}")
+        return "; ".join(formatted_parts)
 
     @override
     def verify_problem(self, template: ProblemTemplate) -> bool:
         """Verify the problem is mathematically correct."""
-        for sympy_solution, lib_result in zip(template.sympy_solution, template.lib_result, strict=True):
-            sympy_solution = self.formatter.sympy_to_primitive(sympy_solution, precision=Precision.FULL)
+        lib_results = template.lib_result
+        sympy_solutions = template.sympy_solution
+        assert isinstance(sympy_solutions, list)  # noqa: S101
+        assert isinstance(lib_results, list)  # noqa: S101
+
+        component_results: list[ComponentResult] = template.context_info["component_results"]
+
+        for sympy_solution, lib_result, result in zip(sympy_solutions, lib_results, component_results, strict=True):
+            precision = result.generator.precision
+            sympy_solution = self.formatter.sympy_to_primitive(sympy_solution, precision=precision)
 
             assert isinstance(lib_result, LibTypes)  # noqa: S101
             assert isinstance(sympy_solution, LibTypes)  # noqa: S101

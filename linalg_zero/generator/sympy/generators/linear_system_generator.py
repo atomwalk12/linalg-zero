@@ -27,11 +27,14 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize linear system solver generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
-        self.precision = Precision.SOLVE_LINEAR_SYSTEM
         assert self.problem_type == Task.LINEAR_SYSTEM_SOLVER  # noqa: S101
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
+
+    @property
+    def precision(self) -> Precision:
+        return Precision.SOLVE_LINEAR_SYSTEM
 
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
@@ -67,7 +70,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         vector_b = matrix_A * solution_x
 
         sympy_sol, lib_result = self._solve_linear_system_sympy(matrix_A, vector_b)
-        context.record_tool_call(self.problem_type, lib_result, is_final=True)
+        context.record_tool_call(solve_linear_system.__name__, lib_result, is_final=True)
 
         # Create symbolic variables for rendering the equation
         x_symbols = sympy.Matrix([sympy.Symbol(f"x_{i + 1}") for i in range(size)])

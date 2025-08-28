@@ -21,11 +21,14 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix-vector multiplication generator."""
         super().__init__(entropy, difficulty_level, **kwargs)
-        self.precision = Precision.MULTIPLY_MATRICES
         assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
+
+    @property
+    def precision(self) -> Precision:
+        return Precision.MULTIPLY_MATRICES
 
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
@@ -54,7 +57,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         vector_x = self._generate_vector(cols, vector_entropy, entropy_controller)
         context.record_entropy_usage(vector_entropy)
         sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_A, vector_x)
-        context.record_tool_call(self.problem_type, lib_result, is_final=True)
+        context.record_tool_call(multiply_matrices.__name__, lib_result, is_final=True)
 
         problem_expression = matrix_A * vector_x
 
@@ -92,8 +95,8 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def _multiply_matrices_sympy(self, matrix_a: Matrix, matrix_b: Matrix) -> tuple[Matrix, list[list[float]]]:
         """Multiply two sympy matrices using lib.py function."""
 
-        a_list = self.formatter.sympy_to_primitive(matrix_a)
-        b_list = self.formatter.sympy_to_primitive(matrix_b)
+        a_list = self.formatter.sympy_to_primitive(matrix_a, precision=self.precision)
+        b_list = self.formatter.sympy_to_primitive(matrix_b, precision=self.precision)
         assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
 
         lib_result = multiply_matrices(a_list, b_list)

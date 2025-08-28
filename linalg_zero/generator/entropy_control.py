@@ -107,7 +107,7 @@ class SampleArgs:
     num_modules: int
     entropy: float
 
-    def peel(self, frac=1):
+    def peel(self, frac: float = 1.0) -> tuple[float, SampleArgs]:
         """This method provides a fraction of the total entropy budget. It is
         meant to be called iteratively and should be used when we don't know a
         priori the number of required components.
