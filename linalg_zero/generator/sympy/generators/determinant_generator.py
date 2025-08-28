@@ -1,0 +1,133 @@
+from typing import Any
+
+from sympy import Float, Integer, Matrix, Rational
+from typing_extensions import override
+
+from linalg_zero.generator import Precision
+from linalg_zero.generator.difficulty_config import (
+    validate_tool_calls,
+)
+from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
+from linalg_zero.generator.models import DifficultyCategory
+from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
+from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
+from linalg_zero.generator.sympy.templates import MathFormatter
+from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.shared.lib import determinant
+from linalg_zero.shared.types import LibTypes
+
+
+class DeterminantGenerator(MatrixVectorBaseGenerator):
+    """
+    This generator creates problems asking to compute the determinant of a square matrix.
+    """
+
+    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
+        """Initialize determinant generator."""
+        super().__init__(entropy, difficulty_level, **kwargs)
+        self.precision = Precision.DETERMINANT
+        self.math_formatter = MathFormatter()
+
+        validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type="determinant_calculation")
+
+    def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
+        """
+        Generate determinant calculation problem content.
+
+        This method creates problems asking to compute det(A) for a square matrix A.
+        Uses difficulty configuration to determine matrix size and complexity.
+        """
+        # Get matrix size and entropy
+        size = self.config.get_random_matrix_size()
+
+        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
+        matrix_entropy = sample_args.entropy
+
+        # Generate square matrix A and find result
+        entropy_controller = EntropyController(context.entropy)
+        matrix_A = self._generate_matrix(size, size, matrix_entropy, entropy_controller)
+        context.record_entropy_usage(matrix_entropy)
+
+        sympy_det, lib_result = self._calculate_determinant_sympy(matrix_A)
+        context.record_tool_call("determinant", lib_result, is_final=True)
+
+        # Generate question templates
+        problem_expression = matrix_A
+        problem_type = "calculate_determinant"
+
+        question_templates = self.template_engine.create_default_templates(problem_type, self.difficulty_level)
+
+        return ProblemTemplate(
+            expression=problem_expression,
+            variables=[],
+            sympy_solution=sympy_det,
+            lib_result=lib_result,
+            question_templates=[t.template_string for t in question_templates],
+            context_info={
+                "matrix": matrix_A,
+            },
+            difficulty_markers={
+                "entropy_used": context.used_entropy,
+                "matrix_size": (size, size),
+                "target_tool_calls": self.config.target_tool_calls,
+            },
+            difficulty=self.difficulty_level,
+        )
+
+    def format_question(self, template: ProblemTemplate) -> str:
+        """Format determinant calculation problem as natural language question."""
+        # Use the template engine for consistent question formatting
+        matrix = template.context_info["matrix"]
+
+        # Get templates for determinant calculation
+        templates = self.template_engine.create_default_templates("calculate_determinant", self.difficulty_level)
+        if templates:
+            selected_template = self.template_engine.select_template(
+                templates, "calculate_determinant", self.difficulty_level
+            )
+            question_text = self.template_engine.generate_question(
+                template=selected_template, variables={"matrix": matrix}, precision=self.precision
+            )
+        else:
+            raise ValueError("No templates available for determinant calculation")
+
+        return question_text
+
+    @override
+    def format_solution(self, template: ProblemTemplate) -> str:
+        """Format the solution as an integer."""
+        solution = template.sympy_solution
+
+        if not isinstance(solution, (Integer, Float, Rational)):
+            raise TypeError(f"Solution is not a number: {solution}")
+
+        return str(int(solution))
+
+    @override
+    def verify_problem(self, template: ProblemTemplate) -> bool:
+        """
+        Verify the mathematical correctness using end-to-end verification.
+        This ensures sympy and lib.py results match.
+        """
+        lib_result = template.lib_result
+        sympy_solution = template.sympy_solution
+
+        ground_truth = self.math_formatter.sympy_to_primitive(sympy_solution, precision=self.precision)
+        assert isinstance(ground_truth, LibTypes)  # noqa: S101
+
+        if not verify_answers(ground_truth, lib_result):
+            raise ValueError(f"Verification failed: sympy={ground_truth} vs lib={lib_result}")
+
+        return True
+
+    def _calculate_determinant_sympy(self, matrix_a: Matrix) -> tuple[Float | Integer | Rational, float]:
+        """Calculate determinant using both SymPy and lib.py function."""
+        matrix_a_primitive = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
+        assert isinstance(matrix_a_primitive, list)  # noqa: S101
+
+        lib_result = determinant(matrix_a_primitive)
+
+        sympy_result = matrix_a.det()
+        assert isinstance(sympy_result, (Float, Integer, Rational))  # noqa: S101
+
+        return sympy_result, lib_result

@@ -203,6 +203,30 @@ class TemplateEngine:
                 ),
             ])
 
+        elif question_type == "calculate_determinant":
+            compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
+
+            templates.extend([
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the determinant of {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type="calculate_determinant",
+                ),
+                QuestionTemplate(
+                    template_string="What is the determinant of {matrix}?",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type="calculate_determinant",
+                ),
+                QuestionTemplate(
+                    template_string="Find det({matrix}).",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type="calculate_determinant",
+                ),
+            ])
+
         return templates
 
     def select_template(

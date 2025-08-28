@@ -1,4 +1,3 @@
-import math
 from collections.abc import Callable
 from typing import Any
 
@@ -8,47 +7,6 @@ from transformers.utils.chat_template_utils import get_json_schema
 from linalg_zero.generator import Precision
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.types import assert_lib_returns
-
-
-def add_numbers(a: float, b: float) -> float:
-    """Add two numbers together.
-
-    Args:
-        a: The first number.
-        b: The second number.
-
-    Returns:
-        The sum of the two numbers.
-    """
-    return float(a) + float(b)
-
-
-def multiply_numbers(a: float, b: float) -> float:
-    """Multiply two numbers.
-
-    Args:
-        a: The first number.
-        b: The second number.
-
-    Returns:
-        The product of the two numbers.
-    """
-    return float(a) * float(b)
-
-
-def divide_numbers(dividend: float, divisor: float) -> float:
-    """Divide two numbers.
-
-    Args:
-        dividend: The number to be divided.
-        divisor: The number to divide by.
-
-    Returns:
-        The result of the division.
-    """
-    if divisor == 0:
-        raise ValueError("Cannot divide by zero")
-    return float(dividend) / float(divisor)
 
 
 def multiply_matrices(matrix_a: list[list[float | int]], matrix_b: list[list[float | int]]) -> list[list[float | int]]:
@@ -81,24 +39,16 @@ def multiply_matrices(matrix_a: list[list[float | int]], matrix_b: list[list[flo
         raise ValueError(f"Matrix dimensions incompatible for multiplication: {e}") from e
 
 
-def transpose_matrix(matrix: list[list[float]]) -> list[list[float]]:
-    """Transpose a matrix.
-
-    Args:
-        matrix: The matrix to transpose as a list of lists.
-
-    Returns:
-        The transposed matrix as a list of lists.
-    """
-    if not matrix or not matrix[0]:
-        return []
-
-    rows, cols = len(matrix), len(matrix[0])
-    return [[matrix[i][j] for i in range(rows)] for j in range(cols)]
-
-
 def determinant(matrix: list[list[float]]) -> float:
-    """Calculate the determinant of a square matrix.
+    """Calculate the determinant of a square matrix using SymPy.
+
+    Examples:
+        >>> determinant([[1, 2], [3, 4]])
+        -2.0
+        >>> determinant([[2, 0], [0, 3]])  # Diagonal matrix
+        6.0
+        >>> determinant([[1]])  # 1x1 matrix
+        1.0
 
     Args:
         matrix: The square matrix as a list of lists.
@@ -106,60 +56,19 @@ def determinant(matrix: list[list[float]]) -> float:
     Returns:
         The determinant of the matrix.
     """
-    n = len(matrix)
+    try:
+        sym_matrix = Matrix(matrix)
 
-    if n != len(matrix[0]):
-        raise ValueError("Matrix must be square")
+        det_result = sym_matrix.det()
+        result = MathFormatter.sympy_to_primitive(det_result, precision=Precision.DETERMINANT)
 
-    if n == 1:
-        return matrix[0][0]
-    elif n == 2:
-        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]
-    else:
-        det = 0
-        for j in range(n):
-            minor = [[matrix[i][k] for k in range(n) if k != j] for i in range(1, n)]
-            det += ((-1) ** j) * matrix[0][j] * determinant(minor)
-        return det
+        if isinstance(result, (int, float)):
+            return float(result)
 
+    except Exception as e:
+        raise ValueError(f"Cannot calculate determinant: {e}") from e
 
-def frobenius_norm(matrix: list[list[float]]) -> float:
-    """Calculate the Frobenius norm of a matrix.
-
-    Examples:
-        >>> frobenius_norm([[1, 0], [0, 1]])  # Identity matrix
-        1.4142135623730951
-        >>> frobenius_norm([[3, 4]])  # Single row
-        5.0
-        >>> frobenius_norm([[1], [2], [3]])  # Single column
-        3.7416573867739413
-
-    Args:
-        matrix: The matrix as a list of lists.
-
-    Returns:
-        The Frobenius norm of the matrix.
-    """
-    total = 0.0
-    for row in matrix:
-        for element in row:
-            total += element * element
-    return math.sqrt(total)
-
-
-def matrix_trace(matrix: list[list[float]]) -> float:
-    """Calculate the trace (sum of diagonal elements) of a square matrix.
-
-    Args:
-        matrix: The square matrix as a list of lists.
-
-    Returns:
-        The trace of the matrix.
-    """
-    if len(matrix) != len(matrix[0]):
-        raise ValueError("Matrix must be square")
-
-    return sum(matrix[i][i] for i in range(len(matrix)))
+    raise TypeError(f"Expected numeric result, got {type(result)}")
 
 
 def solve_linear_system(matrix_a: list[list[float | int]], vector_b: list[float | int]) -> list[float | int]:
@@ -195,71 +104,12 @@ def solve_linear_system(matrix_a: list[list[float | int]], vector_b: list[float 
     raise TypeError(f"Expected list, got {type(result)}")
 
 
-def permutation_count(n: int, k: int) -> int:
-    """Calculate the number of permutations of k elements from a set of n elements.
-
-    Args:
-        n: The total number of elements in the set.
-        k: The number of elements to choose for the permutation.
-
-    Returns:
-        The number of permutations.
-    """
-    if k > n or k < 0:
-        return 0
-    return math.factorial(n) // math.factorial(n - k)
-
-
-def vector_dot_product(vector_a: list[float], vector_b: list[float]) -> float:
-    """Calculate the dot product of two vectors.
-
-    Args:
-        vector_a: The first vector as a list of numbers.
-        vector_b: The second vector as a list of numbers.
-
-    Returns:
-        The dot product of the two vectors.
-    """
-    if len(vector_a) != len(vector_b):
-        raise ValueError("Vectors must have the same length")
-
-    return sum(a * b for a, b in zip(vector_a, vector_b, strict=False))
-
-
-def get_division(dividend: int, divisor: int) -> float:
-    """Divides two numbers by making an API call to a division service.
-
-    Args:
-        dividend: The dividend in the division operation.
-        divisor: The divisor in the division operation.
-
-    Returns:
-        Division of the 2 numbers.
-    """
-    return dividend / divisor
-
-
-def get_multiplication(a: int, b: int) -> int:
-    """Performs multiplication of a and b then returns the result.
-
-    Args:
-        a: The first number.
-        b: The second number.
-
-    Returns:
-        Multiplication of the 2 numbers.
-    """
-    return a * b
-
-
 def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
-        "add_numbers": add_numbers,
-        "divide_numbers": divide_numbers,
         "multiply_matrices": multiply_matrices,
         "solve_linear_system": solve_linear_system,
-        "frobenius_norm": frobenius_norm,
+        "determinant": determinant,
     }
 
 
