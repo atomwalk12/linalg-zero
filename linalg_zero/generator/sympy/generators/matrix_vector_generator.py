@@ -1,18 +1,20 @@
-import random
 from typing import Any
 
 from sympy import Matrix
 from typing_extensions import override
 
 from linalg_zero.generator import Precision
-from linalg_zero.generator.composition.sample_args import SampleArgs
+from linalg_zero.generator.difficulty_config import (
+    EntropyController,
+    SampleArgs,
+    validate_tool_calls,
+)
 from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import (
     ProblemContext,
     ProblemTemplate,
 )
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
-from linalg_zero.generator.sympy.number_generator import EntropyController
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import multiply_matrices
@@ -22,9 +24,14 @@ from linalg_zero.shared.types import LibTypes
 class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix-vector multiplication generator."""
-        super().__init__(entropy, difficulty_level, integers_only=True, **kwargs)
+        super().__init__(entropy, difficulty_level, **kwargs)
         self.precision = Precision.MULTIPLY_MATRICES
         self.math_formatter = MathFormatter()
+
+        # Validate that this problem type uses exactly 1 tool call
+        validate_tool_calls(
+            expected=self.config.target_tool_calls, actual=1, problem_type="matrix_vector_multiplication"
+        )
 
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """Generate matrix-vector multiplication problem content."""
@@ -39,17 +46,9 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         matrix_entropy = matrix_sample_args.entropy
         vector_entropy = vector_sample_args.entropy
 
-        # Determine matrix dimensions based on difficulty category
-        difficulty_category = context.difficulty_level
-        if difficulty_category == DifficultyCategory.EASY:
-            rows, cols = 2, 2
-        elif difficulty_category == DifficultyCategory.MEDIUM:
-            rows, cols = 3, 3
-        elif difficulty_category == DifficultyCategory.HARD:
-            rows = random.randint(3, self.max_dimension)
-            cols = random.randint(3, self.max_dimension)
-        else:
-            raise ValueError(f"Invalid difficulty category: {difficulty_category}")
+        # Get matrix dimensions from difficulty configuration
+        rows = self.config.get_random_matrix_size()
+        cols = self.config.get_random_matrix_size()
 
         # Generate matrix A and vector x
         entropy_controller = EntropyController(context.entropy)
@@ -60,7 +59,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         vector_x = self._generate_vector(cols, vector_entropy, entropy_controller)
         context.record_entropy_usage(vector_entropy)
         sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_A, vector_x)
-        _ = context.record_tool_call("multiply_matrices", lib_result, is_final=True)
+        context.record_tool_call("multiply_matrices", lib_result, is_final=True)
 
         problem_expression = matrix_A * vector_x
         problem_type = "compute_product"
@@ -79,12 +78,12 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
                 "problem_type": problem_type,
                 "matrix": matrix_A,
                 "vector": vector_x,
-                "entropy_used": context.entropy,
             },
             difficulty_markers={
-                "matrix_complexity": matrix_entropy,
-                "vector_complexity": vector_entropy,
-                "dimension_size": max(rows, cols),
+                "entropy_used": context.used_entropy,
+                "matrix_size": (rows, cols),
+                "vector_size": cols,
+                "target_tool_calls": self.config.target_tool_calls,
             },
             difficulty=self.difficulty_level,
         )

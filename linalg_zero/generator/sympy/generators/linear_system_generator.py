@@ -1,15 +1,17 @@
-import random
 from typing import Any
 
 import sympy
 from typing_extensions import override
 
 from linalg_zero.generator import Precision
-from linalg_zero.generator.composition.sample_args import SampleArgs
+from linalg_zero.generator.difficulty_config import (
+    EntropyController,
+    SampleArgs,
+    validate_tool_calls,
+)
 from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
-from linalg_zero.generator.sympy.generators.matrix_vector_generator import MatrixVectorBaseGenerator
-from linalg_zero.generator.sympy.number_generator import EntropyController
+from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import solve_linear_system
@@ -18,44 +20,31 @@ from linalg_zero.shared.types import LibTypes
 
 class LinearSystemGenerator(MatrixVectorBaseGenerator):
     """
-    Generator for inverse matrix-vector equation solving problems.
+    Generator for linear system solving problems.
 
     This generator creates "Solve Ax = b for x" problems using backwards construction:
     generate matrix A and solution vector x first, then compute b = Ax, and present
     the equation Ax = b asking to solve for x.
 
     Mathematical Process:
-        1. Generate matrix A and solution vector x using entropy allocation
+        1. Generate invertible matrix A and solution vector x using difficulty configuration
         2. Compute b = A * x (backwards construction gives us target)
         3. Present problem as "Solve Ax = b for x"
-        4. Verify that A * (solution_x) = b using math_verify
+        4. Uses exactly 1 tool call (atomic operation)
     """
 
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
-        """Initialize inverse matrix-vector equation solver generator."""
-        super().__init__(entropy, difficulty_level, integers_only=True, **kwargs)
+        """Initialize linear system solver generator."""
+        super().__init__(entropy, difficulty_level, **kwargs)
         self.precision = Precision.SOLVE_LINEAR_SYSTEM
         self.math_formatter = MathFormatter()
 
-    def _generate_invertible_matrix(
-        self, rows: int, cols: int, entropy: float, controller: EntropyController, max_attempts: int = 10
-    ) -> sympy.Matrix:
-        """Generate an invertible matrix with retry logic."""
-        for _ in range(max_attempts):
-            matrix_A = self._generate_matrix(rows, cols, entropy, controller)
-
-            try:
-                det = matrix_A.det()
-                if det != 0:
-                    return matrix_A
-            except Exception:  # noqa: S112
-                continue
-
-        raise ValueError("Could not generate invertible matrix after maximum attempts")
+        # Validate that this problem type uses exactly 1 tool call
+        validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type="linear_system_solving")
 
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """
-        Generate inverse matrix-vector equation solving problem content.
+        Generate linear system solving problem content.
 
         This method creates "Solve Ax = b for x" problems using backwards construction:
         generate A and x, compute b = Ax, then ask to solve for x.
@@ -63,7 +52,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         # Set constraint for matrix invertibility
         context.constraints["matrix_invertible"] = True
 
-        # Split entropy between matrix and vector generation using Dirichlet distribution
+        # Split entropy between matrix and vector generation
         sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
 
         component_args = sample_args.split(count=2)
@@ -74,24 +63,12 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
 
         entropy_controller = EntropyController(context.entropy)
 
-        # Determine matrix dimensions based on difficulty category
-        difficulty_category = context.difficulty_level
-        if difficulty_category == DifficultyCategory.EASY:
-            rows, cols = 2, 2
-        elif difficulty_category == DifficultyCategory.MEDIUM:
-            rows, cols = 3, 3
-        elif difficulty_category == DifficultyCategory.HARD:
-            rows = random.randint(3, self.max_dimension)
-            cols = random.randint(3, self.max_dimension)
-        else:
-            raise ValueError(f"Invalid difficulty category: {difficulty_category}")
-
-        # Generate matrix A
-        matrix_A = self._generate_invertible_matrix(rows, cols, matrix_entropy, entropy_controller)
+        # Generate problem dimension, invertible matrix and solution vector
+        size = self.config.get_random_matrix_size()
+        matrix_A = self._generate_invertible_matrix(size, matrix_entropy, entropy_controller)
         context.record_entropy_usage(matrix_entropy)
 
-        # Generate solution vector x (this is what we want them to find)
-        solution_x = self._generate_vector(cols, vector_entropy, entropy_controller)
+        solution_x = self._generate_vector(size, vector_entropy, entropy_controller)
         context.record_entropy_usage(vector_entropy)
 
         # Compute b = A*x (backwards construction - this becomes our target)
@@ -101,9 +78,9 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         context.record_tool_call("solve_linear_system", lib_result, is_final=True)
 
         # Create symbolic variables for rendering the equation
-        x_symbols = sympy.Matrix([sympy.Symbol(f"x_{i + 1}") for i in range(cols)])
+        x_symbols = sympy.Matrix([sympy.Symbol(f"x_{i + 1}") for i in range(size)])
 
-        # Inverse problem: "Solve Ax = b for x"
+        # Problem: "Solve Ax = b for x"
         problem_expression = sympy.Eq(matrix_A * x_symbols, vector_b)
         problem_type = "solve_for_vector"
 
@@ -111,22 +88,22 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
 
         return ProblemTemplate(
             expression=problem_expression,
-            variables=[sympy.Symbol(f"x_{i + 1}") for i in range(cols)],
+            variables=[sympy.Symbol(f"x_{i + 1}") for i in range(size)],
             sympy_solution=sympy_sol,
             lib_result=lib_result,
             question_templates=[t.template_string for t in question_templates],
             context_info={
-                "matrix_dimensions": (rows, cols),
+                "matrix_dimensions": (size, size),
                 "problem_type": problem_type,
-                "entropy_used": context.entropy,
                 "matrix_A": matrix_A,
                 "x_symbols": x_symbols,
                 "target_b": vector_b,
             },
             difficulty_markers={
-                "matrix_complexity": matrix_entropy,
-                "vector_complexity": vector_entropy,
-                "dimension_size": max(rows, cols),
+                "entropy_used": context.used_entropy,
+                "matrix_size": (size, size),
+                "vector_size": size,
+                "tool_calls_used": 1,
             },
             difficulty=self.difficulty_level,
         )

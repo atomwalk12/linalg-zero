@@ -1,60 +1,45 @@
 import random
 from typing import Any
 
-from sympy import Integer, Matrix
+from sympy import Integer, Matrix, Rational
 
-from linalg_zero.generator.models import DifficultyCategory
-from linalg_zero.generator.sympy.base import (
-    SympyProblemGenerator,
+from linalg_zero.generator.difficulty_config import (
+    EntropyController,
 )
-from linalg_zero.generator.sympy.number_generator import EntropyController
+from linalg_zero.generator.models import DifficultyCategory
+from linalg_zero.generator.sympy.base import SympyProblemGenerator
 from linalg_zero.generator.sympy.templates import TemplateEngine
 
 
 class MatrixVectorBaseGenerator(SympyProblemGenerator):
     """Base class for matrix-vector problem generators."""
 
-    def __init__(
-        self, entropy: float, difficulty_level: DifficultyCategory, integers_only: bool, **kwargs: Any
-    ) -> None:
-        super().__init__(entropy, difficulty_level, **kwargs)
-        self.integers_only = integers_only
-
-        # TODO: the entropy threshold calculation should be adjusted
-        # Scale dimension with entropy using floor division
-        self.max_dimension = min(4, max(2, int(entropy // 1.5) + 1))
+    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
+        super().__init__(entropy, difficulty_level=difficulty_level, **kwargs)
         self.template_engine = TemplateEngine()
 
     def _generate_matrix(self, rows: int, cols: int, entropy: float, controller: EntropyController) -> Matrix:
-        """Generate a matrix with entropy-controlled complexity."""
-
-        # Ensure minimum entropy per element to get reasonable numbers
-        min_entropy_per_element = 1.0
-        num_elements = rows * cols
-        entropy_per_element = max(min_entropy_per_element, entropy / max(3, num_elements))
-
+        """Generate a matrix consisting of integers or rationals."""
         matrix_elements = []
         for _ in range(rows):
             row = []
             for _ in range(cols):
-                if self.integers_only:
-                    element = controller.generate_integer(entropy_per_element)
-                elif entropy_per_element < 1.5:
-                    # Mostly integers for small entropy
-                    if random.random() < 0.9:
-                        element = controller.generate_integer(entropy_per_element)
-                    else:
-                        element = controller.generate_rational(entropy_per_element)
-                else:
-                    # Allow more rational numbers for higher entropy
-                    if random.random() < 0.7:
-                        element = controller.generate_integer(entropy_per_element)
-                    else:
-                        element = controller.generate_rational(entropy_per_element)
+                if self.config.allow_rationals and random.random() < 0.3:
+                    # 30% chance of rational numbers when allowed
+                    numerator = controller.generate_integer(entropy)
+                    denominator = controller.generate_integer(entropy)
 
-                # Avoid zero elements to maintain interesting problems
-                if element == 0:
-                    element = Integer(1) if random.random() < 0.5 else Integer(-1)
+                    # Avoid zero denominators and ensure non-zero numerators for variety
+                    if numerator == 0:
+                        numerator = random.choice([1, -1])
+                    element = Rational(numerator, denominator)
+                else:
+                    number = controller.generate_integer(entropy)
+
+                    # Avoid too many zeros to keep problems interesting
+                    if number == 0 and random.random() < 0.7:
+                        number = random.choice([1, -1])
+                    element = Integer(number)
 
                 row.append(element)
             matrix_elements.append(row)
@@ -62,33 +47,40 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
         return Matrix(matrix_elements)
 
     def _generate_vector(self, size: int, entropy: float, controller: EntropyController) -> Matrix:
-        """Generate a vector with entropy-controlled complexity."""
-
-        # Ensure minimum entropy per element to get reasonable numbers
-        min_entropy_per_element = 1.0
-        entropy_per_element = max(min_entropy_per_element, entropy / max(2, size))
-
+        """Generate a vector consisting of integers or rationals."""
         vector_elements = []
-        for i in range(size):
-            if self.integers_only:
-                element = controller.generate_integer(entropy_per_element)
-            elif entropy_per_element < 1.5:
-                # Mostly integers for small entropy
-                if random.random() < 0.9:
-                    element = controller.generate_integer(entropy_per_element)
-                else:
-                    element = controller.generate_rational(entropy_per_element)
-            else:
-                # Allow more rational numbers for higher entropy
-                if random.random() < 0.8:
-                    element = controller.generate_integer(entropy_per_element)
-                else:
-                    element = controller.generate_rational(entropy_per_element)
 
-            # Avoid all-zero vectors
-            if i == 0 and element == 0:
-                element = Integer(1)
+        for i in range(size):
+            if self.config.allow_rationals and random.random() < 0.2:
+                # 20% chance of rational numbers for vectors
+                numerator = controller.generate_integer(entropy)
+                denominator = controller.generate_integer(entropy)
+                if numerator == 0:
+                    numerator = random.choice([1, -1])
+                element = Rational(numerator, denominator)
+            else:
+                number = controller.generate_integer(entropy)
+                # Ensure first element is non-zero to avoid zero vectors
+                if i == 0 and number == 0:
+                    number = random.choice([1, -1])
+                element = Integer(number)
 
             vector_elements.append(element)
 
         return Matrix(vector_elements)
+
+    def _generate_invertible_matrix(self, size: int, entropy: float, controller: EntropyController) -> Matrix:
+        """Generate an invertible matrix with retry logic."""
+        max_attempts = 1000
+
+        for _ in range(max_attempts):
+            matrix = self._generate_matrix(size, size, entropy, controller)
+
+            try:
+                det = matrix.det()
+                if det != 0:
+                    return matrix
+            except Exception:  # noqa: S112
+                continue
+
+        raise ValueError(f"Failed to generate invertible matrix after {max_attempts} attempts")
