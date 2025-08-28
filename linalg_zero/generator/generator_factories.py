@@ -6,9 +6,10 @@ from linalg_zero.generator.composition.composition import (
     CompositionStrategy,
     ProblemComponent,
 )
-from linalg_zero.generator.composition.sample_args import SampleArgs
+from linalg_zero.generator.difficulty_config import SampleArgs
 from linalg_zero.generator.models import DifficultyCategory, Question
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
+from linalg_zero.generator.sympy.generators.determinant_generator import DeterminantGenerator
 from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     MatrixVectorMultiplicationGenerator,
@@ -41,13 +42,24 @@ def create_matrix_vector_multiplication_factory(
     )
 
 
+def create_determinant_factory(entropy: float, difficulty: DifficultyCategory) -> Callable[[], Question]:
+    """Helper to create determinant factory with specific parameters."""
+    return create_sympy_factory(
+        DeterminantGenerator,
+        entropy=entropy,
+        difficulty_level=difficulty,
+        problem_type="calculate_determinant",
+        topic="linear_algebra",
+    )
+
+
 def create_composite_factory(
     components: list[ProblemComponent],
     composition_strategy: CompositionStrategy,
     sample_args: SampleArgs,
     difficulty_level: DifficultyCategory,
-    problem_type: str = "composite",
-    topic: str = "mixed",
+    problem_type: str,
+    topic: str,
 ) -> Callable[[], Question]:
     """
     Factory function for creating composite problem generators.
