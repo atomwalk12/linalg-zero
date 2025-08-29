@@ -33,11 +33,18 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         self.topic = topic
         self.context_update_mapping = context_update_mapping
 
+    def get_generator_params(self, context: CompositionContext) -> dict[str, Any]:
+        """Override this method to provide additional parameters to the generator based on context."""
+        return {}
+
     def generate(self, context: CompositionContext) -> ComponentResult:
         # This context is used for communication and state tracking
         problem_context = ProblemContext(
             entropy=context.entropy, difficulty_level=context.difficulty_level, step_counter=context._step_counter
         )
+
+        # Get any additional parameters for parameterized generation
+        additional_params = self.get_generator_params(context)
 
         # Now, we perform the 3 key steps involved in component generation
         generator: SympyProblemGenerator = self.generator_class(
@@ -45,14 +52,14 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
             problem_type=self.component_type,
             topic=self.topic,
             entropy=problem_context.entropy,
+            **additional_params,
         )
         template: ProblemTemplate = generator.generate_mathematical_content(problem_context)
-        formatted_question = generator.format_question(template)
         generator.verify_problem(template)
 
         # Transfer the state of the problem context to the new problem template
         formatted_template = ProblemTemplate(
-            expression=formatted_question,
+            expression=template.expression,
             variables=template.variables,
             sympy_solution=template.sympy_solution,
             lib_result=template.lib_result,
@@ -98,6 +105,10 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
             **kwargs,
         )
 
+    def get_generator_params(self, context: CompositionContext) -> dict[str, Any]:
+        """Set composite flag to True."""
+        return {"composite": True}
+
 
 class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the LinearSystemGenerator."""
@@ -116,3 +127,17 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
             },
             **kwargs,
         )
+
+    def get_generator_params(self, context: CompositionContext) -> dict[str, Any]:
+        """Extract previous component result to use as input_vector_b."""
+        if context.component_results:
+            previous_result = context.component_results[-1]
+            if not hasattr(previous_result.template, "sympy_solution"):
+                raise ValueError(f"Previous component result has no sympy_solution: {previous_result}")
+
+            vector_b = previous_result.template.sympy_solution
+            if not hasattr(vector_b, "shape"):
+                raise ValueError(f"Previous component result is not a Matrix: {type(vector_b)}")
+
+            return {"input_vector_b": vector_b, "input_index": len(context.component_results)}
+        return {}

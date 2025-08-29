@@ -18,10 +18,11 @@ from linalg_zero.shared.lib import multiply_matrices
 
 
 class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
-    def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
+    def __init__(self, difficulty_level: DifficultyCategory, composite: bool = False, **kwargs: Any) -> None:
         """Initialize matrix-vector multiplication generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
+        self.composite = composite
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
@@ -61,20 +62,23 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
 
         problem_expression = matrix_A * vector_x
 
-        # Generate question templates
-        question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)
+        context_info = {
+            "matrix_dimensions": (rows, cols),
+            "problem_type": self.problem_type,
+            "matrix": matrix_A,
+            "vector": vector_x,
+        }
+
+        question_templates = self.handle_composite_context(context_info)
 
         return ProblemTemplate(
             expression=problem_expression,
             variables=[],
             sympy_solution=sympy_sol,
             lib_result=lib_result,
-            question_templates=[t.template_string for t in question_templates],
+            question_templates=question_templates,
             context_info={
-                "matrix_dimensions": (rows, cols),
-                "problem_type": self.problem_type,
-                "matrix": matrix_A,
-                "vector": vector_x,
+                **context_info,
             },
             difficulty_markers={
                 "entropy_used": context.used_entropy,
@@ -84,6 +88,19 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
             },
             difficulty=self.difficulty_level,
         )
+
+    def handle_composite_context(self, context_info: dict[str, Any]) -> list[str] | None:
+        """Handle composite context."""
+        if self.composite:
+            context_info["composite"] = True
+            templates = None
+        else:
+            question_templates = self.template_engine.create_default_templates(
+                self.problem_type, self.difficulty_level
+            )
+            templates = [t.template_string for t in question_templates]
+
+        return templates
 
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:

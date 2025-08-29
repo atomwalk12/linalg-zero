@@ -71,10 +71,10 @@ class ProblemTemplate:
     variables: list[Symbol]
     sympy_solution: Expr | list[Expr] | str
     lib_result: LibTypes
-    question_templates: list[str]
     context_info: dict[str, Any]
     difficulty_markers: dict[str, float | tuple]
     difficulty: DifficultyCategory
+    question_templates: list[str] | None
 
 
 class CompositionType(Enum):
@@ -129,8 +129,10 @@ class CompositeResultBuilder:
         self.solutions.append(template.sympy_solution)
         self.lib_results.append(template.lib_result)
 
-        self.question_templates.extend(template.question_templates)
         self.context_info.update(template.context_info)
+
+        # This is omitted because it is calculated by the composite problem base class
+        # self.question_templates.extend(template.question_templates)
 
     def build_template(
         self, comp_context: "CompositionContext", component_results: list[ComponentResult]

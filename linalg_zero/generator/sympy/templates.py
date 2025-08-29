@@ -145,6 +145,12 @@ class TemplateEngine:
         for var_name, var_value in variables.items():
             if isinstance(var_value, MutableDenseMatrix):
                 formatted_variables[var_name] = self.math_formatter.sympy_to_primitive(var_value, precision)
+            elif isinstance(var_value, str):
+                # String values for composition context (symbolic references)
+                formatted_variables[var_name] = var_value
+            elif isinstance(var_value, bool):
+                # Boolean flags for composition context
+                formatted_variables[var_name] = var_value
             else:
                 raise TypeError(f"Variable '{var_name}' has unsupported type {type(var_value).__name__}.")
 
@@ -166,33 +172,48 @@ class TemplateEngine:
         else:
             raise TypeError(f"Variable '{answer}' has unsupported type {type(answer).__name__}.")
 
-    def create_default_templates(self, question_type: Task, difficulty: DifficultyCategory) -> list[QuestionTemplate]:
+    def create_default_templates(
+        self, question_type: Task, difficulty: DifficultyCategory, is_composition: bool = False
+    ) -> list[QuestionTemplate]:
         """
         Create default question templates for common problem types.
         This simplifies the creation of question/answer pairs.
         """
         templates = []
+        solve_verb = random.choice(self.SOLVE_VERBS[difficulty])
+        compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
+        if is_composition:
+            solve_verb = solve_verb.lower()
+            compute_verb = compute_verb.lower()
 
         if question_type == Task.LINEAR_SYSTEM_SOLVER:
-            solve_verb = random.choice(self.SOLVE_VERBS[difficulty])
-            templates.extend([
-                QuestionTemplate(
-                    template_string=f"{solve_verb} {{matrix}}*{{x_symbols}} = {{target_b}} for {{x_symbols}}.",
-                    required_variables=["matrix", "x_symbols", "target_b"],
-                    difficulty_level=difficulty,
-                    question_type=Task.LINEAR_SYSTEM_SOLVER,
-                ),
-                QuestionTemplate(
-                    template_string="What is {x_symbols} in {matrix}*{x_symbols} = {target_b}?",
-                    required_variables=["matrix", "x_symbols", "target_b"],
-                    difficulty_level=difficulty,
-                    question_type=Task.LINEAR_SYSTEM_SOLVER,
-                ),
-            ])
+            if not is_composition:
+                templates.extend([
+                    QuestionTemplate(
+                        template_string=f"{solve_verb} {{matrix}}*{{x_symbols}} = {{target_b}} for {{x_symbols}}.",
+                        required_variables=["matrix", "x_symbols", "target_b"],
+                        difficulty_level=difficulty,
+                        question_type=Task.LINEAR_SYSTEM_SOLVER,
+                    ),
+                    QuestionTemplate(
+                        template_string="What is {x_symbols} in {matrix}*{x_symbols} = {target_b}?",
+                        required_variables=["matrix", "x_symbols", "target_b"],
+                        difficulty_level=difficulty,
+                        question_type=Task.LINEAR_SYSTEM_SOLVER,
+                    ),
+                ])
+            else:
+                # TODO: could add more templates
+                templates.extend([
+                    QuestionTemplate(
+                        template_string=f"{solve_verb} the linear system Ax = b for x, where A = {{matrix}} and b is {{target_b}}.",
+                        required_variables=["matrix", "target_b"],
+                        difficulty_level=difficulty,
+                        question_type=Task.LINEAR_SYSTEM_SOLVER,
+                    ),
+                ])
 
         elif question_type == Task.MATRIX_VECTOR_MULTIPLICATION:
-            compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
-
             templates.extend([
                 QuestionTemplate(
                     template_string=f"{compute_verb} {{matrix}} * {{vector}}.",
@@ -215,8 +236,6 @@ class TemplateEngine:
             ])
 
         elif question_type == Task.DETERMINANT:
-            compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
-
             templates.extend([
                 QuestionTemplate(
                     template_string=f"{compute_verb} the determinant of {{matrix}}.",

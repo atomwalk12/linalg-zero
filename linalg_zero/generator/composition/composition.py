@@ -52,6 +52,8 @@ class SequentialComposition(CompositionStrategy):
             component_context.constraints = base_context.constraints.copy()
             component_context.shared_state = base_context.shared_state.copy()
             component_context.global_variables = base_context.global_variables.copy()
+            # Pass previous component results to enable sequential data flow
+            component_context.component_results = base_context.component_results.copy()
 
             result = component.generate(component_context)
             base_context.record_component_result(result)
@@ -143,7 +145,7 @@ class CompositeProblem(SympyProblemGenerator):
             raise ValueError("Composite problem should have multiple expressions.")
 
     def _format_sequential_question(self, template: ProblemTemplate) -> str:
-        """Format sequential composition by delegating to individual generators."""
+        """Format sequential composition data with the results produced by each component."""
         component_results: list[ComponentResult] = template.context_info.get("component_results", [])
 
         if not component_results:
@@ -154,9 +156,12 @@ class CompositeProblem(SympyProblemGenerator):
             formatted_question = result.generator.format_question(result.template)
 
             if i == 1:
-                step_descriptions.append(f"First, {formatted_question.lower()}")
+                step_descriptions.append(f"First, {formatted_question}")
+            elif i == 2 and len(component_results) == 2:
+                # For two-step problems, template system handles composition context
+                step_descriptions.append(f"Then, {formatted_question}")
             else:
-                step_descriptions.append(f"Then, {formatted_question.lower()}")
+                step_descriptions.append(f"Then, {formatted_question}")
 
         return "\n\n".join(step_descriptions)
 
