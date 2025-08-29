@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -122,7 +123,7 @@ class SympyProblemGenerator(ABC):
 
     def format_solution(self, template: ProblemTemplate) -> str:
         """The solution string used as the ground truth in the final dataset entry."""
-        return self.template_engine.format_answer(template.sympy_solution, precision=self.precision)
+        return json.dumps(self.template_engine.format_answer(template.sympy_solution, precision=self.precision))
 
     def verify_problem(self, template: ProblemTemplate) -> bool:
         """

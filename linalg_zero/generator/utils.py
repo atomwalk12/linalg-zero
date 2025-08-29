@@ -1,3 +1,4 @@
+import ast
 from typing import Any
 
 from linalg_zero.generator.models import Question
@@ -114,5 +115,5 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
         status = " [INVALID]" if not question.is_valid else ""
         logger.info("Question %d:%s", i, status)
         logger.info("Q: %s", question.question)
-        logger.info("A: %s", question.answer)
+        logger.info("A: %s", ast.literal_eval(question.answer))
         logger.info("")
