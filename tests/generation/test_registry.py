@@ -2,18 +2,26 @@
 
 import pytest
 
-from linalg_zero.generator.models import DifficultyCategory, Question
-from linalg_zero.generator.registry import FactoryRegistry
+from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
+from linalg_zero.generator.registry import FactoryRegistry, create_default_registry
 
 
 def simple_test_factory() -> Question:
     """Simple factory for testing."""
-    return Question(question="Test", answer="42", topic="test", difficulty=DifficultyCategory.EASY)
+    return Question(
+        question="Test", answer="42", topic="test", difficulty=DifficultyCategory.EASY, problem_type=Task.DETERMINANT
+    )
 
 
 def another_test_factory() -> Question:  # pragma: no cover
     """Another simple factory for testing."""
-    return Question(question="Another test", answer="24", topic="test", difficulty=DifficultyCategory.EASY)
+    return Question(
+        question="Another test",
+        answer="24",
+        topic="test",
+        difficulty=DifficultyCategory.EASY,
+        problem_type=Task.DETERMINANT,
+    )
 
 
 def test_factory_registry_registration() -> None:
@@ -72,3 +80,33 @@ def test_factory_registry_unknown_problem_type() -> None:
 
     with pytest.raises(ValueError, match="Unknown problem type"):
         registry.get_factory("math", "non-existent")
+
+
+def test_create_default_registry() -> None:
+    """Test that default registry is created with expected factories."""
+    registry = create_default_registry()
+
+    topics = registry.list_topics()
+    assert Topic.LINEAR_ALGEBRA in topics
+
+    linalg_problems = registry.list_problem_types(Topic.LINEAR_ALGEBRA)
+    assert Task.MATRIX_VECTOR_MULTIPLICATION in linalg_problems
+
+
+def test_default_registry_factories_work() -> None:
+    """Test that factories in default registry actually work."""
+    registry = create_default_registry()
+
+    mv_factory = registry.get_factory(Topic.LINEAR_ALGEBRA, Task.MATRIX_VECTOR_MULTIPLICATION)
+    question = mv_factory()
+    assert question.topic == Topic.LINEAR_ALGEBRA
+    assert len(question.answer) > 0
+
+
+def test_random_factory_selection() -> None:
+    """Test that random factory selection works."""
+    registry = create_default_registry()
+
+    random_factory = registry.get_random_factory(Topic.LINEAR_ALGEBRA)
+    question = random_factory()
+    assert question.topic == Topic.LINEAR_ALGEBRA

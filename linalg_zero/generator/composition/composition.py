@@ -132,10 +132,10 @@ class CompositeProblem(SympyProblemGenerator):
     def format_question(self, template: ProblemTemplate) -> str:
         """Format composite problem as natural language multi-step question."""
         context_info = template.context_info
-        composition_type = context_info.get("composition_type", "Unknown")
+        composition_type = context_info["composition_type"]
 
         if isinstance(template.expression, list) and len(template.expression) > 1:
-            if composition_type == "SequentialComposition":
+            if composition_type == SequentialComposition.__name__:
                 return self._format_sequential_question(template)
             else:
                 raise ValueError(f"Unknown composition type: {composition_type}")

@@ -55,6 +55,7 @@ class LinalgZeroInteraction(BaseInteraction):
         format_good = metadata["reward_response_format"] is True
 
         # Response lookup table: (answer_correct, format_good) -> (response, terminate)
+        # TODO: Make the feedback more detailed ("Step 3 matrix multiplication is incorrect")
         responses = {
             (True, True): ("Excellent work! Your solution is correct and well-formatted.", True),
             (True, False): ("Good job! Your answer is correct, but please improve your formatting next time.", True),

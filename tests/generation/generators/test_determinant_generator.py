@@ -1,0 +1,88 @@
+import pytest
+
+from linalg_zero.generator.difficulty_config import get_problem_config
+from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
+from linalg_zero.generator.sympy.generators.determinant_generator import (
+    DeterminantGenerator,
+)
+from linalg_zero.shared.lib import determinant
+
+
+class TestDeterminantGenerator:
+    """Focused end-to-end tests for DeterminantGenerator."""
+
+    config = get_problem_config(DifficultyCategory.MEDIUM, Topic.LINEAR_ALGEBRA, Task.DETERMINANT)
+
+    def _make_generator(self, difficulty: DifficultyCategory) -> DeterminantGenerator:
+        return DeterminantGenerator(
+            entropy=self.config.sample_entropy,
+            difficulty_level=difficulty,
+            problem_type=Task.DETERMINANT,
+            topic=Topic.LINEAR_ALGEBRA,
+        )
+
+    def test_basic_generation_easy(self):
+        generator = self._make_generator(DifficultyCategory.EASY)
+        q = generator.generate()
+
+        assert isinstance(q, Question)
+        assert q.is_valid
+        assert q.topic == Topic.LINEAR_ALGEBRA
+        assert q.difficulty == DifficultyCategory.EASY
+        assert q.tool_calls_required == 1
+        assert len(q.question) > 0
+        assert len(q.answer) > 0
+
+        # Answer should be numeric (stringified JSON number)
+        value = float(q.answer)
+        assert isinstance(value, float)
+
+    def test_medium_and_hard_generation(self):
+        for difficulty in (DifficultyCategory.MEDIUM, DifficultyCategory.HARD):
+            generator = self._make_generator(difficulty)
+            q = generator.generate()
+
+            assert q.is_valid
+            assert q.difficulty == difficulty
+            assert q.tool_calls_required == 1
+
+            value = float(q.answer)
+            assert isinstance(value, float)
+
+    def test_question_contains_determinant_language(self):
+        generator = self._make_generator(DifficultyCategory.MEDIUM)
+        q = generator.generate()
+
+        text = q.question.lower()
+        assert any(kw in text for kw in ["determinant", "det(", "det ", "calculate", "compute", "find"])
+
+    def test_multiple_generations_stability(self):
+        generator = self._make_generator(DifficultyCategory.MEDIUM)
+
+        for _ in range(10):
+            q = generator.generate()
+            assert q.is_valid
+            float(q.answer)
+
+    def test_determinant_tool_function_examples(self):
+        # 2x2 matrix should have determinant -2
+        result = determinant([[1, 2], [3, 4]])
+        assert result == -2
+        assert isinstance(result, float)
+
+        # Diagonal matrix determinant is product of diagonal entries
+        result = determinant([[2, 0], [0, 3]])
+        assert result == 6
+
+        # Identity determinant is 1
+        result = determinant([[1, 0], [0, 1]])
+        assert result == 1
+
+        # 1x1 matrix
+        result = determinant([[5]])
+        assert result == 5
+
+    def test_determinant_tool_function_error_handling(self):
+        # Non-square matrix should raise ValueError
+        with pytest.raises(ValueError, match="Matrix must be square"):
+            determinant([[1, 2, 3], [4, 5, 6]])

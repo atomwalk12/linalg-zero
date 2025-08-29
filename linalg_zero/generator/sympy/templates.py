@@ -33,8 +33,11 @@ class MathFormatter:
     """
 
     @staticmethod
-    def round_sympy_element(element: LibTypes, precision: Precision) -> LibTypes:
-        """Round a SymPy element to a precision of 2."""
+    def round_sympy_element(element: LibTypes, precision: Precision) -> LibTypes | str:
+        """
+        Round a SymPy element to a precision of 2. The string return type is used for
+        symbol variables that may be part of specific lists.
+        """
         if isinstance(element, int | float):
             if precision != Precision.FULL:
                 return round(element, precision.value)
@@ -46,6 +49,8 @@ class MathFormatter:
                 if isinstance(e, (int, float, list)):
                     result.append(MathFormatter.round_sympy_element(e, precision))
                 elif isinstance(e, str):
+                    # Symbol elements are appended as they are. These are used for instance
+                    # for the linear_system_solver problem type.
                     result.append(e)
                 else:
                     raise TypeError(f"Unsupported element type in list: {type(e)} (value: {e})")

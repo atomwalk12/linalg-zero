@@ -48,6 +48,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         )
         template: ProblemTemplate = generator.generate_mathematical_content(problem_context)
         formatted_question = generator.format_question(template)
+        generator.verify_problem(template)
 
         # Transfer the state of the problem context to the new problem template
         formatted_template = ProblemTemplate(

@@ -114,7 +114,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
 
     def _solve_linear_system_sympy(
         self, matrix_a: sympy.Matrix, vector_b: sympy.Matrix
-    ) -> tuple[sympy.Matrix, list[float | int]]:
+    ) -> tuple[sympy.Matrix, list[list[float | int]]]:
         """Solve linear system Ax = b using lib.py function."""
         # Convert to primitives (this applies precision constraints)
         matrix_a_sympy = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)

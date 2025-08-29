@@ -76,7 +76,7 @@ DIFFICULTY_CONFIGS = {
     DifficultyCategory.HARD: ProblemConfig(
         target_tool_calls=1,
         matrix_size_range=(3, 4),
-        allow_rationals=False,
+        allow_rationals=True,
         special_constraints=["complex_decomposition"],
         entropy_range=(1.5, 4.0),
     ),

@@ -3,6 +3,7 @@ from typing import Any
 
 from sympy import Matrix, ShapeError
 from sympy.matrices.exceptions import NonSquareMatrixError
+from sympy.solvers.solvers import NonInvertibleMatrixError
 from transformers.utils.chat_template_utils import get_json_schema
 
 from linalg_zero.generator.difficulty_config import Precision
@@ -74,14 +75,14 @@ def determinant(matrix: list[list[float]]) -> float:
     raise TypeError(f"Expected numeric result, got {type(result)}")
 
 
-def solve_linear_system(matrix_a: list[list[float | int]], vector_b: list[float | int]) -> list[float | int]:
+def solve_linear_system(matrix_a: list[list[float | int]], vector_b: list[float | int]) -> list[list[float | int]]:
     """Solve the linear system Ax = b for x using SymPy.
 
     Examples:
         >>> solve_linear_system([[2, 1], [1, 3]], [7, 8])
-        [2.0, 3.0]
+        [[2.0], [3.0]]
         >>> solve_linear_system([[1, 0], [0, 1]], [5, 3])  # Identity matrix
-        [5.0, 3.0]
+        [[5.0], [3.0]]
 
     Args:
         matrix_a: The coefficient matrix as a list of lists.
@@ -101,8 +102,10 @@ def solve_linear_system(matrix_a: list[list[float | int]], vector_b: list[float 
         if isinstance(result, list):
             return result
 
-    except Exception as e:
-        raise ValueError(f"Cannot solve linear system: {e}") from e
+    except NonInvertibleMatrixError as e:
+        raise NonInvertibleMatrixError(f"Cannot solve linear system: {e}") from e
+    except ShapeError as e:
+        raise ShapeError(f"Matrix dimensions incompatible for solving linear system: {e}") from e
 
     raise TypeError(f"Expected list, got {type(result)}")
 
