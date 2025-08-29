@@ -23,7 +23,9 @@ class Task(Enum):
     DETERMINANT = "determinant"
     LINEAR_SYSTEM_SOLVER = "linear_system_solver"
     MATRIX_VECTOR_MULTIPLICATION = "matrix_vector_multiplication"
+    FROBENIUS_NORM = "frobenius_norm"
     COMPOSITE_SEQUENTIAL = "sequential"
+    COMPOSITE_LINEAR_SYSTEM_DEPENDENCY = "linear_system_dependency"
 
 
 class DifficultyCategory(Enum):

@@ -164,7 +164,7 @@ class CompositeProblem(SympyProblemGenerator):
             else:
                 step_descriptions.append(f"Then, {formatted_question}")
 
-        return "\n\n".join(step_descriptions)
+        return " ".join(step_descriptions)
 
     @override
     def format_solution(self, template: ProblemTemplate) -> str:

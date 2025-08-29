@@ -110,12 +110,49 @@ def solve_linear_system(matrix_a: list[list[float | int]], vector_b: list[float 
     raise TypeError(f"Expected list, got {type(result)}")
 
 
+def frobenius_norm(matrix: list[list[float | int]]) -> float:
+    """Calculate the Frobenius norm of a matrix using SymPy.
+
+    The Frobenius norm is the square root of the sum of the absolute squares
+    of all elements in the matrix: ||A||_F = sqrt(sum(|a_ij|^2)).
+
+    Examples:
+        >>> frobenius_norm([[1, 2], [3, 4]])
+        5.477226
+        >>> frobenius_norm([[3, 4]])  # Single row
+        5.0
+        >>> frobenius_norm([[0, 0], [0, 0]])  # Zero matrix
+        0.0
+
+    Args:
+        matrix: The matrix as a list of lists.
+
+    Returns:
+        The Frobenius norm of the matrix.
+    """
+    try:
+        sym_matrix = Matrix(matrix)
+
+        # Calculate Frobenius norm: sqrt(sum of squared elements)
+        norm_result = sym_matrix.norm()
+        result = MathFormatter.sympy_to_primitive(norm_result, precision=Precision.FROBENIUS_NORM)
+
+        if isinstance(result, (int, float)):
+            return float(result)
+
+    except Exception as e:
+        raise ValueError(f"Cannot calculate Frobenius norm: {e}") from e
+
+    raise TypeError(f"Expected numeric result, got {type(result)}")
+
+
 def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
         "multiply_matrices": multiply_matrices,
         "solve_linear_system": solve_linear_system,
         "determinant": determinant,
+        "frobenius_norm": frobenius_norm,
     }
 
 

@@ -3,7 +3,7 @@ import random
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from sympy import Float, Integer, Number, Rational, Symbol
+from sympy import Float, Integer, Mul, Number, Pow, Rational, Symbol
 from sympy.core import Expr
 from sympy.matrices import MutableDenseMatrix
 
@@ -67,6 +67,9 @@ class MathFormatter:
             result = [[MathFormatter._sympy_element_to_python(element) for element in _] for _ in list_of_lists]
         elif isinstance(sympy_result, (Number, Integer, Float)):
             result = MathFormatter._sympy_element_to_python(sympy_result)
+        elif isinstance(sympy_result, Mul | Pow):
+            # Frobenius norm requires Pow and Mul expressions
+            result = float(sympy_result.evalf())
         else:
             raise TypeError(f"Unsupported element type: {type(sympy_result)}")
 
@@ -166,7 +169,7 @@ class TemplateEngine:
         """
         Format a SymPy matrix (can also be a vector), to be displayed in question answer.
         """
-        if isinstance(answer, MutableDenseMatrix | Integer | Float | Rational):
+        if isinstance(answer, MutableDenseMatrix | Integer | Float | Rational | Pow | Mul):
             result = self.math_formatter.sympy_to_primitive(answer, precision)
             return json.dumps(result)
         else:
@@ -254,6 +257,34 @@ class TemplateEngine:
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.DETERMINANT,
+                ),
+            ])
+
+        elif question_type == Task.FROBENIUS_NORM:
+            templates.extend([
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the Frobenius norm of {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.FROBENIUS_NORM,
+                ),
+                QuestionTemplate(
+                    template_string="What is the Frobenius norm of {matrix}?",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.FROBENIUS_NORM,
+                ),
+                QuestionTemplate(
+                    template_string=f"{compute_verb} ||{{matrix}}||_F.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.FROBENIUS_NORM,
+                ),
+                QuestionTemplate(
+                    template_string="Find the Frobenius norm ||{matrix}||_F.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.FROBENIUS_NORM,
                 ),
             ])
 

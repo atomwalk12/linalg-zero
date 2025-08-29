@@ -10,10 +10,21 @@ from linalg_zero.generator.difficulty_config import SampleArgs
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.determinant_generator import DeterminantGenerator
+from linalg_zero.generator.sympy.generators.frobenius_norm_generator import FrobeniusNormGenerator
 from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     MatrixVectorMultiplicationGenerator,
 )
+
+
+def create_frobenius_norm_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
+    """Helper to create frobenius norm generator with specific parameters."""
+    return create_sympy_factory(
+        FrobeniusNormGenerator,
+        difficulty_level=difficulty,
+        problem_type=Task.FROBENIUS_NORM,
+        topic=Topic.LINEAR_ALGEBRA,
+    )
 
 
 def create_linear_system_generator(difficulty: DifficultyCategory) -> Callable[[], Question]:

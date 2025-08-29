@@ -17,6 +17,7 @@ class Precision(Enum):
     MATRIX_VECTOR_MULTIPLICATION = 2
     LINEAR_SYSTEM_SOLVER = 4
     DETERMINANT = 2
+    FROBENIUS_NORM = 6
     FULL = -1
 
 

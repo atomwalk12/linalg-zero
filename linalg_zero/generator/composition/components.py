@@ -114,7 +114,7 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
 class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the LinearSystemGenerator."""
 
-    def __init__(self, name: Task, **kwargs: Any) -> None:
+    def __init__(self, name: Task, constraints: dict[str, Any], **kwargs: Any) -> None:
         super().__init__(
             name=name,
             generator_class=LinearSystemGenerator,
@@ -128,11 +128,13 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
             },
             **kwargs,
         )
+        self.constraints = constraints
 
     def get_generator_params(self, context: CompositionContext) -> dict[str, Any]:
         """Extract previous component result to use as input_vector_b."""
         if context.component_results:
             previous_result = context.component_results[-1]
+            input_index = self.constraints["input_index"]
             if not hasattr(previous_result.template, "sympy_solution"):
                 raise ValueError(f"Previous component result has no sympy_solution: {previous_result}")
 
@@ -140,5 +142,5 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
             if not hasattr(vector_b, "shape"):
                 raise ValueError(f"Previous component result is not a Matrix: {type(vector_b)}")
 
-            return {"input_vector_b": vector_b, "input_index": len(context.component_results)}
+            return {"input_vector_b": vector_b, "input_index": input_index}
         return {}
