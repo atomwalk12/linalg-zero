@@ -52,6 +52,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
             problem_type=self.component_type,
             topic=self.topic,
             entropy=problem_context.entropy,
+            composite=True,
             **additional_params,
         )
         template: ProblemTemplate = generator.generate_mathematical_content(problem_context)
@@ -107,7 +108,7 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
 
     def get_generator_params(self, context: CompositionContext) -> dict[str, Any]:
         """Set composite flag to True."""
-        return {"composite": True}
+        return {}
 
 
 class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):

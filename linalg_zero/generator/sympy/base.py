@@ -68,6 +68,7 @@ class SympyProblemGenerator(ABC):
         problem_type: Task,
         topic: Topic,
         entropy: float | None = None,
+        composite: bool = False,
     ):
         self.difficulty_level = difficulty_level
         self.problem_type = problem_type
@@ -80,7 +81,7 @@ class SympyProblemGenerator(ABC):
 
         self.template_engine = TemplateEngine()
         self.formatter = MathFormatter()
-        self.composite = False
+        self.composite = composite
 
     @property
     def precision(self) -> Precision:
@@ -106,11 +107,9 @@ class SympyProblemGenerator(ABC):
         # Get problem-specific information from subclass
         problem_type = self.problem_type
         variables = self.get_template_variables(template)
-        is_composition = template.context_info.get("composite", False)
-        assert is_composition == self.composite, "Trying to use a previous result, but the composite flag is not set."  # noqa: S101
 
         # Get templates for the problem type
-        templates = self.template_engine.create_default_templates(problem_type, self.difficulty_level, is_composition)
+        templates = self.template_engine.create_default_templates(problem_type, self.difficulty_level, self.composite)
         if templates:
             selected_template = self.template_engine.select_template(templates, problem_type, self.difficulty_level)
             question_text = self.template_engine.generate_question(

@@ -45,7 +45,6 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         # Store the input vector for use in content generation
         self.input_vector_b = input_vector_b
         self.input_index = input_index
-        self.composite = input_vector_b is not None and input_index is not None
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
@@ -137,7 +136,6 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     def handle_composite_context(self, context_info: dict[str, Any]) -> list[str] | None:
         """Handle composite context."""
         if self.composite:
-            context_info["composite"] = True
             context_info["input_variable_name"] = "b"
             context_info["previous_step_index"] = self.input_index
             templates = None
@@ -159,13 +157,12 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         base_vars = {"matrix": matrix_a, "x_symbols": x_symbols, "target_b": target_b}
 
         # Add composition context if this component uses previous results
-        if template.context_info.get("composite", False):
+        if self.composite:
             # Replace actual values with symbolic references for template
             input_var = template.context_info["input_variable_name"]
             step_index = template.context_info["previous_step_index"]
 
             base_vars["target_b"] = f"the result from step {step_index}"
-            base_vars["composite"] = True
             base_vars["input_variable_name"] = input_var
 
         return base_vars

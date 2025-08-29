@@ -18,11 +18,10 @@ from linalg_zero.shared.lib import multiply_matrices
 
 
 class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
-    def __init__(self, difficulty_level: DifficultyCategory, composite: bool = False, **kwargs: Any) -> None:
+    def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix-vector multiplication generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
-        self.composite = composite
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
@@ -92,7 +91,6 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def handle_composite_context(self, context_info: dict[str, Any]) -> list[str] | None:
         """Handle composite context."""
         if self.composite:
-            context_info["composite"] = True
             templates = None
         else:
             question_templates = self.template_engine.create_default_templates(
