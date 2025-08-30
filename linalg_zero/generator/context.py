@@ -35,27 +35,48 @@ class ProblemContext:
         """
         self.used_entropy += amount
 
+    def _prepare_verification_data(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Prepare verification data by extracting dependencies and input fields."""
+        verification = {}
+
+        # Handle dependencies
+        dependent_on = input_data.pop("dependent_on", None)
+        if dependent_on is not None:
+            verification["dependent_on"] = dependent_on
+
+        # Extract and JSON-encode all input_* fields
+        for key in list(input_data.keys()):
+            if key.startswith("input_"):
+                verification[key] = json.dumps(input_data.pop(key))
+
+        # Add generator type and remaining input data
+        verification["generator_type"] = input_data.pop("generator_type")
+        verification["input"] = json.dumps(input_data)
+
+        return verification
+
     def record_tool_call(
         self,
         function_name: str,
         result: LibTypes,
+        input_data: dict[str, Any],
         is_final: bool = False,
-        depends_on: list[str] | None = None,
     ) -> str:
         """
         Record a tool call with its result. It tracks the dependencies between
         steps which will later be used to verify correctness during GRPO.
         """
-
         self.tool_calls_count += 1
         step_id = str(self._step_counter)
 
-        if result:
+        if result is not None:
             result_json = json.dumps(result)
-            step_data = {"tool": function_name, "result": result_json, "step_id": step_id}
-
-            if depends_on:
-                step_data["depends_on"] = json.dumps(depends_on)
+            step_data = {
+                "tool": function_name,
+                "result": result_json,
+                "step_id": step_id,
+                "verification": self._prepare_verification_data(input_data),
+            }
 
             if is_final:
                 self.golden_result = {"final_answer": result_json, "from_step_id": step_id}
@@ -63,7 +84,6 @@ class ProblemContext:
             self.stepwise_results.append(step_data)
 
         self._step_counter += 1
-
         return step_id
 
 

@@ -3,7 +3,7 @@ import logging
 from linalg_zero.generator.core import DatasetGenerator
 from linalg_zero.generator.models import Question, Topic
 from linalg_zero.generator.registry import create_default_registry
-from linalg_zero.generator.utils import print_dataset
+from linalg_zero.generator.utils import print_dataset, verify_dataset
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
@@ -28,6 +28,7 @@ def main() -> None:  # pragma: no cover
     generator = DatasetGenerator(topic=Topic.LINEAR_ALGEBRA, validator_factory=matrix_only_validator)
     dataset = generator.generate_dataset(num_questions=100)
     print_dataset(dataset)
+    verify_dataset(dataset)
 
     # --------------------------------------------------
     # This is an example on generating other topic types

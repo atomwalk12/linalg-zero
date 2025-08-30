@@ -1,11 +1,90 @@
 import ast
+import json
 from typing import Any
 
 from linalg_zero.generator.models import Question
 from linalg_zero.grpo.verify import parse_string, verify_answers
+from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
+
+
+def _verify_step_result(step: dict[str, Any], lib: dict[str, Any]) -> None:
+    """Verify a single step's result against library function output."""
+    step_id = step["step_id"]
+
+    if "result" not in step:
+        raise ValueError(f"Step {step_id} has no result - implementation is bugged")
+
+    result_value = parse_string(step["result"])
+    if result_value is None:
+        raise ValueError(f"Step {step_id}: invalid result - implementation is bugged")
+
+    fn_type = step["tool"]
+    lib_fn = lib[fn_type]
+    input_data = json.loads(step["verification"]["input"])
+    fn_result = lib_fn(**input_data)
+
+    if not verify_answers(result_value, fn_result):
+        raise ValueError(f"Step mismatch - step - {json.dumps(step)} - lib_fn - {fn_type}")
+
+
+def _verify_step_dependencies(step: dict[str, Any], question_stepwise: list[dict[str, Any]]) -> None:
+    """Verify step dependencies against referenced steps."""
+    step_id = step.get("step_id", "unknown")
+    dependent_on = step["verification"].get("dependent_on", None)
+
+    if dependent_on is None:
+        return
+
+    # Validate dependent_on is a valid integer index
+    if not isinstance(dependent_on, int):
+        raise TypeError(f"Step {step_id}: dependent_on must be an integer, got {type(dependent_on)}")
+
+    # Validate the reference step exists
+    if dependent_on < 0 or dependent_on >= len(question_stepwise):
+        raise ValueError(
+            f"Step {step_id}: dependent_on index {dependent_on} out of bounds "
+            f"(stepwise has {len(question_stepwise)} steps)"
+        )
+
+    # Verify dependency: input_* fields from current step should match referenced step's result
+    referenced_step = question_stepwise[dependent_on]
+    referenced_result = parse_string(referenced_step["result"])
+
+    if referenced_result is None:
+        raise ValueError(f"Step {step_id}: referenced step {dependent_on} has invalid result")
+
+    # Check all input_* fields against the referenced step's result
+    for field_name, field_value_json in step["verification"].items():
+        if field_name.startswith("input_"):
+            field_value = json.loads(field_value_json)
+            if not verify_answers(field_value, referenced_result) or field_value != referenced_result:
+                raise ValueError(
+                    f"Step {step_id}: dependency verification failed - "
+                    f"{field_name} ({field_value}) does not match referenced step {dependent_on} result ({referenced_result})"
+                )
+
+
+def _verify_golden_answer(question: Question, question_index: int) -> None:
+    """Verify the golden answer matches the final stepwise result."""
+    if not question.golden or "final_answer" not in question.golden:
+        raise ValueError(f"Question {question_index} has no golden final answer - implementation is bugged")
+
+    golden_value = parse_string(question.golden["final_answer"])
+    answer_value = parse_string(question.stepwise[-1]["result"])
+
+    if golden_value is None:
+        raise ValueError(f"Question {question_index}: invalid golden answer - implementation is bugged")
+    if answer_value is None:
+        raise ValueError(f"Question {question_index}: invalid formatted answer - implementation is bugged")
+
+    if not verify_answers(golden_value, answer_value):
+        raise ValueError(
+            f"Question {question_index}: Golden answer mismatch - implementation is bugged. "
+            f"Golden={golden_value}, Answer={answer_value}"
+        )
 
 
 def verify_dataset(dataset: list[Question]) -> dict[str, Any]:
@@ -20,6 +99,7 @@ def verify_dataset(dataset: list[Question]) -> dict[str, Any]:
         "stepwise_verifications": 0,
         "golden_verifications": 0,
     }
+    lib = get_lib()
 
     for i, question in enumerate(dataset):
         if len(question.stepwise) == 0:
@@ -27,36 +107,12 @@ def verify_dataset(dataset: list[Question]) -> dict[str, Any]:
 
         # Verify stepwise results
         for step in question.stepwise:
-            if "result" not in step:
-                raise ValueError(f"Step {step.get('step_id', 'unknown')} has no result - implementation is bugged")
-
-            result_value = parse_string(step["result"])
-
-            if result_value is None:
-                raise ValueError(
-                    f"Step {step.get('step_id', 'unknown')}: unparseable result - implementation is bugged"
-                )
-
+            _verify_step_result(step, lib)
+            _verify_step_dependencies(step, question.stepwise)
             verification_results["stepwise_verifications"] += 1
 
-        if not question.golden or "final_answer" not in question.golden:
-            raise ValueError(f"Question {i} has no golden final answer - implementation is bugged")
-
-        # Verify golden result against the final stepwise result
-        golden_value = parse_string(question.golden["final_answer"])
-        answer_value = parse_string(question.stepwise[-1]["result"])
-
-        if golden_value is None:
-            raise ValueError(f"Question {i}: unparseable golden answer - implementation is bugged")
-        if answer_value is None:
-            raise ValueError(f"Question {i}: unparseable formatted answer - implementation is bugged")
-
-        if not verify_answers(golden_value, answer_value):
-            raise ValueError(
-                f"Question {i}: Golden answer mismatch - implementation is bugged. Golden={golden_value}, Answer={answer_value}"
-            )
-
-        # Log successful results
+        # Verify golden answer
+        _verify_golden_answer(question, i)
         verification_results["golden_verifications"] += 1
         verification_results["verified_questions"] += 1
 
