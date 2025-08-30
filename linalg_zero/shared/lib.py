@@ -222,6 +222,43 @@ def matrix_transpose(matrix: list[list[float | int]]) -> list[list[float | int]]
     raise TypeError(f"Expected list of lists, got {type(result)}")
 
 
+def matrix_trace(matrix: list[list[float | int]]) -> float:
+    """Calculate the trace of a square matrix using SymPy.
+
+    The trace of a matrix is the sum of the elements on its main diagonal.
+    Only defined for square matrices.
+
+    Examples:
+        >>> matrix_trace([[1, 2], [3, 4]])
+        5.0
+        >>> matrix_trace([[2, 0, 1], [0, 3, 0], [1, 0, 4]])
+        9.0
+        >>> matrix_trace([[5]])  # 1x1 matrix
+        5.0
+
+    Args:
+        matrix: The square matrix as a list of lists.
+
+    Returns:
+        The trace of the matrix.
+    """
+    try:
+        sym_matrix = Matrix(matrix)
+
+        trace_result = sym_matrix.trace()
+        result = MathFormatter.sympy_to_primitive(trace_result, precision=Precision.MATRIX_TRACE)
+
+        if isinstance(result, (int, float)):
+            return float(result)
+
+    except NonSquareMatrixError as e:
+        raise ValueError("Trace is only defined for square matrices.") from e
+    except Exception as e:
+        raise ValueError(f"Cannot calculate matrix trace: {e}") from e
+
+    raise TypeError(f"Expected numeric result, got {type(result)}")
+
+
 def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
@@ -231,6 +268,7 @@ def get_lib() -> dict[str, Callable[..., Any]]:
         "frobenius_norm": frobenius_norm,
         "matrix_rank": matrix_rank,
         "matrix_transpose": matrix_transpose,
+        "matrix_trace": matrix_trace,
     }
 
 

@@ -53,7 +53,7 @@ class DatasetGenerator:
         self,
         topic: Topic = Topic.LINEAR_ALGEBRA,
         validator_factory: Callable[[Question], bool] | None = None,
-        max_attempts: int = 100,
+        max_attempts: int = 999999999,
     ):
         """Initialize with generation configuration."""
         self.topic = topic

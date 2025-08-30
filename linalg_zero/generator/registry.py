@@ -16,6 +16,7 @@ from linalg_zero.generator.generator_factories import (
     create_frobenius_norm_factory,
     create_linear_system_generator,
     create_matrix_rank_factory,
+    create_matrix_trace_factory,
     create_matrix_transpose_factory,
     create_matrix_vector_multiplication_factory,
 )
@@ -122,6 +123,11 @@ def create_default_registry() -> FactoryRegistry:
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_TRANSPOSE,
         create_matrix_transpose_factory(difficulty=DifficultyCategory.MEDIUM),
+    )
+    registry.register_factory(
+        Topic.LINEAR_ALGEBRA,
+        Task.MATRIX_TRACE,
+        create_matrix_trace_factory(difficulty=DifficultyCategory.MEDIUM),
     )
 
     # Sequential composition

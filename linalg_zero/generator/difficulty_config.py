@@ -18,8 +18,9 @@ class Precision(Enum):
     LINEAR_SYSTEM_SOLVER = 4
     DETERMINANT = 2
     FROBENIUS_NORM = 6
-    MATRIX_RANK = 0  # Integer precision for rank
-    MATRIX_TRANSPOSE = 2  # Standard precision for transpose
+    MATRIX_RANK = 0
+    MATRIX_TRANSPOSE = 2
+    MATRIX_TRACE = 2
     FULL = -1
 
 

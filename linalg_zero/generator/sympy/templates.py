@@ -355,6 +355,34 @@ class TemplateEngine:
                 ),
             ])
 
+        elif question_type == Task.MATRIX_TRACE:
+            templates.extend([
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the trace of {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_TRACE,
+                ),
+                QuestionTemplate(
+                    template_string="What is the trace of {matrix}?",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_TRACE,
+                ),
+                QuestionTemplate(
+                    template_string="Find tr({matrix}).",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_TRACE,
+                ),
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the sum of the diagonal elements of {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_TRACE,
+                ),
+            ])
+
         return templates
 
     def select_template(
