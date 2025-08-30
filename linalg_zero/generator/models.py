@@ -25,6 +25,7 @@ class Task(Enum):
     MATRIX_VECTOR_MULTIPLICATION = "matrix_vector_multiplication"
     FROBENIUS_NORM = "frobenius_norm"
     MATRIX_RANK = "matrix_rank"
+    MATRIX_TRANSPOSE = "matrix_transpose"
     COMPOSITE_SEQUENTIAL = "sequential"
     COMPOSITE_LINEAR_SYSTEM_DEPENDENCY = "linear_system_dependency"
 

@@ -187,6 +187,41 @@ def matrix_rank(matrix: list[list[float | int]]) -> int:
     raise TypeError(f"Expected integer result, got {type(rank_result)}")
 
 
+def matrix_transpose(matrix: list[list[float | int]]) -> list[list[float | int]]:
+    """Calculate the transpose of a matrix using SymPy.
+
+    The transpose of a matrix A is obtained by reflecting the matrix over its main diagonal,
+    switching the row and column indices of the matrix.
+
+    Examples:
+        >>> matrix_transpose([[1, 2, 3], [4, 5, 6]])
+        [[1, 4], [2, 5], [3, 6]]
+        >>> matrix_transpose([[1, 2], [3, 4]])
+        [[1, 3], [2, 4]]
+        >>> matrix_transpose([[1]])  # 1x1 matrix
+        [[1]]
+
+    Args:
+        matrix: The matrix as a list of lists.
+
+    Returns:
+        The transpose of the matrix as a list of lists.
+    """
+    try:
+        sym_matrix = Matrix(matrix)
+        transpose_result = sym_matrix.T
+
+        result = MathFormatter.sympy_to_primitive(transpose_result, precision=Precision.MATRIX_TRANSPOSE)
+
+        if isinstance(result, list) and all(isinstance(row, list) for row in result):
+            return result
+
+    except Exception as e:
+        raise ValueError(f"Cannot calculate matrix transpose: {e}") from e
+
+    raise TypeError(f"Expected list of lists, got {type(result)}")
+
+
 def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
@@ -195,6 +230,7 @@ def get_lib() -> dict[str, Callable[..., Any]]:
         "determinant": determinant,
         "frobenius_norm": frobenius_norm,
         "matrix_rank": matrix_rank,
+        "matrix_transpose": matrix_transpose,
     }
 
 

@@ -13,6 +13,7 @@ from linalg_zero.generator.sympy.generators.determinant_generator import Determi
 from linalg_zero.generator.sympy.generators.frobenius_norm_generator import FrobeniusNormGenerator
 from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
 from linalg_zero.generator.sympy.generators.matrix_rank_generator import MatrixRankGenerator
+from linalg_zero.generator.sympy.generators.matrix_transpose_generator import MatrixTransposeGenerator
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     MatrixVectorMultiplicationGenerator,
 )
@@ -64,6 +65,16 @@ def create_matrix_rank_factory(difficulty: DifficultyCategory) -> Callable[[], Q
         MatrixRankGenerator,
         difficulty_level=difficulty,
         problem_type=Task.MATRIX_RANK,
+        topic=Topic.LINEAR_ALGEBRA,
+    )
+
+
+def create_matrix_transpose_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
+    """Helper to create matrix transpose factory with specific parameters."""
+    return create_sympy_factory(
+        MatrixTransposeGenerator,
+        difficulty_level=difficulty,
+        problem_type=Task.MATRIX_TRANSPOSE,
         topic=Topic.LINEAR_ALGEBRA,
     )
 

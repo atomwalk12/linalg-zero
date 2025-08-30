@@ -19,6 +19,7 @@ class Precision(Enum):
     DETERMINANT = 2
     FROBENIUS_NORM = 6
     MATRIX_RANK = 0  # Integer precision for rank
+    MATRIX_TRANSPOSE = 2  # Standard precision for transpose
     FULL = -1
 
 

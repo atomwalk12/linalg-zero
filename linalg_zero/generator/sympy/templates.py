@@ -327,6 +327,34 @@ class TemplateEngine:
                 ),
             ])
 
+        elif question_type == Task.MATRIX_TRANSPOSE:
+            templates.extend([
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the transpose of {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_TRANSPOSE,
+                ),
+                QuestionTemplate(
+                    template_string="What is the transpose of {matrix}?",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_TRANSPOSE,
+                ),
+                QuestionTemplate(
+                    template_string="Find {matrix}^T.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_TRANSPOSE,
+                ),
+                QuestionTemplate(
+                    template_string=f"{compute_verb} {{matrix}}^T.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_TRANSPOSE,
+                ),
+            ])
+
         return templates
 
     def select_template(
