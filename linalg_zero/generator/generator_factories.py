@@ -12,6 +12,7 @@ from linalg_zero.generator.sympy.base import SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.determinant_generator import DeterminantGenerator
 from linalg_zero.generator.sympy.generators.frobenius_norm_generator import FrobeniusNormGenerator
 from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
+from linalg_zero.generator.sympy.generators.matrix_rank_generator import MatrixRankGenerator
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     MatrixVectorMultiplicationGenerator,
 )
@@ -53,6 +54,16 @@ def create_determinant_factory(difficulty: DifficultyCategory) -> Callable[[], Q
         DeterminantGenerator,
         difficulty_level=difficulty,
         problem_type=Task.DETERMINANT,
+        topic=Topic.LINEAR_ALGEBRA,
+    )
+
+
+def create_matrix_rank_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
+    """Helper to create matrix rank factory with specific parameters."""
+    return create_sympy_factory(
+        MatrixRankGenerator,
+        difficulty_level=difficulty,
+        problem_type=Task.MATRIX_RANK,
         topic=Topic.LINEAR_ALGEBRA,
     )
 

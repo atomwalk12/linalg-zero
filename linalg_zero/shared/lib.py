@@ -154,6 +154,39 @@ def frobenius_norm(matrix: list[list[float | int]]) -> float:
     raise TypeError(f"Expected numeric result, got {type(result)}")
 
 
+def matrix_rank(matrix: list[list[float | int]]) -> int:
+    """Calculate the rank of a matrix using SymPy.
+
+    The rank of a matrix is the dimension of the vector space spanned by its
+    rows or columns - the number of linearly independent rows or columns.
+
+    Examples:
+        >>> matrix_rank([[1, 2], [3, 4]])
+        2
+        >>> matrix_rank([[1, 2], [2, 4]])  # Linearly dependent rows
+        1
+        >>> matrix_rank([[0, 0], [0, 0]])  # Zero matrix
+        0
+
+    Args:
+        matrix: The matrix as a list of lists.
+
+    Returns:
+        The rank of the matrix.
+    """
+    try:
+        sym_matrix = Matrix(matrix)
+        rank_result = sym_matrix.rank()
+
+        if isinstance(rank_result, int):
+            return rank_result
+
+    except Exception as e:
+        raise ValueError(f"Cannot calculate matrix rank: {e}") from e
+
+    raise TypeError(f"Expected integer result, got {type(rank_result)}")
+
+
 def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
@@ -161,6 +194,7 @@ def get_lib() -> dict[str, Callable[..., Any]]:
         "solve_linear_system": solve_linear_system,
         "determinant": determinant,
         "frobenius_norm": frobenius_norm,
+        "matrix_rank": matrix_rank,
     }
 
 

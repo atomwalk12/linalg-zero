@@ -299,6 +299,34 @@ class TemplateEngine:
                 ),
             ])
 
+        elif question_type == Task.MATRIX_RANK:
+            templates.extend([
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the rank of {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_RANK,
+                ),
+                QuestionTemplate(
+                    template_string="What is the rank of {matrix}?",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_RANK,
+                ),
+                QuestionTemplate(
+                    template_string="Find rank({matrix}).",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_RANK,
+                ),
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the number of linearly independent rows in {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_RANK,
+                ),
+            ])
+
         return templates
 
     def select_template(
