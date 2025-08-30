@@ -11,25 +11,33 @@ from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.types import assert_lib_returns
 
 
-def multiply_matrices(matrix_a: list[list[float | int]], matrix_b: list[list[float | int]]) -> list[list[float | int]]:
-    """Multiply two matrices using SymPy.
+def multiply_matrices(matrix_a: list[list[float | int]], vector_b: list[list[float | int]]) -> list[list[float | int]]:
+    """Multiply two matrices or a matrix and a column vector using SymPy.
+
+    This function supports:
+    - matrix x matrix
+    - matrix x vector (the vector must be provided as a list of lists, i.e.,
+      a column vector like [[v1], [v2], ...]). In all cases, inputs must be
+      list-of-lists.
 
     Examples:
         >>> multiply_matrices([[1, 2], [3, 4]], [[2, 0], [1, 3]])
         [[4, 6], [10, 12]]
-        >>> multiply_matrices([[1, 0], [0, 1]], [[5, 6], [7, 8]])  # Identity matrix
+        >>> multiply_matrices([[1, 2], [3, 4]], [[5], [6]])  # matrix x column vector
+        [[17], [39]]
+        >>> multiply_matrices([[1, 0], [0, 1]], [[5, 6], [7, 8]])  # Identity x matrix
         [[5, 6], [7, 8]]
 
     Args:
         matrix_a: The first matrix as a list of lists.
-        matrix_b: The second matrix as a list of lists.
+        vector_b: The second operand as a list of lists (matrix or column vector).
 
     Returns:
-        The product matrix as a list of lists.
+        The product as a list of lists.
     """
     try:
         sym_a = Matrix(matrix_a)
-        sym_b = Matrix(matrix_b)
+        sym_b = Matrix(vector_b)
         result_matrix: Matrix = sym_a * sym_b
         result = MathFormatter.sympy_to_primitive(result_matrix, precision=Precision.MATRIX_VECTOR_MULTIPLICATION)
 

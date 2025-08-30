@@ -1,5 +1,6 @@
 from typing import Any
 
+import sympy
 from sympy import Matrix
 from typing_extensions import override
 
@@ -14,12 +15,17 @@ from linalg_zero.generator.sympy.base import (
     ProblemTemplate,
 )
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
+from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.lib import multiply_matrices
 
 
 class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
-    def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
-        """Initialize matrix-vector multiplication generator."""
+    def __init__(
+        self,
+        difficulty_level: DifficultyCategory,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize independent matrix-vector multiplication generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
 
@@ -32,43 +38,30 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
 
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
-        """Generate matrix-vector multiplication problem content."""
+        """Generate matrix-vector multiplication problem content (independent)."""
 
-        # Create SampleArgs for entropy distribution
-        sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
+        matrix_entropy, vector_entropy = self._split_entropy(context)
+        rows, cols = self._determine_dimensions(context)
 
-        # Split entropy between matrix and vector generation using Dirichlet distribution
-        component_args = sample_args.split(count=2)
-        matrix_sample_args, vector_sample_args = component_args
-
-        matrix_entropy = matrix_sample_args.entropy
-        vector_entropy = vector_sample_args.entropy
-
-        # Get matrix dimensions from difficulty configuration
-        rows = self.config.get_random_matrix_size()
-        cols = self.config.get_random_matrix_size()
-
-        # Generate matrix A and vector x
         entropy_controller = EntropyController(context.entropy)
+        matrix_A = self._generate_matrix_A(rows, cols, matrix_entropy, entropy_controller, context)
+        vector_b = self._generate_vector_b(cols, vector_entropy, entropy_controller, context)
+        sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_a=matrix_A, vector_b=vector_b)
 
-        matrix_A = self._generate_matrix(rows, cols, matrix_entropy, entropy_controller)
-        context.record_entropy_usage(matrix_entropy)
+        # Record tool call with input data
+        input_data = self._prepare_tool_call_input_data(matrix_a=matrix_A, vector_b=vector_b)
+        context.record_tool_call(multiply_matrices.__name__, lib_result, input_data, is_final=True)
 
-        vector_x = self._generate_vector(cols, vector_entropy, entropy_controller)
-        context.record_entropy_usage(vector_entropy)
-        sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_A, vector_x)
-        context.record_tool_call(multiply_matrices.__name__, lib_result, is_final=True)
-
-        problem_expression = matrix_A * vector_x
+        problem_expression = matrix_A * vector_b
 
         context_info = {
             "matrix_dimensions": (rows, cols),
             "problem_type": self.problem_type,
             "matrix": matrix_A,
-            "vector": vector_x,
+            "vector": vector_b,
         }
 
-        question_templates = self.handle_composite_context(context_info)
+        question_templates = self._question_templates(context_info)
 
         return ProblemTemplate(
             expression=problem_expression,
@@ -76,29 +69,12 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
             sympy_solution=sympy_sol,
             lib_result=lib_result,
             question_templates=question_templates,
-            context_info={
-                **context_info,
-            },
-            difficulty_markers={
-                "entropy_used": context.used_entropy,
-                "matrix_size": (rows, cols),
-                "vector_size": cols,
-                "target_tool_calls": self.config.target_tool_calls,
-            },
+            context_info={**context_info},
+            difficulty_markers=self.build_difficulty_markers(
+                context, matrix_size=(matrix_A.rows, matrix_A.cols), vector_size=vector_b.rows
+            ),
             difficulty=self.difficulty_level,
         )
-
-    def handle_composite_context(self, context_info: dict[str, Any]) -> list[str] | None:
-        """Handle composite context."""
-        if self.composite:
-            templates = None
-        else:
-            question_templates = self.template_engine.create_default_templates(
-                self.problem_type, self.difficulty_level
-            )
-            templates = [t.template_string for t in question_templates]
-
-        return templates
 
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
@@ -107,11 +83,11 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         vector = template.context_info["vector"]
         return {"matrix": matrix, "vector": vector}
 
-    def _multiply_matrices_sympy(self, matrix_a: Matrix, matrix_b: Matrix) -> tuple[Matrix, list[list[float]]]:
+    def _multiply_matrices_sympy(self, matrix_a: Matrix, vector_b: Matrix) -> tuple[Matrix, list[list[float]]]:
         """Multiply two sympy matrices using lib.py function."""
         # Convert to primitives (this applies precision constraints)
         a_list = self.formatter.sympy_to_primitive(matrix_a, precision=self.precision)
-        b_list = self.formatter.sympy_to_primitive(matrix_b, precision=self.precision)
+        b_list = self.formatter.sympy_to_primitive(vector_b, precision=self.precision)
         assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
 
         # Calculate using lib.py with the primitives
@@ -120,7 +96,95 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         # Convert primitives back to SymPy matrices at the same precision level
         # This ensures both calculations work with the same precision
         matrix_a_precision_matched = Matrix(a_list)
-        matrix_b_precision_matched = Matrix(b_list)
-        sympy_result = matrix_a_precision_matched * matrix_b_precision_matched
+        vector_b_precision_matched = Matrix(b_list)
+        sympy_result = matrix_a_precision_matched * vector_b_precision_matched
 
         return sympy_result, lib_result
+
+    def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
+        """Split entropy between matrix and vector generation (independent)."""
+        sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
+        matrix_sample_args, vector_sample_args = sample_args.split(count=2)
+        return matrix_sample_args.entropy, vector_sample_args.entropy
+
+    def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int]:
+        """Select matrix dimensions (independent): both from config."""
+        rows = self.config.get_random_matrix_size()
+        cols = self.config.get_random_matrix_size()
+        return rows, cols
+
+    def _generate_matrix_A(
+        self,
+        rows: int,
+        cols: int,
+        matrix_entropy: float,
+        controller: EntropyController,
+        context: ProblemContext,
+    ) -> Matrix:
+        matrix_A = self._generate_matrix(rows, cols, matrix_entropy, controller)
+        context.record_entropy_usage(matrix_entropy)
+        return matrix_A
+
+    def _generate_vector_b(
+        self,
+        cols: int,
+        vector_entropy: float,
+        controller: EntropyController,
+        context: ProblemContext,
+    ) -> Matrix:
+        vector_b = self._generate_vector(cols, vector_entropy, controller)
+        context.record_entropy_usage(vector_entropy)
+        return vector_b
+
+    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
+        question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)
+        return [t.template_string for t in question_templates]
+
+
+class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGenerator):
+    def __init__(
+        self,
+        difficulty_level: DifficultyCategory,
+        input_vector_b: sympy.Matrix,
+        input_index: int,
+        **kwargs: Any,
+    ) -> None:
+        # Force is_independent=False for template selection if needed downstream
+        super().__init__(difficulty_level=difficulty_level, is_independent=False, **kwargs)
+        assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
+        self.input_vector_b = input_vector_b
+        self.input_index = input_index
+
+    def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
+        # Only matrix generation consumes entropy; vector is provided
+        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
+        return sample_args.entropy, 0.0
+
+    def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int]:
+        cols = int(self.input_vector_b.rows)
+        rows = self.config.get_random_matrix_size()
+        return rows, cols
+
+    def _generate_vector_b(
+        self,
+        cols: int,
+        vector_entropy: float,
+        controller: EntropyController,
+        context: ProblemContext,
+    ) -> Matrix:
+        # No entropy usage for provided vector
+        return self.input_vector_b
+
+    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
+        # Composition will handle question formatting
+        return None
+
+    def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Prepare input data for dependent generator including dependency info."""
+        base_data = super()._prepare_tool_call_input_data(**kwargs)
+        assert self.input_vector_b == kwargs["vector_b"]  # noqa: S101
+        base_data.update({
+            "dependent_on": self.input_index,
+            "input_vector_b": MathFormatter.sympy_to_primitive(self.input_vector_b, precision=self.precision),
+        })
+        return base_data

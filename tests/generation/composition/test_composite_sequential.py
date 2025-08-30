@@ -1,5 +1,3 @@
-import ast
-
 from linalg_zero.generator.composition.components import (
     LinearSystemSolverWrapperComponent,
     MatrixVectorMultiplicationWrapperComponent,
@@ -30,8 +28,8 @@ class TestSequential_MVM_then_LinearSystem:
 
     def test_mvm_then_linear_system_end_to_end(self):
         composite = make_composite([
-            MatrixVectorMultiplicationWrapperComponent(name=Task.MATRIX_VECTOR_MULTIPLICATION),
-            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER),
+            MatrixVectorMultiplicationWrapperComponent(name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={}),
+            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={}),
         ])
 
         q = composite.generate()
@@ -46,16 +44,17 @@ class TestSequential_MVM_then_LinearSystem:
 
         # Question contains both steps in order
         text = q.question
-        assert text.startswith("First, ") and "\n\nThen, " in text
+        assert text.startswith("First, ") and "Then, " in text
 
-        # Answer should contain both parts
-        assert "Part 1:" in q.answer and "Part 2:" in q.answer
+        # Answer should contain both tools in JSON format
+        import json
+
+        answer_data = json.loads(q.answer)
+        assert "tool_1" in answer_data and "tool_2" in answer_data
 
         # Parse both parts and assert shapes/types
-        parts = q.answer.split("; ")
-        assert len(parts) == 2
-        p1 = ast.literal_eval(parts[0].split(": ", 1)[1])
-        p2 = ast.literal_eval(parts[1].split(": ", 1)[1])
+        p1 = answer_data["tool_1"]
+        p2 = answer_data["tool_2"]
 
         # Part 1 is matrix-vector product: column vector [[..],[..]]
         assert isinstance(p1, list) and len(p1) >= 1 and all(isinstance(r, list) and len(r) == 1 for r in p1)
@@ -64,8 +63,8 @@ class TestSequential_MVM_then_LinearSystem:
 
     def test_mvm_then_linear_system_stability(self):
         composite = make_composite([
-            MatrixVectorMultiplicationWrapperComponent(name=Task.MATRIX_VECTOR_MULTIPLICATION),
-            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER),
+            MatrixVectorMultiplicationWrapperComponent(name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={}),
+            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={}),
         ])
 
         for _ in range(5):
@@ -81,8 +80,8 @@ class TestSequential_LinearSystem_then_MVM:
 
     def test_linear_system_then_mvm_end_to_end(self):
         composite = make_composite([
-            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER),
-            MatrixVectorMultiplicationWrapperComponent(name=Task.MATRIX_VECTOR_MULTIPLICATION),
+            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={}),
+            MatrixVectorMultiplicationWrapperComponent(name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={}),
         ])
 
         q = composite.generate()
@@ -97,10 +96,12 @@ class TestSequential_LinearSystem_then_MVM:
 
         # Question contains both steps in order
         text = q.question
-        assert text.startswith("First, ") and "\n\nThen, " in text
+        assert text.startswith("First, ") and "Then, " in text
 
-        # Answer has two parts that can be parsed
-        parts = q.answer.split("; ")
-        assert len(parts) == 2
-        ast.literal_eval(parts[0].split(": ", 1)[1])
-        ast.literal_eval(parts[1].split(": ", 1)[1])
+        # Answer has two parts that can be parsed as JSON
+        import json
+
+        answer_data = json.loads(q.answer)
+        assert "tool_1" in answer_data and "tool_2" in answer_data
+        assert isinstance(answer_data["tool_1"], list)
+        assert isinstance(answer_data["tool_2"], list)

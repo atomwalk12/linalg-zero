@@ -1,4 +1,3 @@
-import json
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -69,7 +68,7 @@ class SympyProblemGenerator(ABC):
         problem_type: Task,
         topic: Topic,
         entropy: float | None = None,
-        composite: bool = False,
+        is_independent: bool = True,
     ):
         self.difficulty_level = difficulty_level
         self.problem_type = problem_type
@@ -82,7 +81,7 @@ class SympyProblemGenerator(ABC):
 
         self.template_engine = TemplateEngine()
         self.formatter = MathFormatter()
-        self.composite = composite
+        self.is_independent = is_independent
 
     @property
     def precision(self) -> Precision:
@@ -110,7 +109,9 @@ class SympyProblemGenerator(ABC):
         variables = self.get_template_variables(template)
 
         # Get templates for the problem type
-        templates = self.template_engine.create_default_templates(problem_type, self.difficulty_level, self.composite)
+        templates = self.template_engine.create_default_templates(
+            problem_type, self.difficulty_level, self.is_independent
+        )
         if templates:
             selected_template = self.template_engine.select_template(templates, problem_type, self.difficulty_level)
             question_text = self.template_engine.generate_question(
@@ -123,7 +124,7 @@ class SympyProblemGenerator(ABC):
 
     def format_solution(self, template: ProblemTemplate) -> str:
         """The solution string used as the ground truth in the final dataset entry."""
-        return json.dumps(self.template_engine.format_answer(template.sympy_solution, precision=self.precision))
+        return self.template_engine.format_answer(template.sympy_solution, precision=self.precision)
 
     def verify_problem(self, template: ProblemTemplate) -> bool:
         """
@@ -169,3 +170,17 @@ class SympyProblemGenerator(ABC):
                 stepwise=context.stepwise_results,
                 golden=context.golden_result,
             )
+
+    def build_difficulty_markers(self, context: ProblemContext, **kwargs: Any) -> dict[str, Any]:
+        return {
+            "entropy_used": context.used_entropy,
+            "available_entropy": context.entropy,
+            "tool_calls": self.config.target_tool_calls,
+            **kwargs,
+        }
+
+    def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
+        converted_kwargs = {
+            key: self.formatter.sympy_to_primitive(value, precision=self.precision) for key, value in kwargs.items()
+        }
+        return {"generator_type": self.__class__.__name__, **converted_kwargs}

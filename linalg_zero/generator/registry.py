@@ -2,6 +2,7 @@ import random
 from collections.abc import Callable
 
 from linalg_zero.generator.composition.components import (
+    FrobeniusNormWrapperComponent,
     LinearSystemSolverWrapperComponent,
     MatrixVectorMultiplicationWrapperComponent,
 )
@@ -12,6 +13,7 @@ from linalg_zero.generator.difficulty_config import get_problem_config
 from linalg_zero.generator.generator_factories import (
     create_composite_factory,
     create_determinant_factory,
+    create_frobenius_norm_factory,
     create_linear_system_generator,
     create_matrix_vector_multiplication_factory,
 )
@@ -94,7 +96,6 @@ def create_default_registry() -> FactoryRegistry:
         create_determinant_factory(difficulty=DifficultyCategory.EASY),
     )
 
-    # Register linear algebra generators
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_VECTOR_MULTIPLICATION,
@@ -105,14 +106,47 @@ def create_default_registry() -> FactoryRegistry:
         Task.LINEAR_SYSTEM_SOLVER,
         create_linear_system_generator(difficulty=DifficultyCategory.MEDIUM),
     )
+    registry.register_factory(
+        Topic.LINEAR_ALGEBRA,
+        Task.FROBENIUS_NORM,
+        create_frobenius_norm_factory(difficulty=DifficultyCategory.MEDIUM),
+    )
 
     # Sequential composition
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
         problem_type=Task.COMPOSITE_SEQUENTIAL,
         components=[
-            MatrixVectorMultiplicationWrapperComponent(name=Task.MATRIX_VECTOR_MULTIPLICATION),
-            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER),
+            MatrixVectorMultiplicationWrapperComponent(
+                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                constraints={},
+            ),
+            LinearSystemSolverWrapperComponent(
+                name=Task.LINEAR_SYSTEM_SOLVER,
+                constraints={"input_index": 0},
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.MEDIUM,
+    )
+
+    # # Linear System Dependency: solve_linear_system → multiply_matrices → frobenius_norm
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY,
+        components=[
+            LinearSystemSolverWrapperComponent(
+                name=Task.LINEAR_SYSTEM_SOLVER,
+                constraints={"is_independent": True},
+            ),
+            MatrixVectorMultiplicationWrapperComponent(
+                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                constraints={"is_independent": False, "input_index": 0},
+            ),
+            FrobeniusNormWrapperComponent(
+                name=Task.FROBENIUS_NORM,
+                constraints={"is_independent": False, "input_index": 1},
+            ),
         ],
         composition_strategy=SequentialComposition(),
         difficulty_level=DifficultyCategory.MEDIUM,

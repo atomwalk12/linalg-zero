@@ -1,4 +1,3 @@
-import json
 from typing import Any
 
 from typing_extensions import override
@@ -155,7 +154,7 @@ class CompositeProblem(SympyProblemGenerator):
         step_descriptions = []
         for i, result in enumerate(component_results, 1):
             formatted_question = result.generator.format_question(result.template)
-
+            formatted_question = formatted_question[0].lower() + formatted_question[1:]
             if i == 1:
                 step_descriptions.append(f"First, {formatted_question}")
             elif i == 2 and len(component_results) == 2:
@@ -178,12 +177,7 @@ class CompositeProblem(SympyProblemGenerator):
         if len(template.sympy_solution) == 1:
             raise ValueError("Composite problem should have multiple solutions.")
 
-        result_dict = {}
-        for i, (sol, component_result) in enumerate(zip(template.sympy_solution, component_results, strict=True), 1):
-            precision = component_result.generator.precision
-            formatted_sol = self.formatter.sympy_to_primitive(sol, precision=precision)
-            result_dict[f"tool_{i}"] = formatted_sol
-        return json.dumps(result_dict)
+        return self.template_engine.format_composite_answer(template.sympy_solution, component_results)
 
     @override
     def verify_problem(self, template: ProblemTemplate) -> bool:

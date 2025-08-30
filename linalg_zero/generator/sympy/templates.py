@@ -8,7 +8,7 @@ from sympy.core import Expr
 from sympy.matrices import MutableDenseMatrix
 
 from linalg_zero.generator.difficulty_config import Precision
-from linalg_zero.generator.models import DifficultyCategory, Task
+from linalg_zero.generator.models import ComponentResult, DifficultyCategory, Task
 from linalg_zero.shared.types import LibTypes
 from linalg_zero.shared.utils import get_logger
 
@@ -149,10 +149,10 @@ class TemplateEngine:
             if isinstance(var_value, MutableDenseMatrix):
                 formatted_variables[var_name] = self.math_formatter.sympy_to_primitive(var_value, precision)
             elif isinstance(var_value, str):
-                # String values for composition context (symbolic references)
+                # String values are symbolic references
                 formatted_variables[var_name] = var_value
             elif isinstance(var_value, bool):
-                # Boolean flags for composition context
+                # Boolean flags is is_independent flag
                 formatted_variables[var_name] = var_value
             else:
                 raise TypeError(f"Variable '{var_name}' has unsupported type {type(var_value).__name__}.")
@@ -175,8 +175,19 @@ class TemplateEngine:
         else:
             raise TypeError(f"Variable '{answer}' has unsupported type {type(answer).__name__}.")
 
+    def format_composite_answer(self, sympy_solutions: list[Expr], component_results: list[ComponentResult]) -> str:
+        """
+        Format a composite answer to be displayed in question as a JSON string.
+        """
+        result_dict = {}
+        for i, (sol, component_result) in enumerate(zip(sympy_solutions, component_results, strict=True), 1):
+            precision = component_result.generator.precision
+            formatted_sol = self.math_formatter.sympy_to_primitive(sol, precision=precision)
+            result_dict[f"tool_{i}"] = formatted_sol
+        return json.dumps(result_dict)
+
     def create_default_templates(
-        self, question_type: Task, difficulty: DifficultyCategory, is_composition: bool = False
+        self, question_type: Task, difficulty: DifficultyCategory, is_independent: bool = True
     ) -> list[QuestionTemplate]:
         """
         Create default question templates for common problem types.
@@ -185,12 +196,12 @@ class TemplateEngine:
         templates = []
         solve_verb = random.choice(self.SOLVE_VERBS[difficulty])
         compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
-        if is_composition:
+        if not is_independent:
             solve_verb = solve_verb.lower()
             compute_verb = compute_verb.lower()
 
         if question_type == Task.LINEAR_SYSTEM_SOLVER:
-            if not is_composition:
+            if is_independent:
                 templates.extend([
                     QuestionTemplate(
                         template_string=f"{solve_verb} {{matrix}}*{{x_symbols}} = {{target_b}} for {{x_symbols}}.",

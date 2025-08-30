@@ -52,7 +52,10 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         context.record_entropy_usage(matrix_entropy)
 
         sympy_det, lib_result = self._calculate_determinant_sympy(matrix_A)
-        context.record_tool_call(determinant.__name__, lib_result, is_final=True)
+
+        # Record tool call with input data
+        input_data = self._prepare_tool_call_input_data(matrix=matrix_A)
+        context.record_tool_call(determinant.__name__, lib_result, input_data, is_final=True)
 
         # Generate question templates
         problem_expression = matrix_A
@@ -68,11 +71,7 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
             context_info={
                 "matrix": matrix_A,
             },
-            difficulty_markers={
-                "entropy_used": context.used_entropy,
-                "matrix_size": (size, size),
-                "target_tool_calls": self.config.target_tool_calls,
-            },
+            difficulty_markers=self.build_difficulty_markers(context),
             difficulty=self.difficulty_level,
         )
 
@@ -98,3 +97,18 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         assert isinstance(sympy_result, (Float, Integer, Rational))  # noqa: S101
 
         return sympy_result, lib_result
+
+
+class DeterminantGeneratorDependent(DeterminantGenerator):
+    """Dependent variant: reports dependency index in difficulty markers."""
+
+    def __init__(self, difficulty_level: DifficultyCategory, input_index: int, **kwargs: Any) -> None:
+        super().__init__(difficulty_level=difficulty_level, **kwargs)
+        assert self.problem_type == Task.DETERMINANT  # noqa: S101
+        self.input_index = input_index
+
+    def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Prepare input data for dependent generator including dependency info."""
+        base_data = super()._prepare_tool_call_input_data(**kwargs)
+        base_data.update({"dependent_on": self.input_index})
+        return base_data

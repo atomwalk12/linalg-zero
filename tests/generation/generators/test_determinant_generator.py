@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from linalg_zero.generator.difficulty_config import get_problem_config
@@ -62,7 +64,7 @@ class TestDeterminantGenerator:
         for _ in range(10):
             q = generator.generate()
             assert q.is_valid
-            float(q.answer)
+            float(json.loads(q.answer))
 
     def test_determinant_tool_function_examples(self):
         # 2x2 matrix should have determinant -2
