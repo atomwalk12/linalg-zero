@@ -103,8 +103,6 @@ class ComponentResult:
 
     template: ProblemTemplate
     generator: "SympyProblemGenerator"
-    context_updates: dict[str, Any] = field(default_factory=dict)
-    shared_variables: list[str] = field(default_factory=list)
     entropy_consumed: float = 0.0
     tool_calls_used: int = 0
 

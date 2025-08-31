@@ -50,8 +50,6 @@ class SequentialComposition(CompositionStrategy):
 
             # NOTE[atom]: these variables can be useful to share state between components
             component_context.constraints = base_context.constraints.copy()
-            component_context.shared_state = base_context.shared_state.copy()
-            component_context.global_variables = base_context.global_variables.copy()
             # Pass previous component results to enable sequential data flow
             component_context.component_results = base_context.component_results.copy()
 

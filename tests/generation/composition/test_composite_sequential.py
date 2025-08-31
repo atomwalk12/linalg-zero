@@ -155,7 +155,7 @@ class TestSequential_LinearSystem_then_MVM:
             ),
             LinearSystemSolverWrapperComponent(
                 name=Task.LINEAR_SYSTEM_SOLVER,
-                constraints={"is_independent": False, "input_index": {"input_vector_b": 0}},
+                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
             ),
         ])
 
@@ -180,7 +180,7 @@ class TestSequential_LinearSystem_then_MVM:
             LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}),
             MatrixVectorMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
-                constraints={"is_independent": False, "input_index": {"input_vector_b": 0}},
+                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
             ),
         ])
 
@@ -246,7 +246,7 @@ class TestWrapperComponentGeneratorSelectionComprehensive:
     def test_all_wrappers_dependent_case(self, wrapper_class, task, dependent_generator):
         """Test that all wrapper components correctly select dependent generator when is_independent=False."""
         component = wrapper_class(
-            name=task, constraints={"is_independent": False, "input_index": {"input_vector_b": 0}}
+            name=task, constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}}
         )
 
         assert component.generator_class is dependent_generator

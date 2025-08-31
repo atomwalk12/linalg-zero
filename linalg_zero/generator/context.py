@@ -2,8 +2,6 @@ import json
 from types import TracebackType
 from typing import Any
 
-import sympy
-
 from linalg_zero.generator.models import ComponentResult, DifficultyCategory
 from linalg_zero.shared.types import LibTypes
 
@@ -95,25 +93,7 @@ class CompositionContext(ProblemContext):
 
     def __init__(self, entropy: float, difficulty_level: DifficultyCategory, step_counter: int):
         super().__init__(entropy, difficulty_level, step_counter)
-        self.shared_state: dict[str, Any] = {}
         self.component_results: list[ComponentResult] = []
-        self.global_variables: dict[str, sympy.Symbol] = {}
-
-    def share_variable(self, name: str, symbol: sympy.Symbol) -> None:
-        """Make a variable available to other components."""
-        self.global_variables[name] = symbol
-
-    def get_shared_variable(self, name: str) -> sympy.Symbol | None:
-        """Retrieve a shared variable from another component."""
-        return self.global_variables.get(name)
-
-    def update_shared_state(self, key: str, value: Any) -> None:
-        """Update shared state accessible by all components."""
-        self.shared_state[key] = value
-
-    def get_shared_state(self, key: str, default: Any = None) -> Any:
-        """Get shared state value."""
-        return self.shared_state.get(key, default)
 
     def record_component_result(self, result: ComponentResult) -> None:
         """Record the result of a component execution."""
@@ -125,11 +105,3 @@ class CompositionContext(ProblemContext):
             raise ValueError(f"Entropy budget exceeded: used {self.used_entropy:.3f}, available {self.entropy:.3f}")
 
         self.tool_calls_count += result.tool_calls_used
-
-        # Update shared state
-        for key, value in result.context_updates.items():
-            self.update_shared_state(key, value)
-
-        # Register shared variables
-        for var in result.shared_variables:
-            self.share_variable(var, var)

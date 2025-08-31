@@ -51,7 +51,6 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         generator_class: type[SympyProblemGenerator],
         component_type: Task,
         topic: Topic,
-        context_update_mapping: dict[str, str],
         constraints: dict[str, Any],
         gen_constraints: dict[str, Any] | None = None,
         **kwargs: Any,
@@ -63,7 +62,6 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         self.generator_class = generator_class
         self.component_type = component_type
         self.topic = topic
-        self.context_update_mapping = context_update_mapping
 
     def get_generator_params(self, context: CompositionContext, input_names: list[str]) -> dict[str, Any]:
         """Extract previous component results to use as inputs."""
@@ -173,21 +171,12 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
             difficulty=template.difficulty,
         )
 
-        # Build context updates using the mapping
-        context_updates = {}
-        for update_key, template_key in self.context_update_mapping.items():
-            if template_key == "sympy_solution":
-                context_updates[f"{self.name}_{update_key}"] = template.sympy_solution
-            else:
-                context_updates[f"{self.name}_{update_key}"] = template.context_info[template_key]
-
         context.stepwise_results.extend(problem_context.stepwise_results)
         context.golden_result.update(problem_context.golden_result)
         context._step_counter = problem_context._step_counter
 
         return ComponentResult(
             template=formatted_template,
-            context_updates=context_updates,
             entropy_consumed=problem_context.used_entropy,
             tool_calls_used=problem_context.tool_calls_count,
             generator=generator,
@@ -208,7 +197,6 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
             generator_class=generator_cls,
             component_type=Task.MATRIX_VECTOR_MULTIPLICATION,
             topic=Topic.LINEAR_ALGEBRA,
-            context_update_mapping={"matrix": "matrix", "vector": "vector", "result": "sympy_solution"},
             **kwargs,
         )
 
@@ -233,7 +221,6 @@ class MatrixMatrixMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
             generator_class=generator_cls,
             component_type=Task.MATRIX_VECTOR_MULTIPLICATION,
             topic=Topic.LINEAR_ALGEBRA,
-            context_update_mapping={"matrix": "matrix", "vector": "vector", "result": "sympy_solution"},
             **kwargs,
         )
 
@@ -256,12 +243,6 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
             generator_class=generator_cls,
             component_type=Task.LINEAR_SYSTEM_SOLVER,
             topic=Topic.LINEAR_ALGEBRA,
-            context_update_mapping={
-                "matrix_A": "matrix_A",
-                "x_symbols": "x_symbols",
-                "target_b": "target_b",
-                "solution": "sympy_solution",
-            },
             **kwargs,
         )
 
@@ -284,7 +265,6 @@ class FrobeniusNormWrapperComponent(SympyGeneratorWrapperComponent):
             generator_class=generator_cls,
             component_type=Task.FROBENIUS_NORM,
             topic=Topic.LINEAR_ALGEBRA,
-            context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
             **kwargs,
         )
 
@@ -307,7 +287,6 @@ class DeterminantWrapperComponent(SympyGeneratorWrapperComponent):
             generator_class=generator_cls,
             component_type=Task.DETERMINANT,
             topic=Topic.LINEAR_ALGEBRA,
-            context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
             **kwargs,
         )
 
@@ -330,7 +309,6 @@ class RankWrapperComponent(SympyGeneratorWrapperComponent):
             generator_class=generator_cls,
             component_type=Task.MATRIX_RANK,
             topic=Topic.LINEAR_ALGEBRA,
-            context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
             **kwargs,
         )
 
@@ -353,7 +331,6 @@ class TransposeWrapperComponent(SympyGeneratorWrapperComponent):
             generator_class=generator_cls,
             component_type=Task.MATRIX_TRANSPOSE,
             topic=Topic.LINEAR_ALGEBRA,
-            context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
             **kwargs,
         )
 
@@ -376,7 +353,6 @@ class TraceWrapperComponent(SympyGeneratorWrapperComponent):
             generator_class=generator_cls,
             component_type=Task.MATRIX_TRACE,
             topic=Topic.LINEAR_ALGEBRA,
-            context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
             **kwargs,
         )
 

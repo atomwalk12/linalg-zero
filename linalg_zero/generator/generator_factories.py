@@ -14,7 +14,9 @@ from linalg_zero.generator.sympy.generators.frobenius_norm_generator import Frob
 from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
 from linalg_zero.generator.sympy.generators.matrix_rank_generator import MatrixRankGenerator
 from linalg_zero.generator.sympy.generators.matrix_trace_generator import MatrixTraceGenerator
-from linalg_zero.generator.sympy.generators.matrix_transpose_generator import MatrixTransposeGenerator
+from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
+    MatrixTransposeGenerator,
+)
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     MatrixVectorMultiplicationGenerator,
 )
