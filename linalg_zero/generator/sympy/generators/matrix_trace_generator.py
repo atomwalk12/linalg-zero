@@ -32,6 +32,20 @@ class MatrixTraceGenerator(MatrixVectorBaseGenerator):
         """The precision of the problem."""
         return Precision.MATRIX_TRACE
 
+    def _get_matrix(self, context: ProblemContext) -> Matrix:
+        """Generate or retrieve the matrix for trace calculation."""
+        # Get matrix size and entropy (trace requires square matrices)
+        size = self.config.get_random_matrix_size()
+
+        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
+        matrix_entropy = sample_args.entropy
+
+        # Generate square matrix A
+        entropy_controller = EntropyController(context.entropy)
+        matrix_A = self._generate_matrix(size, size, matrix_entropy, entropy_controller)
+        context.record_entropy_usage(matrix_entropy)
+        return matrix_A
+
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """
@@ -40,16 +54,8 @@ class MatrixTraceGenerator(MatrixVectorBaseGenerator):
         This method creates problems asking to compute tr(A) for a square matrix A.
         Uses difficulty configuration to determine matrix size and complexity.
         """
-        # Get matrix size and entropy (trace requires square matrices)
-        size = self.config.get_random_matrix_size()
-
-        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
-        matrix_entropy = sample_args.entropy
-
-        # Generate square matrix A and find result
-        entropy_controller = EntropyController(context.entropy)
-        matrix_A = self._generate_matrix(size, size, matrix_entropy, entropy_controller)
-        context.record_entropy_usage(matrix_entropy)
+        # Get matrix using overrideable method
+        matrix_A = self._get_matrix(context)
 
         sympy_trace, lib_result = self._calculate_trace_sympy(matrix_A)
 
@@ -100,12 +106,23 @@ class MatrixTraceGenerator(MatrixVectorBaseGenerator):
 
 
 class MatrixTraceGeneratorDependent(MatrixTraceGenerator):
-    """Dependent variant: reports dependency index in difficulty markers."""
+    """Dependent variant: uses provided input matrix and reports dependency index in difficulty markers."""
 
-    def __init__(self, difficulty_level: DifficultyCategory, input_index: int, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        difficulty_level: DifficultyCategory,
+        input_matrix: Matrix,
+        input_index: int,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.MATRIX_TRACE  # noqa: S101
+        self.input_matrix = input_matrix
         self.input_index = input_index
+
+    def _get_matrix(self, context: ProblemContext) -> Matrix:
+        """Return the provided input matrix without consuming entropy."""
+        return self.input_matrix
 
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""

@@ -31,6 +31,21 @@ class MatrixRankGenerator(MatrixVectorBaseGenerator):
         """The precision of the problem."""
         return Precision.MATRIX_RANK
 
+    def _get_matrix(self, context: ProblemContext) -> Matrix:
+        """Generate or retrieve the matrix for rank calculation."""
+        # Get matrix dimensions and entropy
+        rows = self.config.get_random_matrix_size()
+        cols = self.config.get_random_matrix_size()
+
+        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
+        matrix_entropy = sample_args.entropy
+
+        # Generate matrix A
+        entropy_controller = EntropyController(context.entropy)
+        matrix_A = self._generate_matrix(rows, cols, matrix_entropy, entropy_controller)
+        context.record_entropy_usage(matrix_entropy)
+        return matrix_A
+
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """
@@ -39,17 +54,8 @@ class MatrixRankGenerator(MatrixVectorBaseGenerator):
         This method creates problems asking to compute rank(A) for a matrix A.
         Uses difficulty configuration to determine matrix size and complexity.
         """
-        # Get matrix dimensions and entropy
-        rows = self.config.get_random_matrix_size()
-        cols = self.config.get_random_matrix_size()
-
-        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
-        matrix_entropy = sample_args.entropy
-
-        # Generate matrix A and find result
-        entropy_controller = EntropyController(context.entropy)
-        matrix_A = self._generate_matrix(rows, cols, matrix_entropy, entropy_controller)
-        context.record_entropy_usage(matrix_entropy)
+        # Get matrix using overrideable method
+        matrix_A = self._get_matrix(context)
 
         sympy_rank, lib_result = self._calculate_rank_sympy(matrix_A)
 
@@ -100,12 +106,23 @@ class MatrixRankGenerator(MatrixVectorBaseGenerator):
 
 
 class MatrixRankGeneratorDependent(MatrixRankGenerator):
-    """Dependent variant: reports dependency index in difficulty markers."""
+    """Dependent variant: uses provided input matrix and reports dependency index in difficulty markers."""
 
-    def __init__(self, difficulty_level: DifficultyCategory, input_index: int, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        difficulty_level: DifficultyCategory,
+        input_matrix: Matrix,
+        input_index: int,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.MATRIX_RANK  # noqa: S101
+        self.input_matrix = input_matrix
         self.input_index = input_index
+
+    def _get_matrix(self, context: ProblemContext) -> Matrix:
+        """Return the provided input matrix without consuming entropy."""
+        return self.input_matrix
 
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""

@@ -137,11 +137,11 @@ def create_default_registry() -> FactoryRegistry:
         components=[
             MatrixVectorMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
-                constraints={},
+                constraints={"is_independent": True},
             ),
             LinearSystemSolverWrapperComponent(
                 name=Task.LINEAR_SYSTEM_SOLVER,
-                constraints={"input_index": 0},
+                constraints={"is_independent": False, "input_index": 0},
             ),
         ],
         composition_strategy=SequentialComposition(),
