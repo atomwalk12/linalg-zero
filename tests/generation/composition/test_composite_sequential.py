@@ -154,7 +154,8 @@ class TestSequential_LinearSystem_then_MVM:
                 name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
             ),
             LinearSystemSolverWrapperComponent(
-                name=Task.LINEAR_SYSTEM_SOLVER, constraints={"is_independent": False, "input_index": 0}
+                name=Task.LINEAR_SYSTEM_SOLVER,
+                constraints={"is_independent": False, "input_index": {"input_vector_b": 0}},
             ),
         ])
 
@@ -170,7 +171,7 @@ class TestSequential_LinearSystem_then_MVM:
         assert second["tool"] == "solve_linear_system"
         assert "verification" in second and isinstance(second["verification"], dict)
         verification = second["verification"]
-        assert verification.get("dependent_on") == 0
+        assert verification.get("dependent_on") == {"input_vector_b": 0}
         assert "input_vector_b" in verification
 
     def test_linear_system_then_mvm_dependent_second(self):
@@ -178,7 +179,8 @@ class TestSequential_LinearSystem_then_MVM:
         composite = make_composite([
             LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}),
             MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": False, "input_index": 0}
+                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                constraints={"is_independent": False, "input_index": {"input_vector_b": 0}},
             ),
         ])
 
@@ -194,7 +196,7 @@ class TestSequential_LinearSystem_then_MVM:
         assert second["tool"] == "multiply_matrices"
         assert "verification" in second and isinstance(second["verification"], dict)
         verification = second["verification"]
-        assert verification.get("dependent_on") == 0
+        assert verification.get("dependent_on") == {"input_vector_b": 0}
         assert "input_vector_b" in verification or "input" in verification
 
 
@@ -243,7 +245,9 @@ class TestWrapperComponentGeneratorSelectionComprehensive:
     )
     def test_all_wrappers_dependent_case(self, wrapper_class, task, dependent_generator):
         """Test that all wrapper components correctly select dependent generator when is_independent=False."""
-        component = wrapper_class(name=task, constraints={"is_independent": False, "input_index": 0})
+        component = wrapper_class(
+            name=task, constraints={"is_independent": False, "input_index": {"input_vector_b": 0}}
+        )
 
         assert component.generator_class is dependent_generator
         assert component.is_independent is False

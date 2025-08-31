@@ -8,7 +8,6 @@ from linalg_zero.generator.difficulty_config import (
     Precision,
     validate_tool_calls,
 )
-from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
@@ -104,18 +103,7 @@ class FrobeniusNormGenerator(MatrixVectorBaseGenerator):
 
         Independent variant: selects size, consumes entropy, and generates the matrix.
         """
-        # Get matrix size and entropy
-        matrix_rows = self.config.get_random_matrix_size()
-        matrix_cols = self.config.get_random_matrix_size()
-
-        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
-        matrix_entropy = sample_args.entropy
-
-        # Generate matrix A and record entropy usage
-        entropy_controller = EntropyController(context.entropy)
-        matrix_A = self._generate_matrix(matrix_rows, matrix_cols, matrix_entropy, entropy_controller)
-        context.record_entropy_usage(matrix_entropy)
-        return matrix_A
+        return self._get_matrix_with_constraints(context)
 
 
 class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
@@ -125,13 +113,13 @@ class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
         self,
         difficulty_level: DifficultyCategory,
         input_matrix: sympy.Matrix,
-        input_index: int,
+        input_matrix_index: int,
         **kwargs: Any,
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.FROBENIUS_NORM  # noqa: S101
         self.input_matrix = input_matrix
-        self.input_index = input_index
+        self.input_index = input_matrix_index
 
     def _get_matrix(self, context: ProblemContext) -> Matrix:
         # No entropy usage for provided matrix
@@ -142,7 +130,7 @@ class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
         base_data = super()._prepare_tool_call_input_data(**kwargs)
         assert self.input_matrix == kwargs["matrix"]  # noqa: S101
         base_data.update({
-            "dependent_on": self.input_index,
+            "dependent_on": {"input_matrix": self.input_index},
             "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),
         })
         return base_data

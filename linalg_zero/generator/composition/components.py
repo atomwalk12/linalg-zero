@@ -36,6 +36,7 @@ from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
     MatrixTransposeGeneratorDependent,
 )
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
+    MatrixMatrixMultiplicationGeneratorDependent,
     MatrixVectorMultiplicationGenerator,
     MatrixVectorMultiplicationGeneratorDependent,
 )
@@ -52,31 +53,43 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         topic: Topic,
         context_update_mapping: dict[str, str],
         constraints: dict[str, Any],
+        gen_constraints: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(name, **kwargs)
         self.constraints = constraints
-        self.is_independent = constraints["is_independent"]
+        self.gen_constraints = gen_constraints or {}
+        self.is_independent = self.constraints.pop("is_independent")
         self.generator_class = generator_class
         self.component_type = component_type
         self.topic = topic
         self.context_update_mapping = context_update_mapping
 
-    def get_generator_params(self, context: CompositionContext, input_name: str) -> dict[str, Any]:
-        """Extract previous component result to use as input vector."""
+    def get_generator_params(self, context: CompositionContext, input_names: list[str]) -> dict[str, Any]:
+        """Extract previous component results to use as inputs."""
         if not self.is_independent:
-            input_index = self.constraints["input_index"]
-            previous_result = context.component_results[input_index]
-            if not hasattr(previous_result.template, "sympy_solution"):
-                raise ValueError(f"Previous component result has no sympy_solution: {previous_result}")
+            params = {}
+            input_indices = self.constraints["input_indices"]
 
-            # Get the result from previous computation
-            previous_sol = previous_result.template.sympy_solution
+            # Validate we have indices for all input names
+            for input_name in input_names:
+                if input_name not in input_indices:
+                    raise ValueError(f"Missing input_index for input '{input_name}'")
 
-            self._validate_dependent_input(previous_sol)
+                input_index = input_indices[input_name]
+                previous_result = context.component_results[input_index]
+                if not hasattr(previous_result.template, "sympy_solution"):
+                    raise ValueError(f"Previous component result has no sympy_solution: {previous_result}")
 
-            # For dependent variant, pass the previous result vector and its source index
-            return {input_name: previous_sol, "input_index": input_index}
+                # Get the result from previous computation
+                previous_sol = previous_result.template.sympy_solution
+                self._validate_dependent_input(previous_sol)
+
+                # Add to params
+                params[input_name] = previous_sol
+                params[f"{input_name}_index"] = input_index
+
+            return params
         return {}
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
@@ -121,7 +134,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
             raise ValueError("Dependent input must contain only numeric elements")
 
     @abstractmethod
-    def get_input_name(self) -> str:
+    def get_input_name(self) -> list[str]:
         pass
 
     def generate(self, context: CompositionContext) -> ComponentResult:
@@ -132,6 +145,8 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
 
         # Get any additional parameters for parameterized generation
         additional_params = self.get_generator_params(context, self.get_input_name())
+        additional_params["constraints"] = self.constraints
+        additional_params["gen_constraints"] = self.gen_constraints or {}
 
         # Now, we perform the 3 key steps involved in component generation
         generator: SympyProblemGenerator = self.generator_class(
@@ -182,7 +197,8 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
 class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the MatrixVectorMultiplicationGenerator."""
 
-    def __init__(self, name: Task, constraints: dict[str, Any], **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
         is_independent = constraints["is_independent"]
         generator_cls = (
             MatrixVectorMultiplicationGenerator if is_independent else MatrixVectorMultiplicationGeneratorDependent
@@ -193,21 +209,46 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
             component_type=Task.MATRIX_VECTOR_MULTIPLICATION,
             topic=Topic.LINEAR_ALGEBRA,
             context_update_mapping={"matrix": "matrix", "vector": "vector", "result": "sympy_solution"},
-            constraints=constraints,
             **kwargs,
         )
 
-    def get_input_name(self) -> str:
-        return "input_vector_b"
+    def get_input_name(self) -> list[str]:
+        return ["input_vector_b"]
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True, "column_vector": True}
 
 
+class MatrixMatrixMultiplicationWrapperComponent(SympyGeneratorWrapperComponent):
+    """Wrapper for the MatrixMatrixMultiplicationGeneratorDependent."""
+
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
+        is_independent = constraints["is_independent"]
+        generator_cls = (
+            MatrixVectorMultiplicationGenerator if is_independent else MatrixMatrixMultiplicationGeneratorDependent
+        )
+        super().__init__(
+            name=name,
+            generator_class=generator_cls,
+            component_type=Task.MATRIX_VECTOR_MULTIPLICATION,
+            topic=Topic.LINEAR_ALGEBRA,
+            context_update_mapping={"matrix": "matrix", "vector": "vector", "result": "sympy_solution"},
+            **kwargs,
+        )
+
+    def get_input_name(self) -> list[str]:
+        return ["input_matrix_A", "input_matrix_B"]
+
+    def _get_input_validation_spec(self) -> dict[str, bool]:
+        return {"require_matrix": True, "non_empty": True}
+
+
 class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the LinearSystemGenerator."""
 
-    def __init__(self, name: Task, constraints: dict[str, Any], **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
         is_independent = constraints["is_independent"]
         generator_cls = LinearSystemGenerator if is_independent else LinearSystemGeneratorDependent
         super().__init__(
@@ -221,12 +262,11 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
                 "target_b": "target_b",
                 "solution": "sympy_solution",
             },
-            constraints=constraints,
             **kwargs,
         )
 
-    def get_input_name(self) -> str:
-        return "input_vector_b"
+    def get_input_name(self) -> list[str]:
+        return ["input_vector_b"]
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True, "column_vector": True}
@@ -235,7 +275,8 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
 class FrobeniusNormWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the FrobeniusNormGenerator."""
 
-    def __init__(self, name: Task, constraints: dict[str, Any], **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
         is_independent = constraints["is_independent"]
         generator_cls = FrobeniusNormGenerator if is_independent else FrobeniusNormGeneratorDependent
         super().__init__(
@@ -244,12 +285,11 @@ class FrobeniusNormWrapperComponent(SympyGeneratorWrapperComponent):
             component_type=Task.FROBENIUS_NORM,
             topic=Topic.LINEAR_ALGEBRA,
             context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
-            constraints=constraints,
             **kwargs,
         )
 
-    def get_input_name(self) -> str:
-        return "input_matrix"
+    def get_input_name(self) -> list[str]:
+        return ["input_matrix"]
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True}
@@ -258,7 +298,8 @@ class FrobeniusNormWrapperComponent(SympyGeneratorWrapperComponent):
 class DeterminantWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the DeterminantGenerator."""
 
-    def __init__(self, name: Task, constraints: dict[str, Any], **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
         is_independent = constraints["is_independent"]
         generator_cls = DeterminantGenerator if is_independent else DeterminantGeneratorDependent
         super().__init__(
@@ -267,12 +308,11 @@ class DeterminantWrapperComponent(SympyGeneratorWrapperComponent):
             component_type=Task.DETERMINANT,
             topic=Topic.LINEAR_ALGEBRA,
             context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
-            constraints=constraints,
             **kwargs,
         )
 
-    def get_input_name(self) -> str:
-        return "input_matrix"
+    def get_input_name(self) -> list[str]:
+        return ["input_matrix"]
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True, "square": True}
@@ -281,7 +321,8 @@ class DeterminantWrapperComponent(SympyGeneratorWrapperComponent):
 class RankWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the MatrixRankGenerator."""
 
-    def __init__(self, name: Task, constraints: dict[str, Any], **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
         is_independent = constraints["is_independent"]
         generator_cls = MatrixRankGenerator if is_independent else MatrixRankGeneratorDependent
         super().__init__(
@@ -290,12 +331,11 @@ class RankWrapperComponent(SympyGeneratorWrapperComponent):
             component_type=Task.MATRIX_RANK,
             topic=Topic.LINEAR_ALGEBRA,
             context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
-            constraints=constraints,
             **kwargs,
         )
 
-    def get_input_name(self) -> str:
-        return "input_matrix"
+    def get_input_name(self) -> list[str]:
+        return ["input_matrix"]
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True, "numeric_only": True}
@@ -304,7 +344,8 @@ class RankWrapperComponent(SympyGeneratorWrapperComponent):
 class TransposeWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the MatrixTransposeGenerator."""
 
-    def __init__(self, name: Task, constraints: dict[str, Any], **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
         is_independent = constraints["is_independent"]
         generator_cls = MatrixTransposeGenerator if is_independent else MatrixTransposeGeneratorDependent
         super().__init__(
@@ -313,12 +354,11 @@ class TransposeWrapperComponent(SympyGeneratorWrapperComponent):
             component_type=Task.MATRIX_TRANSPOSE,
             topic=Topic.LINEAR_ALGEBRA,
             context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
-            constraints=constraints,
             **kwargs,
         )
 
-    def get_input_name(self) -> str:
-        return "input_matrix"
+    def get_input_name(self) -> list[str]:
+        return ["input_matrix"]
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True}
@@ -327,7 +367,8 @@ class TransposeWrapperComponent(SympyGeneratorWrapperComponent):
 class TraceWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the MatrixTraceGenerator."""
 
-    def __init__(self, name: Task, constraints: dict[str, Any], **kwargs: Any) -> None:
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
         is_independent = constraints["is_independent"]
         generator_cls = MatrixTraceGenerator if is_independent else MatrixTraceGeneratorDependent
         super().__init__(
@@ -336,12 +377,11 @@ class TraceWrapperComponent(SympyGeneratorWrapperComponent):
             component_type=Task.MATRIX_TRACE,
             topic=Topic.LINEAR_ALGEBRA,
             context_update_mapping={"matrix": "matrix", "result": "sympy_solution"},
-            constraints=constraints,
             **kwargs,
         )
 
-    def get_input_name(self) -> str:
-        return "input_matrix"
+    def get_input_name(self) -> list[str]:
+        return ["input_matrix"]
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True, "square": True}

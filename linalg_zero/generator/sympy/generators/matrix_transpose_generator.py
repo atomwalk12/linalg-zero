@@ -7,7 +7,6 @@ from linalg_zero.generator.difficulty_config import (
     Precision,
     validate_tool_calls,
 )
-from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
@@ -34,18 +33,7 @@ class MatrixTransposeGenerator(MatrixVectorBaseGenerator):
 
     def _get_matrix(self, context: ProblemContext) -> Matrix:
         """Generate or retrieve the matrix for transpose calculation."""
-        # Get matrix dimensions and entropy
-        rows = self.config.get_random_matrix_size()
-        cols = self.config.get_random_matrix_size()
-
-        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
-        matrix_entropy = sample_args.entropy
-
-        # Generate matrix A
-        entropy_controller = EntropyController(context.entropy)
-        matrix_A = self._generate_matrix(rows, cols, matrix_entropy, entropy_controller)
-        context.record_entropy_usage(matrix_entropy)
-        return matrix_A
+        return self._get_matrix_with_constraints(context)
 
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
@@ -110,13 +98,13 @@ class MatrixTransposeGeneratorDependent(MatrixTransposeGenerator):
         self,
         difficulty_level: DifficultyCategory,
         input_matrix: Matrix,
-        input_index: int,
+        input_matrix_index: int,
         **kwargs: Any,
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
         assert self.problem_type == Task.MATRIX_TRANSPOSE  # noqa: S101
         self.input_matrix = input_matrix
-        self.input_index = input_index
+        self.input_index = input_matrix_index
 
     def _get_matrix(self, context: ProblemContext) -> Matrix:
         """Return the provided input matrix without consuming entropy."""
@@ -125,5 +113,9 @@ class MatrixTransposeGeneratorDependent(MatrixTransposeGenerator):
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        base_data.update({"dependent_on": self.input_index})
+        assert self.input_matrix == kwargs["matrix"]  # noqa: S101
+        base_data.update({
+            "dependent_on": {"input_matrix": self.input_index},
+            "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),
+        })
         return base_data

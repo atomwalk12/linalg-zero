@@ -8,7 +8,7 @@ from linalg_zero.generator.difficulty_config import (
     Precision,
     validate_tool_calls,
 )
-from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
+from linalg_zero.generator.entropy_control import SampleArgs
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
@@ -57,12 +57,11 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         context.constraints["matrix_invertible"] = True
 
         matrix_entropy, vector_entropy = self._split_entropy(context)
-        entropy_controller = EntropyController(context.entropy)
 
         size = self._determine_size(context)
 
-        matrix_A = self._generate_matrix_A(size, matrix_entropy, entropy_controller, context)
-        vector_b = self._generate_vector_b(matrix_A, size, vector_entropy, entropy_controller, context)
+        matrix_A = self._generate_matrix_A(size, matrix_entropy, context)
+        vector_b = self._generate_vector_b(matrix_A, size, vector_entropy, context)
 
         sympy_sol, lib_result = self._solve_linear_system_sympy(matrix_A, vector_b)
 
@@ -133,11 +132,13 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         self,
         size: int,
         matrix_entropy: float,
-        controller: EntropyController,
         context: ProblemContext,
     ) -> sympy.Matrix:
-        matrix_A = self._generate_invertible_matrix(size, matrix_entropy, controller)
-        context.record_entropy_usage(matrix_entropy)
+        # Use constraint-based generation for square invertible matrix
+        # Temporarily set constraints for this specific call
+        additional = {"square": True, "invertible": True, "size": size, "entropy": matrix_entropy}
+
+        matrix_A = self._get_matrix_with_constraints(context, added_constraints=additional)
         return matrix_A
 
     def _generate_vector_b(
@@ -145,10 +146,9 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         matrix_A: sympy.Matrix,
         size: int,
         vector_entropy: float,
-        controller: EntropyController,
         context: ProblemContext,
     ) -> sympy.Matrix:
-        solution_x = self._generate_vector(size, vector_entropy, controller)
+        solution_x = self._generate_vector(size, vector_entropy)
         context.record_entropy_usage(vector_entropy)
         return matrix_A * solution_x
 
@@ -179,14 +179,13 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
         self,
         difficulty_level: DifficultyCategory,
         input_vector_b: sympy.Matrix,
-        input_index: int,
+        input_vector_b_index: int,
         **kwargs: Any,
     ) -> None:
-        # Force is_independent=False for template selection and formatting
         super().__init__(difficulty_level=difficulty_level, is_independent=False, **kwargs)
         assert self.problem_type == Task.LINEAR_SYSTEM_SOLVER  # noqa: S101
         self.input_vector_b = input_vector_b
-        self.input_index = input_index
+        self.input_index = input_vector_b_index
 
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
@@ -200,7 +199,6 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
         matrix_A: sympy.Matrix,
         size: int,
         vector_entropy: float,
-        controller: EntropyController,
         context: ProblemContext,
     ) -> sympy.Matrix:
         # No entropy usage for provided vector b
@@ -215,7 +213,7 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
     ) -> dict[str, Any]:
         context_info = super()._prepare_context_info(matrix_A, x_symbols, vector_b, size)
         context_info["input_variable_name"] = "b"
-        context_info["input_index"] = self.input_index
+        context_info["input_indices"] = self.input_index
         return context_info
 
     def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
@@ -227,7 +225,7 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
         base_data = super()._prepare_tool_call_input_data(**kwargs)
         assert self.input_vector_b == kwargs["vector_b"]  # noqa: S101
         base_data.update({
-            "dependent_on": self.input_index,
+            "dependent_on": {"input_vector_b": self.input_index},
             "input_vector_b": MathFormatter.sympy_to_primitive(self.input_vector_b, precision=self.precision),
         })
         return base_data

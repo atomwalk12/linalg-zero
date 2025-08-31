@@ -8,7 +8,7 @@ from linalg_zero.generator.difficulty_config import (
     Precision,
     validate_tool_calls,
 )
-from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
+from linalg_zero.generator.entropy_control import SampleArgs
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import (
     ProblemContext,
@@ -43,9 +43,8 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         matrix_entropy, vector_entropy = self._split_entropy(context)
         rows, cols = self._determine_dimensions(context)
 
-        entropy_controller = EntropyController(context.entropy)
-        matrix_A = self._generate_matrix_A(rows, cols, matrix_entropy, entropy_controller, context)
-        vector_b = self._generate_vector_b(cols, vector_entropy, entropy_controller, context)
+        matrix_A = self._generate_matrix_A(rows, cols, matrix_entropy, context)
+        vector_b = self._generate_vector_b(cols, vector_entropy, context)
         sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_a=matrix_A, vector_b=vector_b)
 
         # Record tool call with input data
@@ -118,21 +117,23 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         rows: int,
         cols: int,
         matrix_entropy: float,
-        controller: EntropyController,
         context: ProblemContext,
     ) -> Matrix:
-        matrix_A = self._generate_matrix(rows, cols, matrix_entropy, controller)
-        context.record_entropy_usage(matrix_entropy)
+        # Use constraint-based generation with specific dimensions
+        # Temporarily set constraints for this specific call
+        mandatory = {"rows": rows, "cols": cols, "entropy": matrix_entropy}
+
+        matrix_A = self._get_matrix_with_constraints(context, added_constraints=mandatory)
+
         return matrix_A
 
     def _generate_vector_b(
         self,
         cols: int,
         vector_entropy: float,
-        controller: EntropyController,
         context: ProblemContext,
     ) -> Matrix:
-        vector_b = self._generate_vector(cols, vector_entropy, controller)
+        vector_b = self._generate_vector(cols, vector_entropy)
         context.record_entropy_usage(vector_entropy)
         return vector_b
 
@@ -146,14 +147,14 @@ class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         self,
         difficulty_level: DifficultyCategory,
         input_vector_b: sympy.Matrix,
-        input_index: int,
+        input_vector_b_index: int,
         **kwargs: Any,
     ) -> None:
         # Force is_independent=False for template selection if needed downstream
         super().__init__(difficulty_level=difficulty_level, is_independent=False, **kwargs)
         assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
         self.input_vector_b = input_vector_b
-        self.input_index = input_index
+        self.input_index = input_vector_b_index
 
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         # Only matrix generation consumes entropy; vector is provided
@@ -161,15 +162,14 @@ class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         return sample_args.entropy, 0.0
 
     def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int]:
-        cols = int(self.input_vector_b.rows)
+        req_cols = int(self.input_vector_b.rows)
         rows = self.config.get_random_matrix_size()
-        return rows, cols
+        return rows, req_cols
 
     def _generate_vector_b(
         self,
         cols: int,
         vector_entropy: float,
-        controller: EntropyController,
         context: ProblemContext,
     ) -> Matrix:
         # No entropy usage for provided vector
@@ -184,7 +184,79 @@ class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         base_data = super()._prepare_tool_call_input_data(**kwargs)
         assert self.input_vector_b == kwargs["vector_b"]  # noqa: S101
         base_data.update({
-            "dependent_on": self.input_index,
+            "dependent_on": {"input_vector_b": self.input_index},
             "input_vector_b": MathFormatter.sympy_to_primitive(self.input_vector_b, precision=self.precision),
+        })
+        return base_data
+
+
+class MatrixMatrixMultiplicationGeneratorDependent(MatrixVectorMultiplicationGenerator):
+    def __init__(
+        self,
+        difficulty_level: DifficultyCategory,
+        input_matrix_A: sympy.Matrix,
+        input_matrix_B: sympy.Matrix,
+        input_matrix_A_index: int,
+        input_matrix_B_index: int,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(difficulty_level=difficulty_level, is_independent=False, **kwargs)
+        assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
+        self.input_matrix_A = input_matrix_A
+        self.input_matrix_B = input_matrix_B
+        self.input_index_matrix_A = input_matrix_A_index
+        self.input_index_matrix_B = input_matrix_B_index
+
+    def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
+        # No entropy is used since both matrices are provided
+        return 0.0, 0.0
+
+    def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int]:
+        # Validate matrix multiplication compatibility: A.cols must equal B.rows
+        a_rows, a_cols = self.input_matrix_A.rows, self.input_matrix_A.cols
+        b_rows, b_cols = self.input_matrix_B.rows, self.input_matrix_B.cols
+
+        if a_cols != b_rows:
+            raise ValueError(
+                f"Matrix multiplication incompatible: A({a_rows}x{a_cols}) * B({b_rows}x{b_cols}) - A.cols({a_cols}) ≠ B.rows({b_rows})"
+            )
+
+        # Result matrix dimensions: A.rows x B.cols
+        return int(a_rows), int(b_cols)
+
+    def _generate_vector_b(
+        self,
+        cols: int,
+        vector_entropy: float,
+        context: ProblemContext,
+    ) -> Matrix:
+        # No entropy usage for provided vector
+        return self.input_matrix_B
+
+    def _generate_matrix_A(
+        self,
+        rows: int,
+        cols: int,
+        matrix_entropy: float,
+        context: ProblemContext,
+    ) -> Matrix:
+        return self.input_matrix_A
+
+    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
+        # Composition will handle question formatting
+        return None
+
+    def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Prepare input data for dependent generator including dependency info."""
+        base_data = super()._prepare_tool_call_input_data(**kwargs)
+        assert self.input_matrix_A == kwargs["matrix_a"]  # noqa: S101
+        assert self.input_matrix_B == kwargs["vector_b"]  # noqa: S101
+        base_data.update({
+            "dependent_on": {
+                "input_matrix_A": self.input_index_matrix_A,
+                "input_matrix_B": self.input_index_matrix_B,
+            },
+            "input_matrix_A": MathFormatter.sympy_to_primitive(self.input_matrix_A, precision=self.precision),
+            "input_matrix_B": MathFormatter.sympy_to_primitive(self.input_matrix_B, precision=self.precision),
         })
         return base_data

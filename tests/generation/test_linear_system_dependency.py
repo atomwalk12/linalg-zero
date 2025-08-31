@@ -34,11 +34,11 @@ def create_registry_for_composite_linear_system_dependency() -> FactoryRegistry:
             ),
             MatrixVectorMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
-                constraints={"is_independent": False, "input_index": 0},
+                constraints={"is_independent": False, "input_index": {"input_vector_b": 0}},
             ),
             FrobeniusNormWrapperComponent(
                 name=Task.FROBENIUS_NORM,
-                constraints={"is_independent": False, "input_index": 1},
+                constraints={"is_independent": False, "input_index": {"input_matrix": 1}},
             ),
         ],
         composition_strategy=SequentialComposition(),

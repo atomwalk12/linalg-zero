@@ -38,32 +38,37 @@ def _verify_step_dependencies(step: dict[str, Any], question_stepwise: list[dict
     if dependent_on is None:
         return
 
-    # Validate dependent_on is a valid integer index
-    if not isinstance(dependent_on, int):
-        raise TypeError(f"Step {step_id}: dependent_on must be an integer, got {type(dependent_on)}")
+    if not isinstance(dependent_on, dict):
+        raise TypeError(f"Step {step_id}: dependent_on must be a dict, got {type(dependent_on)}")
 
-    # Validate the reference step exists
-    if dependent_on < 0 or dependent_on >= len(question_stepwise):
-        raise ValueError(
-            f"Step {step_id}: dependent_on index {dependent_on} out of bounds "
-            f"(stepwise has {len(question_stepwise)} steps)"
-        )
-
-    # Verify dependency: input_* fields from current step should match referenced step's result
-    referenced_step = question_stepwise[dependent_on]
-    referenced_result = parse_string(referenced_step["result"])
-
-    if referenced_result is None:
-        raise ValueError(f"Step {step_id}: referenced step {dependent_on} has invalid result")
-
-    # Check all input_* fields against the referenced step's result
+    # Verify each input_* field against its corresponding referenced step's result
     for field_name, field_value_json in step["verification"].items():
         if field_name.startswith("input_"):
+            expected_step_index = dependent_on[field_name]
+
+            # Validate the reference step exists
+            if not isinstance(expected_step_index, int):
+                raise TypeError(
+                    f"Step {step_id}: dependency index for '{field_name}' must be an integer, got {type(expected_step_index)}"
+                )
+
+            if expected_step_index < 0 or expected_step_index >= len(question_stepwise):
+                raise ValueError(
+                    f"Step {step_id}: dependent_on index {expected_step_index} for '{field_name}' out of bounds "
+                    f"(stepwise has {len(question_stepwise)} steps)"
+                )
+
+            referenced_step = question_stepwise[expected_step_index]
+            referenced_result = parse_string(referenced_step["result"])
+
+            if referenced_result is None:
+                raise ValueError(f"Step {step_id}: referenced step {expected_step_index} has invalid result")
+
             field_value = json.loads(field_value_json)
             if not verify_answers(field_value, referenced_result) or field_value != referenced_result:
                 raise ValueError(
                     f"Step {step_id}: dependency verification failed - "
-                    f"{field_name} ({field_value}) does not match referenced step {dependent_on} result ({referenced_result})"
+                    f"{field_name} ({field_value}) does not match referenced step {expected_step_index} result ({referenced_result})"
                 )
 
 

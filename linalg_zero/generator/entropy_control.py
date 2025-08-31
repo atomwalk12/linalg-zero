@@ -15,11 +15,10 @@ class EntropyController:
     https://github.com/google-deepmind/mathematics_dataset/
     """
 
-    def __init__(self, total_entropy: float, random_seed: int | None = None):
+    def __init__(self, random_seed: int | None = None):
         """
-        Initialize entropy controller with total entropy budget.
+        Initialize entropy controller.
         """
-        self.total_entropy = total_entropy
         if random_seed is not None:
             random.seed(random_seed)
             np.random.seed(random_seed)

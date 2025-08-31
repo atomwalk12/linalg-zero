@@ -69,6 +69,7 @@ class SympyProblemGenerator(ABC):
         topic: Topic,
         entropy: float | None = None,
         is_independent: bool = True,
+        **kwargs: dict[str, Any],
     ):
         self.difficulty_level = difficulty_level
         self.problem_type = problem_type

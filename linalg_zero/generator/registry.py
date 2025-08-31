@@ -4,7 +4,9 @@ from collections.abc import Callable
 from linalg_zero.generator.composition.components import (
     FrobeniusNormWrapperComponent,
     LinearSystemSolverWrapperComponent,
+    MatrixMatrixMultiplicationWrapperComponent,
     MatrixVectorMultiplicationWrapperComponent,
+    TransposeWrapperComponent,
 )
 from linalg_zero.generator.composition.composition import (
     SequentialComposition,
@@ -141,7 +143,27 @@ def create_default_registry() -> FactoryRegistry:
             ),
             LinearSystemSolverWrapperComponent(
                 name=Task.LINEAR_SYSTEM_SOLVER,
-                constraints={"is_independent": False, "input_index": 0},
+                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.MEDIUM,
+    )
+
+    # Simple working example: Matrix A → Matrix A^T → Multiply A*A (both same matrix)
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.COMPOSITE_SEQUENTIAL,
+        components=[
+            TransposeWrapperComponent(
+                name=Task.MATRIX_TRANSPOSE,
+                constraints={"is_independent": True},
+                gen_constraints={"square": True},
+            ),
+            MatrixMatrixMultiplicationWrapperComponent(
+                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                constraints={"is_independent": False, "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0}},
+                gen_constraints={"square": True},
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -159,11 +181,11 @@ def create_default_registry() -> FactoryRegistry:
             ),
             MatrixVectorMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
-                constraints={"is_independent": False, "input_index": 0},
+                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
             ),
             FrobeniusNormWrapperComponent(
                 name=Task.FROBENIUS_NORM,
-                constraints={"is_independent": False, "input_index": 1},
+                constraints={"is_independent": False, "input_indices": {"input_matrix": 1}},
             ),
         ],
         composition_strategy=SequentialComposition(),
