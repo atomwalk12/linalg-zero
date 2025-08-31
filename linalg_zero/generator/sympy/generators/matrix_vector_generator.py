@@ -9,6 +9,7 @@ from linalg_zero.generator.difficulty_config import (
     validate_tool_calls,
 )
 from linalg_zero.generator.entropy_control import SampleArgs
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import (
     ProblemContext,
@@ -121,7 +122,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     ) -> Matrix:
         # Use constraint-based generation with specific dimensions
         # Temporarily set constraints for this specific call
-        mandatory = {"rows": rows, "cols": cols, "entropy": matrix_entropy}
+        mandatory = GenerationConstraints(rows=rows, cols=cols, entropy=matrix_entropy)
 
         matrix_A = self._get_matrix_with_constraints(context, added_constraints=mandatory)
 

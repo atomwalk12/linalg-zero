@@ -9,6 +9,7 @@ from linalg_zero.generator.composition.composition import (
     CompositionContext,
     ProblemComponent,
 )
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import Task, Topic
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate, SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.determinant_generator import (
@@ -52,12 +53,12 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         component_type: Task,
         topic: Topic,
         constraints: dict[str, Any],
-        gen_constraints: dict[str, Any] | None = None,
+        gen_constraints: GenerationConstraints | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(name, **kwargs)
         self.constraints = constraints
-        self.gen_constraints = gen_constraints or {}
+        self.gen_constraints = gen_constraints if gen_constraints else GenerationConstraints()
         self.is_independent = self.constraints.pop("is_independent")
         self.generator_class = generator_class
         self.component_type = component_type
@@ -144,7 +145,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         # Get any additional parameters for parameterized generation
         additional_params = self.get_generator_params(context, self.get_input_name())
         additional_params["constraints"] = self.constraints
-        additional_params["gen_constraints"] = self.gen_constraints or {}
+        additional_params["gen_constraints"] = self.gen_constraints
 
         # Now, we perform the 3 key steps involved in component generation
         generator: SympyProblemGenerator = self.generator_class(

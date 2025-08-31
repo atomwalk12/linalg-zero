@@ -9,6 +9,7 @@ from linalg_zero.generator.difficulty_config import (
     validate_tool_calls,
 )
 from linalg_zero.generator.entropy_control import SampleArgs
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
@@ -136,7 +137,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     ) -> sympy.Matrix:
         # Use constraint-based generation for square invertible matrix
         # Temporarily set constraints for this specific call
-        additional = {"square": True, "invertible": True, "size": size, "entropy": matrix_entropy}
+        additional = GenerationConstraints(square=True, invertible=True, size=size, entropy=matrix_entropy)
 
         matrix_A = self._get_matrix_with_constraints(context, added_constraints=additional)
         return matrix_A

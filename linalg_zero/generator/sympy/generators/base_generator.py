@@ -4,6 +4,7 @@ from typing import Any
 from sympy import Integer, Matrix, Rational
 
 from linalg_zero.generator.entropy_control import EntropyController, SampleArgs
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory
 from linalg_zero.generator.sympy.base import ProblemContext, SympyProblemGenerator
 
@@ -14,7 +15,15 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
     def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
         self.constraints = kwargs.get("constraints", {})
-        self.gen_constraints = kwargs.get("gen_constraints", {})
+
+        # Convert gen_constraints to GenerationConstraints object
+        incoming_constraints = kwargs.get("gen_constraints")
+        self.gen_constraints = (
+            incoming_constraints
+            if isinstance(incoming_constraints, GenerationConstraints)
+            else GenerationConstraints()
+        )
+
         self.entropy_controller = EntropyController()
 
     def _generate_matrix(self, rows: int, cols: int, entropy: float) -> Matrix:
@@ -90,49 +99,36 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
         raise ValueError(f"Failed to generate invertible matrix after {max_attempts} attempts")
 
     def _get_matrix_with_constraints(
-        self, context: ProblemContext, added_constraints: dict[str, Any] | None = None
+        self, context: ProblemContext, added_constraints: GenerationConstraints | None = None
     ) -> Matrix:
-        """Generate matrix based on constructor constraints.
-
-        Uses self.gen_constraints set by wrapper components to determine:
-        - Dimensions (rows/cols, square, size)
-        - Special properties (invertible)
-        - Entropy allocation
-
-        Args:
-            context: Problem generation context
-
-        Returns:
-            Generated matrix matching the constraints
-        """
-        user_provided = self.gen_constraints
-        additional = added_constraints or {}
-        constraints = {**user_provided, **additional}
-
-        valid_keys = {"rows", "cols", "square", "size", "invertible", "entropy"}
-        invalid_keys = set(constraints.keys()) - valid_keys
-        if invalid_keys:
-            raise ValueError(f"Invalid constraint keys: {invalid_keys}. Valid keys are: {valid_keys}")
+        """Generate matrix based on constructor constraints."""
+        effective_constraints = (
+            self.gen_constraints.merge(added_constraints) if added_constraints else self.gen_constraints
+        )
 
         # Determine dimensions
-        if "rows" in constraints and "cols" in constraints:
-            rows, cols = constraints["rows"], constraints["cols"]
-        elif constraints.get("square", False):
-            size = constraints.get("size", self.config.get_random_matrix_size())
+        if effective_constraints.rows is not None and effective_constraints.cols is not None:
+            rows, cols = effective_constraints.rows, effective_constraints.cols
+        elif effective_constraints.square:
+            size = (
+                effective_constraints.size
+                if effective_constraints.size is not None
+                else self.config.get_random_matrix_size()
+            )
             rows = cols = size
         else:
             rows = self.config.get_random_matrix_size()
             cols = self.config.get_random_matrix_size()
 
         # Determine entropy allocation
-        if "entropy" in constraints:
-            matrix_entropy = constraints["entropy"]
+        if effective_constraints.entropy is not None:
+            matrix_entropy = effective_constraints.entropy
         else:
             sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
             matrix_entropy = sample_args.entropy
 
         # Generate matrix based on special properties
-        if constraints.get("invertible", False):
+        if effective_constraints.invertible:
             if rows != cols:
                 raise ValueError("Invertible matrices must be square")
             matrix_A = self._generate_invertible_matrix(rows, matrix_entropy)

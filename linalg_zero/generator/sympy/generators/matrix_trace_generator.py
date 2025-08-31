@@ -7,6 +7,7 @@ from linalg_zero.generator.difficulty_config import (
     Precision,
     validate_tool_calls,
 )
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
@@ -34,7 +35,7 @@ class MatrixTraceGenerator(MatrixVectorBaseGenerator):
     def _get_matrix(self, context: ProblemContext) -> Matrix:
         """Generate or retrieve the matrix for trace calculation."""
         # Get matrix size and entropy (trace requires square matrices)
-        constraints = {"square": True}
+        constraints = GenerationConstraints(square=True)
         matrix_A = self._get_matrix_with_constraints(context, added_constraints=constraints)
         return matrix_A
 

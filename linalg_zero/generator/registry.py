@@ -12,6 +12,7 @@ from linalg_zero.generator.composition.composition import (
     SequentialComposition,
 )
 from linalg_zero.generator.difficulty_config import get_problem_config
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.generator_factories import (
     create_composite_factory,
     create_determinant_factory,
@@ -150,7 +151,6 @@ def create_default_registry() -> FactoryRegistry:
         difficulty_level=DifficultyCategory.MEDIUM,
     )
 
-    # Simple working example: Matrix A → Matrix A^T → Multiply A*A (both same matrix)
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
         problem_type=Task.COMPOSITE_SEQUENTIAL,
@@ -158,19 +158,17 @@ def create_default_registry() -> FactoryRegistry:
             TransposeWrapperComponent(
                 name=Task.MATRIX_TRANSPOSE,
                 constraints={"is_independent": True},
-                gen_constraints={"square": True},
+                gen_constraints=GenerationConstraints(square=True),
             ),
             MatrixMatrixMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
                 constraints={"is_independent": False, "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0}},
-                gen_constraints={"square": True},
             ),
         ],
         composition_strategy=SequentialComposition(),
         difficulty_level=DifficultyCategory.MEDIUM,
     )
 
-    # # Linear System Dependency: solve_linear_system → multiply_matrices → frobenius_norm
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
         problem_type=Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY,
