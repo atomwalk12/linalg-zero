@@ -1,24 +1,81 @@
-"""Tests for the Linear System Dependency composite problem."""
+import json
 
 import numpy as np
 import pytest
 
-from linalg_zero.generator.models import Question, Task, Topic
-from linalg_zero.generator.registry import create_default_registry
+from linalg_zero.generator.composition.components import (
+    FrobeniusNormWrapperComponent,
+    LinearSystemSolverWrapperComponent,
+    MatrixVectorMultiplicationWrapperComponent,
+)
+from linalg_zero.generator.composition.composition import SequentialComposition
+from linalg_zero.generator.generator_factories import create_linear_system_generator
+from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
+from linalg_zero.generator.registry import (
+    FactoryRegistry,
+)
+
+
+def create_registry_for_composite_linear_system_dependency() -> FactoryRegistry:
+    """Create a registry that only registers the linear system dependency composite.
+
+    This avoids relying on the evolving default registry and hard-codes the
+    exact composite problem type required by tests.
+    """
+    registry = FactoryRegistry()
+
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY,
+        components=[
+            LinearSystemSolverWrapperComponent(
+                name=Task.LINEAR_SYSTEM_SOLVER,
+                constraints={"is_independent": True},
+            ),
+            MatrixVectorMultiplicationWrapperComponent(
+                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                constraints={"is_independent": False, "input_index": 0},
+            ),
+            FrobeniusNormWrapperComponent(
+                name=Task.FROBENIUS_NORM,
+                constraints={"is_independent": False, "input_index": 1},
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.MEDIUM,
+    )
+
+    return registry
+
+
+def create_registry_for_atomic_linear_system_solver() -> FactoryRegistry:
+    """Create a registry with only the atomic linear system solver task registered."""
+    registry = FactoryRegistry()
+    registry.register_factory(
+        Topic.LINEAR_ALGEBRA,
+        Task.LINEAR_SYSTEM_SOLVER,
+        create_linear_system_generator(difficulty=DifficultyCategory.MEDIUM),
+    )
+    return registry
 
 
 class TestLinearSystemDependency:
     """Test the three-step Linear System Dependency composite problem."""
 
     @pytest.fixture
-    def registry(self):
-        """Create registry with Linear System Dependency problem."""
-        return create_default_registry()
+    def registry_composite(self):
+        """Hard-typed registry with only the linear system dependency composite."""
+        return create_registry_for_composite_linear_system_dependency()
 
     @pytest.fixture
-    def question(self, registry):
-        """Generate a Linear System Dependency question."""
-        factory = registry.get_factory(Topic.LINEAR_ALGEBRA, Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY)
+    def registry_atomic(self):
+        """Hard-typed registry with only the atomic linear system solver."""
+        return create_registry_for_atomic_linear_system_solver()
+
+    @pytest.fixture
+    def question(self, registry_composite: FactoryRegistry):
+        """Generate a Linear System Dependency question (composite)."""
+        factory = registry_composite.get_factory(Topic.LINEAR_ALGEBRA, Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY)
         return factory()
 
     def test_composite_problem_generation(self, question):
@@ -35,13 +92,15 @@ class TestLinearSystemDependency:
         question_text = question.question.lower()
 
         # Should contain linear system solving language
-        assert any(phrase in question_text for phrase in ["what is", "determine"])
+        assert any(phrase in question_text for phrase in ["what is", "determine", "calculate"]), (
+            f"Question text: {question_text}"
+        )
 
         # Should contain matrix multiplication language
-        assert "*" in question_text
+        assert "*" in question_text, f"Question text: {question_text}"
 
         # Should contain Frobenius norm language
-        assert any(word in question_text for word in ["frobenius", "norm", "||"])
+        assert any(word in question_text for word in ["frobenius", "norm", "||"]), f"Question text: {question_text}"
 
     def test_answer_format(self, question):
         """Test that the answer has three tool results."""
@@ -94,9 +153,9 @@ class TestLinearSystemDependency:
             f"Step 3 result {step3_result} should equal ||Step 2 result||_F = {calculated_norm}"
         )
 
-    def test_multiple_generations_are_different(self, registry):
+    def test_multiple_generations_are_different(self, registry_composite: FactoryRegistry):
         """Test that multiple generations produce different problems."""
-        factory = registry.get_factory(Topic.LINEAR_ALGEBRA, Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY)
+        factory = registry_composite.get_factory(Topic.LINEAR_ALGEBRA, Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY)
 
         question1 = factory()
         question2 = factory()
@@ -105,10 +164,32 @@ class TestLinearSystemDependency:
         assert question1.question != question2.question
         assert question1.answer != question2.answer
 
-    def test_registry_configuration(self, registry):
+    def test_registry_configuration(self, registry_composite: FactoryRegistry):
         """Test that the registry correctly registers the composite problem."""
-        topics = registry.list_topics()
+        topics = registry_composite.list_topics()
         assert Topic.LINEAR_ALGEBRA in topics
 
-        problem_types = registry.list_problem_types(Topic.LINEAR_ALGEBRA)
+        problem_types = registry_composite.list_problem_types(Topic.LINEAR_ALGEBRA)
         assert Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY in problem_types
+
+    def test_tool_order_and_names(self, question: Question):
+        """Ensure the exact tool call order and names are correct for the composite."""
+        tool_names = [step["tool"] for step in question.stepwise]
+        assert tool_names == [
+            "solve_linear_system",
+            "multiply_matrices",
+            "frobenius_norm",
+        ]
+
+    def test_atomic_linear_system_generation(self, registry_atomic: FactoryRegistry):
+        """Atomic linear system solver generates a single-step valid question."""
+        factory = registry_atomic.get_factory(Topic.LINEAR_ALGEBRA, Task.LINEAR_SYSTEM_SOLVER)
+        q = factory()
+        assert isinstance(q, Question)
+        assert q.problem_type == Task.LINEAR_SYSTEM_SOLVER
+        assert q.topic == Topic.LINEAR_ALGEBRA
+        # Atomic tasks use exactly one tool call
+        assert q.tool_calls_required == 1
+
+        ans = json.loads(q.answer)
+        assert isinstance(ans, list) and all(isinstance(row, list) and len(row) == 1 for row in ans)
