@@ -24,6 +24,10 @@ from linalg_zero.generator.sympy.generators.linear_system_generator import (
     LinearSystemGenerator,
     LinearSystemGeneratorDependent,
 )
+from linalg_zero.generator.sympy.generators.matrix_inverse_generator import (
+    MatrixInverseGenerator,
+    MatrixInverseGeneratorDependent,
+)
 from linalg_zero.generator.sympy.generators.matrix_rank_generator import (
     MatrixRankGenerator,
     MatrixRankGeneratorDependent,
@@ -342,7 +346,7 @@ class TransposeWrapperComponent(SympyGeneratorWrapperComponent):
         return {"require_matrix": True, "non_empty": True}
 
 
-class TraceWrapperComponent(SympyGeneratorWrapperComponent):
+class MatrixTraceWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the MatrixTraceGenerator."""
 
     def __init__(self, name: Task, **kwargs: Any) -> None:
@@ -362,3 +366,25 @@ class TraceWrapperComponent(SympyGeneratorWrapperComponent):
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True, "square": True}
+
+
+class MatrixInverseWrapperComponent(SympyGeneratorWrapperComponent):
+    """Wrapper for the MatrixInverseGenerator."""
+
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
+        is_independent = constraints["is_independent"]
+        generator_cls = MatrixInverseGenerator if is_independent else MatrixInverseGeneratorDependent
+        super().__init__(
+            name=name,
+            generator_class=generator_cls,
+            component_type=Task.MATRIX_INVERSE,
+            topic=Topic.LINEAR_ALGEBRA,
+            **kwargs,
+        )
+
+    def get_input_name(self) -> list[str]:
+        return ["input_matrix"]
+
+    def _get_input_validation_spec(self) -> dict[str, bool]:
+        return {"require_matrix": True, "non_empty": True, "square": True, "invertible": True}

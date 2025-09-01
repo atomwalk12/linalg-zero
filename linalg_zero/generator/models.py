@@ -26,26 +26,37 @@ class Task(Enum):
     FROBENIUS_NORM = "frobenius_norm"
     MATRIX_RANK = "matrix_rank"
     MATRIX_TRANSPOSE = "matrix_transpose"
+    MATRIX_INVERSE = "matrix_inverse"
     MATRIX_TRACE = "matrix_trace"
     COMPOSITE_SEQUENTIAL = "sequential"
-    COMPOSITE_LINEAR_SYSTEM_DEPENDENCY = "linear_system_dependency"
+    COMPOSITE_SYSTEM_DEPENDENCY = "system_dependency"
+    COMPOSITE_TRANSPOSE_DETERMINANT = "transpose_determinant"
+    COMPOSITE_TRANSPOSE_TRACE = "transpose_trace"
+    COMPOSITE_SYSTEM_NORM = "system_norm"
+    COMPOSITE_TRANSPOSE_DETERMINANT_BALANCED = "transpose_determinant_balanced"
+    COMPOSITE_INVERSE_FROBENIUS = "inverse_frobenius"
+    COMPOSITE_INVERSE_RANK = "inverse_rank"
+    COMPOSITE_TRANSPOSE_FROBENIUS = "transpose_frobenius"
+    COMPOSITE_TRIPLE_TRANSPOSE_DETERMINANT = "triple_transpose_determinant"
+    COMPOSITE_TRIPLE_INVERSE_RANK = "triple_inverse_rank"
+    COMPOSITE_TRIPLE_SYSTEM_FROBENIUS = "triple_system_frobenius"
 
 
 class DifficultyCategory(Enum):
     """Enum for difficulty categories used in problem generation."""
 
-    EASY = 1
-    MEDIUM = 2
-    HARD = 3
+    ONE_TOOL_CALL = 1
+    TWO_TOOL_CALLS = 2
+    THREE_TOOL_CALLS = 3
 
     def __str__(self) -> str:
         """Return the string value for compatibility with existing code."""
-        if self == DifficultyCategory.EASY:
-            return "easy"
-        elif self == DifficultyCategory.MEDIUM:
-            return "medium"
-        elif self == DifficultyCategory.HARD:
-            return "hard"
+        if self == DifficultyCategory.ONE_TOOL_CALL:
+            return "easy (1 tool call)"
+        elif self == DifficultyCategory.TWO_TOOL_CALLS:
+            return "medium (2 tool calls)"
+        elif self == DifficultyCategory.THREE_TOOL_CALLS:
+            return "hard (3 tool calls)"
         else:
             raise ValueError(f"Invalid difficulty category: {self}")
 
@@ -78,8 +89,8 @@ class ProblemTemplate:
     lib_result: LibTypes
     context_info: dict[str, Any]
     difficulty_markers: dict[str, float | tuple]
-    difficulty: DifficultyCategory
     question_templates: list[str] | None
+    difficulty: DifficultyCategory | None = None
 
 
 class CompositionType(Enum):
@@ -149,7 +160,6 @@ class CompositeResultBuilder:
             question_templates=self.question_templates or ["Solve the following problem:"],
             context_info=self._build_context_info(comp_context, component_results),
             difficulty_markers=self._build_difficulty_markers(comp_context),
-            difficulty=DifficultyCategory.EASY,
         )
 
     def _build_main_expression(self) -> Expr | list[Expr]:

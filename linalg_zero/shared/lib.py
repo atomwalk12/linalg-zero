@@ -222,6 +222,47 @@ def matrix_transpose(matrix: list[list[float | int]]) -> list[list[float | int]]
     raise TypeError(f"Expected list of lists, got {type(result)}")
 
 
+def matrix_inverse(matrix: list[list[float | int]]) -> list[list[float | int]]:
+    """Calculate the inverse of a square matrix using SymPy.
+
+    The inverse of a matrix A is the unique matrix A⁻¹ such that A * A⁻¹ = A⁻¹ * A = I,
+    where I is the identity matrix. Only defined for square, invertible matrices.
+
+    Examples:
+        >>> matrix_inverse([[1, 2], [3, 4]])
+        [[-2.0, 1.0], [1.5, -0.5]]
+        >>> matrix_inverse([[2, 0], [0, 3]])
+        [[0.5, 0.0], [0.0, 0.33333333]]
+        >>> matrix_inverse([[1]])  # 1x1 matrix
+        [[1.0]]
+
+    Args:
+        matrix: The square invertible matrix as a list of lists.
+
+    Returns:
+        The inverse of the matrix as a list of lists.
+
+    Raises:
+        ValueError: If the matrix is not square or not invertible.
+    """
+    try:
+        sym_matrix = Matrix(matrix)
+        inverse_result = sym_matrix.inv()
+        result = MathFormatter.sympy_to_primitive(inverse_result, precision=Precision.MATRIX_INVERSE)
+
+        if isinstance(result, list) and all(isinstance(row, list) for row in result):
+            return result
+
+    except NonSquareMatrixError as e:
+        raise ValueError("Matrix inverse is only defined for square matrices.") from e
+    except NonInvertibleMatrixError as e:
+        raise ValueError("Matrix is not invertible (determinant is zero).") from e
+    except Exception as e:
+        raise ValueError(f"Cannot calculate matrix inverse: {e}") from e
+
+    raise TypeError(f"Expected list of lists, got {type(result)}")
+
+
 def matrix_trace(matrix: list[list[float | int]]) -> float:
     """Calculate the trace of a square matrix using SymPy.
 
@@ -268,7 +309,9 @@ def get_lib() -> dict[str, Callable[..., Any]]:
         "frobenius_norm": frobenius_norm,
         "matrix_rank": matrix_rank,
         "matrix_transpose": matrix_transpose,
-        "matrix_trace": matrix_trace,
+        "matrix_inverse": matrix_inverse,
+        # Not used
+        # "matrix_trace": matrix_trace,
     }
 
 

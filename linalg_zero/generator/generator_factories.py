@@ -12,6 +12,9 @@ from linalg_zero.generator.sympy.base import SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.determinant_generator import DeterminantGenerator
 from linalg_zero.generator.sympy.generators.frobenius_norm_generator import FrobeniusNormGenerator
 from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
+from linalg_zero.generator.sympy.generators.matrix_inverse_generator import (
+    MatrixInverseGenerator,
+)
 from linalg_zero.generator.sympy.generators.matrix_rank_generator import MatrixRankGenerator
 from linalg_zero.generator.sympy.generators.matrix_trace_generator import MatrixTraceGenerator
 from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
@@ -78,6 +81,16 @@ def create_matrix_transpose_factory(difficulty: DifficultyCategory) -> Callable[
         MatrixTransposeGenerator,
         difficulty_level=difficulty,
         problem_type=Task.MATRIX_TRANSPOSE,
+        topic=Topic.LINEAR_ALGEBRA,
+    )
+
+
+def create_matrix_inverse_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
+    """Helper to create matrix inverse factory with specific parameters."""
+    return create_sympy_factory(
+        MatrixInverseGenerator,
+        difficulty_level=difficulty,
+        problem_type=Task.MATRIX_INVERSE,
         topic=Topic.LINEAR_ALGEBRA,
     )
 
