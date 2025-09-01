@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from linalg_zero.generator.models import Question, Topic
+from linalg_zero.generator.models import DifficultyCategory, Question, Topic
 from linalg_zero.generator.registry import create_default_registry
 from linalg_zero.shared.utils import get_logger
 
@@ -62,7 +62,7 @@ class DatasetGenerator:
         self.registry = create_default_registry()
 
     def generate_dataset(self, num_questions: int) -> list[Question]:
-        """Generate a dataset with the configured parameters."""
+        """Generate a dataset with the configured parameters (randomly across all factories)."""
         generator = QuestionGenerator(
             question_factory=lambda: self.registry.get_random_factory(self.topic)(),
             validator_factory=self.validator_factory,
@@ -86,3 +86,51 @@ class DatasetGenerator:
             )
 
         return questions
+
+    def generate_exact_per_factory(self, difficulty: "DifficultyCategory", num_per_factory: int) -> list[Question]:
+        """Generate exactly num_per_factory valid questions per registered factory of a category.
+
+        This guarantees: total == (number_of_factories_in_category * num_per_factory).
+        """
+
+        if not isinstance(difficulty, DifficultyCategory):
+            raise TypeError("difficulty must be a DifficultyCategory")
+
+        factories = self.registry.get_factories_by_difficulty(self.topic, difficulty)
+        if not factories:
+            return []
+
+        all_questions: list[Question] = []
+        for factory in factories:
+            per_factory_questions: list[Question] = []
+            attempts = 0
+            qg = QuestionGenerator(question_factory=factory, validator_factory=self.validator_factory)
+            # Tight loop to ensure exact count (subject to max_attempts)
+            while len(per_factory_questions) < num_per_factory and attempts < self.max_attempts:
+                q = qg.generate()
+                if q.is_valid:
+                    per_factory_questions.append(q)
+                attempts += 1
+            if len(per_factory_questions) < num_per_factory:
+                logger.warning(
+                    "Factory produced %d/%d valid questions (difficulty=%s)",
+                    len(per_factory_questions),
+                    num_per_factory,
+                    difficulty,
+                )
+            all_questions.extend(per_factory_questions)
+
+        return all_questions
+
+    def generate_exact_for_categories(self, requests: dict["DifficultyCategory", int]) -> list[Question]:
+        """Generate exactly N per factory for each requested category.
+
+        Example: {ONE_TOOL_CALL: 3000} will produce 3000 per registered factory in that category.
+        """
+
+        total: list[Question] = []
+        for difficulty, num_per_factory in requests.items():
+            if not isinstance(difficulty, DifficultyCategory):
+                raise TypeError("All keys in requests must be DifficultyCategory")
+            total.extend(self.generate_exact_per_factory(difficulty, num_per_factory))
+        return total

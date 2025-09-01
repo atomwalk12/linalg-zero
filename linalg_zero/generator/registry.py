@@ -38,12 +38,22 @@ class FactoryRegistry:
 
     def __init__(self) -> None:
         self._factories: dict[Topic, dict[Task, Callable[[], Question]]] = {}
+        self._factory_difficulties: dict[Topic, dict[Task, DifficultyCategory]] = {}
 
-    def register_factory(self, topic: Topic, problem_type: Task, factory: Callable[[], Question]) -> None:
+    def register_factory(
+        self,
+        topic: Topic,
+        problem_type: Task,
+        factory: Callable[[], Question],
+        difficulty: DifficultyCategory | None = None,
+    ) -> None:
         """Register a factory function."""
         if topic not in self._factories:
             self._factories[topic] = {}
+            self._factory_difficulties[topic] = {}
         self._factories[topic][problem_type] = factory
+        if difficulty is not None:
+            self._factory_difficulties[topic][problem_type] = difficulty
 
     def get_factory(self, topic: Topic, problem_type: Task) -> Callable[[], Question]:
         """Get a specific factory by topic and problem type."""
@@ -71,6 +81,20 @@ class FactoryRegistry:
             raise ValueError(f"Unknown topic: {topic}")
         return list(self._factories[topic].keys())
 
+    def get_factories_by_difficulty(
+        self, topic: Topic, difficulty: DifficultyCategory
+    ) -> list[Callable[[], Question]]:
+        """Return all factories for the given topic and difficulty category."""
+        if topic not in self._factories:
+            raise ValueError(f"Unknown topic: {topic}")
+        if topic not in self._factory_difficulties:
+            return []
+        factories: list[Callable[[], Question]] = []
+        for task, task_difficulty in self._factory_difficulties[topic].items():
+            if task_difficulty == difficulty:
+                factories.append(self._factories[topic][task])
+        return factories
+
     def register_composite_factory(
         self,
         topic: Topic,
@@ -92,7 +116,8 @@ class FactoryRegistry:
             topic=topic,
         )
 
-        self.register_factory(topic, problem_type, factory)
+        # Store difficulty for the composite factory
+        self.register_factory(topic, problem_type, factory, difficulty=difficulty_level)
 
 
 def create_default_registry() -> FactoryRegistry:
@@ -107,37 +132,44 @@ def create_default_registry() -> FactoryRegistry:
         Topic.LINEAR_ALGEBRA,
         Task.DETERMINANT,
         create_determinant_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_VECTOR_MULTIPLICATION,
         create_matrix_vector_multiplication_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.LINEAR_SYSTEM_SOLVER,
         create_linear_system_generator(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.FROBENIUS_NORM,
         create_frobenius_norm_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_RANK,
         create_matrix_rank_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_TRANSPOSE,
         create_matrix_transpose_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_INVERSE,
         create_matrix_inverse_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
     # ===================
