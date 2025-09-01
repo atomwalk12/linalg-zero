@@ -1,7 +1,9 @@
 import ast
 import json
+from collections import Counter, defaultdict
 from typing import Any
 
+from datasets import Dataset, DatasetDict
 from linalg_zero.generator.models import Question
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.lib import get_lib
@@ -144,6 +146,14 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
     logger.info("GENERATED DATASET")
     logger.info("=" * 30)
 
+    # Questions
+    for i, question in enumerate(questions_to_print, 1):
+        status = " [INVALID]" if not question.is_valid else ""
+        logger.info("Question %d:%s", i, status)
+        logger.info("Q: %s", question.question)
+        logger.info("A: %s", ast.literal_eval(question.answer))
+        logger.info("")
+
     # Metadata
     topics = {q.topic for q in questions_to_print}
     problem_types = {q.problem_type for q in questions_to_print}
@@ -169,12 +179,84 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
         max(tool_calls),
         sum(tool_calls) / len(tool_calls),
     )
+    # Distributions
+    by_difficulty = Counter(q.difficulty for q in questions_to_print)
+    by_problem = Counter(q.problem_type for q in questions_to_print)
+    logger.info("  By Difficulty:")
+    for diff, count in sorted(
+        by_difficulty.items(), key=lambda x: x[0].value if hasattr(x[0], "value") else str(x[0])
+    ):
+        logger.info("    %s: %d", str(diff), count)
+    logger.info("  By Problem Type:")
+    for pt, count in sorted(by_problem.items(), key=lambda x: x[0].value):
+        logger.info("    %s: %d", pt.value, count)
+
+    # Per-difficulty averages (entropy and tool calls)
+    buckets: dict = defaultdict(list)
+    for q in questions_to_print:
+        buckets[q.difficulty].append(q)
+    logger.info("  Per-Difficulty Averages:")
+    for diff, qs in sorted(buckets.items(), key=lambda x: x[0].value if hasattr(x[0], "value") else str(x[0])):
+        avg_entropy = sum(q.entropy_used for q in qs) / len(qs)
+        logger.info("    %s -> entropy avg: %.2f", str(diff), avg_entropy)
     logger.info("=" * 30)
 
-    # Questions
-    for i, question in enumerate(questions_to_print, 1):
-        status = " [INVALID]" if not question.is_valid else ""
-        logger.info("Question %d:%s", i, status)
-        logger.info("Q: %s", question.question)
-        logger.info("A: %s", ast.literal_eval(question.answer))
-        logger.info("")
+
+def _question_to_example(q: Question) -> dict[str, Any]:
+    """Map a Question to a flat example for Hugging Face datasets."""
+    stepwise_truths: list[dict[str, Any]] = []
+    for step in q.stepwise:
+        tool_name = step.get("tool")
+        result_value = parse_string(step.get("result"))
+        if tool_name is None or result_value is None:
+            continue
+        stepwise_truths.append({tool_name: result_value})
+
+    return {
+        "query": q.question,
+        "ground_truth": q.golden.get("final_answer", q.answer),
+        "stepwise_ground_truths": json.dumps(stepwise_truths),
+        # Extra columns for analysis/stratification
+        "difficulty": getattr(q.difficulty, "name", str(q.difficulty)),
+        "problem_type": getattr(q.problem_type, "value", str(q.problem_type)),
+    }
+
+
+def convert_to_dataset_dict(questions: list[Question]) -> DatasetDict:
+    """Convert questions to a single-split DatasetDict (train)."""
+    examples = [_question_to_example(q) for q in questions if q.is_valid]
+    return DatasetDict({"train": Dataset.from_list(examples)})
+
+
+def convert_to_dataset_splits(
+    questions: list[Question],
+    test_size: float = 0.1,
+    val_size: float = 0.1,
+    seed: int = 42,
+    stratify_by: str | None = None,
+) -> DatasetDict:
+    """Create train/validation/test DatasetDict using HF's split utilities."""
+
+    examples = [_question_to_example(q) for q in questions if q.is_valid]
+    ds = Dataset.from_list(examples).shuffle(seed=seed)
+
+    stratify_column = stratify_by if stratify_by in ds.column_names else None
+
+    # Convert stratification column to ClassLabel if needed
+    if stratify_column and ds.features[stratify_column]._type != "ClassLabel":
+        from datasets import ClassLabel
+
+        unique_values = ds.unique(stratify_column)
+        ds = ds.cast_column(stratify_column, ClassLabel(names=sorted(unique_values)))
+
+    split = ds.train_test_split(test_size=test_size, seed=seed, stratify_by_column=stratify_column)
+
+    if val_size and val_size > 0:
+        # Adjust val proportion relative to remaining train portion
+        relative_val = val_size / (1 - test_size)
+        train_val = split["train"].train_test_split(
+            test_size=relative_val, seed=seed, stratify_by_column=stratify_column
+        )
+        return DatasetDict(train=train_val["train"], validation=train_val["test"], test=split["test"])
+
+    return DatasetDict(train=split["train"], test=split["test"])
