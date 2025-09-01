@@ -2,10 +2,13 @@ import random
 from collections.abc import Callable
 
 from linalg_zero.generator.composition.components import (
+    DeterminantWrapperComponent,
     FrobeniusNormWrapperComponent,
     LinearSystemSolverWrapperComponent,
+    MatrixInverseWrapperComponent,
     MatrixMatrixMultiplicationWrapperComponent,
     MatrixVectorMultiplicationWrapperComponent,
+    RankWrapperComponent,
     TransposeWrapperComponent,
 )
 from linalg_zero.generator.composition.composition import (
@@ -18,8 +21,8 @@ from linalg_zero.generator.generator_factories import (
     create_determinant_factory,
     create_frobenius_norm_factory,
     create_linear_system_generator,
+    create_matrix_inverse_factory,
     create_matrix_rank_factory,
-    create_matrix_trace_factory,
     create_matrix_transpose_factory,
     create_matrix_vector_multiplication_factory,
 )
@@ -96,64 +99,133 @@ def create_default_registry() -> FactoryRegistry:
     """Create and populate the default factory registry."""
     registry = FactoryRegistry()
 
+    # ===================
+    # 1-STEP COMPOSITIONS
+    # ===================
+
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.DETERMINANT,
-        create_determinant_factory(difficulty=DifficultyCategory.EASY),
+        create_determinant_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
     )
 
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_VECTOR_MULTIPLICATION,
-        create_matrix_vector_multiplication_factory(difficulty=DifficultyCategory.MEDIUM),
+        create_matrix_vector_multiplication_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.LINEAR_SYSTEM_SOLVER,
-        create_linear_system_generator(difficulty=DifficultyCategory.MEDIUM),
+        create_linear_system_generator(difficulty=DifficultyCategory.ONE_TOOL_CALL),
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.FROBENIUS_NORM,
-        create_frobenius_norm_factory(difficulty=DifficultyCategory.MEDIUM),
+        create_frobenius_norm_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_RANK,
-        create_matrix_rank_factory(difficulty=DifficultyCategory.MEDIUM),
+        create_matrix_rank_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.MATRIX_TRANSPOSE,
-        create_matrix_transpose_factory(difficulty=DifficultyCategory.MEDIUM),
+        create_matrix_transpose_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
-        Task.MATRIX_TRACE,
-        create_matrix_trace_factory(difficulty=DifficultyCategory.MEDIUM),
+        Task.MATRIX_INVERSE,
+        create_matrix_inverse_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
     )
 
-    # Sequential composition
+    # ===================
+    # 2-STEP COMPOSITIONS
+    # ===================
+    # Problem 1: A → A^T → det(A^T) (transpose + determinant)
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
-        problem_type=Task.COMPOSITE_SEQUENTIAL,
+        problem_type=Task.COMPOSITE_TRANSPOSE_DETERMINANT_BALANCED,
         components=[
-            MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+            TransposeWrapperComponent(
+                name=Task.MATRIX_TRANSPOSE,
                 constraints={"is_independent": True},
+                gen_constraints=GenerationConstraints(square=True),
             ),
-            LinearSystemSolverWrapperComponent(
-                name=Task.LINEAR_SYSTEM_SOLVER,
-                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
+            DeterminantWrapperComponent(
+                name=Task.DETERMINANT,
+                constraints={"is_independent": False, "input_indices": {"input_matrix": 0}},
             ),
         ],
         composition_strategy=SequentialComposition(),
-        difficulty_level=DifficultyCategory.MEDIUM,
+        difficulty_level=DifficultyCategory.TWO_TOOL_CALLS,
     )
 
+    # Problem 2: A → A^(-1) → ||A^(-1)||_F (inverse + frobenius_norm)
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
-        problem_type=Task.COMPOSITE_SEQUENTIAL,
+        problem_type=Task.COMPOSITE_INVERSE_FROBENIUS,
+        components=[
+            MatrixInverseWrapperComponent(
+                name=Task.MATRIX_INVERSE,
+                constraints={"is_independent": True},
+                gen_constraints=GenerationConstraints(square=True, invertible=True),
+            ),
+            FrobeniusNormWrapperComponent(
+                name=Task.FROBENIUS_NORM,
+                constraints={"is_independent": False, "input_indices": {"input_matrix": 0}},
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.TWO_TOOL_CALLS,
+    )
+
+    # Problem 3: A → A^(-1) → rank(A^(-1)) (inverse + matrix_rank)
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.COMPOSITE_INVERSE_RANK,
+        components=[
+            MatrixInverseWrapperComponent(
+                name=Task.MATRIX_INVERSE,
+                constraints={"is_independent": True},
+                gen_constraints=GenerationConstraints(square=True, invertible=True),
+            ),
+            RankWrapperComponent(
+                name=Task.MATRIX_RANK,
+                constraints={"is_independent": False, "input_indices": {"input_matrix": 0}},
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.TWO_TOOL_CALLS,
+    )
+
+    # Problem 4: A → A^T → ||A^T||_F (transpose + frobenius_norm)
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.COMPOSITE_TRANSPOSE_FROBENIUS,
+        components=[
+            TransposeWrapperComponent(
+                name=Task.MATRIX_TRANSPOSE,
+                constraints={"is_independent": True},
+            ),
+            FrobeniusNormWrapperComponent(
+                name=Task.FROBENIUS_NORM,
+                constraints={"is_independent": False, "input_indices": {"input_matrix": 0}},
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.TWO_TOOL_CALLS,
+    )
+
+    # ===================
+    # 3-STEP COMPOSITIONS
+    # ===================
+
+    # Problem 1: A → A^T → A^T*A → det(A^T*A) (transpose + multiply + determinant)
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.COMPOSITE_TRIPLE_TRANSPOSE_DETERMINANT,
         components=[
             TransposeWrapperComponent(
                 name=Task.MATRIX_TRANSPOSE,
@@ -162,20 +234,57 @@ def create_default_registry() -> FactoryRegistry:
             ),
             MatrixMatrixMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
-                constraints={"is_independent": False, "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
+                    "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
+                },
+            ),
+            DeterminantWrapperComponent(
+                name=Task.DETERMINANT,
+                constraints={"is_independent": False, "input_indices": {"input_matrix": 1}},
             ),
         ],
         composition_strategy=SequentialComposition(),
-        difficulty_level=DifficultyCategory.MEDIUM,
+        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
     )
 
+    # Problem 2: A → A^(-1) → A^(-1)*B → rank(result) (inverse + multiply + matrix_rank)
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
-        problem_type=Task.COMPOSITE_LINEAR_SYSTEM_DEPENDENCY,
+        problem_type=Task.COMPOSITE_TRIPLE_INVERSE_RANK,
+        components=[
+            MatrixInverseWrapperComponent(
+                name=Task.MATRIX_INVERSE,
+                constraints={"is_independent": True},
+                gen_constraints=GenerationConstraints(square=True, invertible=True),
+            ),
+            MatrixMatrixMultiplicationWrapperComponent(
+                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
+                    "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
+                },
+            ),
+            RankWrapperComponent(
+                name=Task.MATRIX_RANK,
+                constraints={"is_independent": False, "input_indices": {"input_matrix": 1}},
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
+    )
+
+    # Problem 3: solve(Ax=b) → C*x → ||C*x||_F (solve + multiply + frobenius_norm)
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.COMPOSITE_TRIPLE_SYSTEM_FROBENIUS,
         components=[
             LinearSystemSolverWrapperComponent(
                 name=Task.LINEAR_SYSTEM_SOLVER,
                 constraints={"is_independent": True},
+                gen_constraints=GenerationConstraints(square=True, invertible=True),
             ),
             MatrixVectorMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
@@ -187,7 +296,7 @@ def create_default_registry() -> FactoryRegistry:
             ),
         ],
         composition_strategy=SequentialComposition(),
-        difficulty_level=DifficultyCategory.MEDIUM,
+        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
     )
 
     return registry
