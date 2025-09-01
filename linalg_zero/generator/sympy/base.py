@@ -114,7 +114,9 @@ class SympyProblemGenerator(ABC):
             problem_type, self.difficulty_level, self.is_independent
         )
         if templates:
-            selected_template = self.template_engine.select_template(templates, problem_type, self.difficulty_level)
+            selected_template = self.template_engine.select_template(
+                templates, problem_type, self.difficulty_level, variables
+            )
             question_text = self.template_engine.generate_question(
                 template=selected_template, variables=variables, precision=self.precision
             )

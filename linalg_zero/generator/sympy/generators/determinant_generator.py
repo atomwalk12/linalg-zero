@@ -126,3 +126,8 @@ class DeterminantGeneratorDependent(DeterminantGenerator):
             "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),
         })
         return base_data
+
+    @override
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Return template variables for dependent determinant generator."""
+        return {"matrix": f"step {self.input_index + 1}"}

@@ -9,7 +9,11 @@ from linalg_zero.generator.registry import FactoryRegistry, create_default_regis
 def simple_test_factory() -> Question:
     """Simple factory for testing."""
     return Question(
-        question="Test", answer="42", topic="test", difficulty=DifficultyCategory.EASY, problem_type=Task.DETERMINANT
+        question="Test",
+        answer="42",
+        topic="test",
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
+        problem_type=Task.DETERMINANT,
     )
 
 
@@ -19,7 +23,7 @@ def another_test_factory() -> Question:  # pragma: no cover
         question="Another test",
         answer="24",
         topic="test",
-        difficulty=DifficultyCategory.EASY,
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
         problem_type=Task.DETERMINANT,
     )
 

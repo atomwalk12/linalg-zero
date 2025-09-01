@@ -27,7 +27,7 @@ class GenerationConstraints:
         if self.invertible and not self.square:
             raise ValueError("Invertible matrices must be square (set square=True)")
 
-        # If invertible is True, automatically set square to True for convenience
+        # If invertible is True, automatically set square to True
         if self.invertible:
             self.square = True
 

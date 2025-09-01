@@ -36,16 +36,22 @@ class ProblemContext:
     def _prepare_verification_data(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """Prepare verification data by extracting dependencies and input fields."""
         verification = {}
+        num_inputs = 0
+        num_dependencies = 0
 
         # Handle dependencies
         dependent_on = input_data.pop("dependent_on", None)
         if dependent_on is not None:
             verification["dependent_on"] = dependent_on
+            num_dependencies = len(dependent_on)
 
         # Extract and JSON-encode all input_* fields
         for key in list(input_data.keys()):
             if key.startswith("input_"):
                 verification[key] = json.dumps(input_data.pop(key))
+                num_inputs += 1
+
+        assert num_inputs == num_dependencies, "Number of inputs and dependencies must match"  # noqa: S101
 
         # Add generator type and remaining input data
         verification["generator_type"] = input_data.pop("generator_type")

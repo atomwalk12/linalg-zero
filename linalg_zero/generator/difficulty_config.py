@@ -15,11 +15,12 @@ class Precision(Enum):
     """Precision for formatting mathematical expressions."""
 
     MATRIX_VECTOR_MULTIPLICATION = 2
-    LINEAR_SYSTEM_SOLVER = 4
+    LINEAR_SYSTEM_SOLVER = 2
     DETERMINANT = 2
-    FROBENIUS_NORM = 6
-    MATRIX_RANK = 0
+    FROBENIUS_NORM = 2
+    MATRIX_RANK = 2
     MATRIX_TRANSPOSE = 2
+    MATRIX_INVERSE = 2
     MATRIX_TRACE = 2
     FULL = -1
 
@@ -63,21 +64,22 @@ class ProblemConfig:
 
 
 DIFFICULTY_CONFIGS = {
-    DifficultyCategory.EASY: ProblemConfig(
+    # TODO: adjust entropy levels
+    DifficultyCategory.ONE_TOOL_CALL: ProblemConfig(
         target_tool_calls=1,
         matrix_size_range=(2, 2),
         allow_rationals=False,
         special_constraints=[],
         entropy_range=(0.5, 1.5),
     ),
-    DifficultyCategory.MEDIUM: ProblemConfig(
+    DifficultyCategory.TWO_TOOL_CALLS: ProblemConfig(
         target_tool_calls=1,
         matrix_size_range=(2, 3),
         allow_rationals=False,
         special_constraints=["ensure_invertible"],
         entropy_range=(1.5, 3.0),
     ),
-    DifficultyCategory.HARD: ProblemConfig(
+    DifficultyCategory.THREE_TOOL_CALLS: ProblemConfig(
         target_tool_calls=1,
         matrix_size_range=(3, 4),
         allow_rationals=True,

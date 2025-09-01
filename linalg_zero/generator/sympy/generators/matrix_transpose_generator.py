@@ -85,8 +85,10 @@ class MatrixTransposeGenerator(MatrixVectorBaseGenerator):
         # Calculate using lib.py with the primitives
         lib_result = matrix_transpose(matrix_a_primitive)
 
-        # Calculate using SymPy
-        sympy_result = matrix_a.T
+        # Convert primitives back to SymPy Matrix at the same precision level
+        # This ensures both calculations work with the same precision
+        matrix_a_precision_matched = Matrix(matrix_a_primitive)
+        sympy_result = matrix_a_precision_matched.T
 
         return sympy_result, lib_result
 
@@ -119,3 +121,8 @@ class MatrixTransposeGeneratorDependent(MatrixTransposeGenerator):
             "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),
         })
         return base_data
+
+    @override
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Return template variables for dependent matrix transpose generator."""
+        return {"matrix": f"step {self.input_index + 1}"}

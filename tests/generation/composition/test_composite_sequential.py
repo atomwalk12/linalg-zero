@@ -4,9 +4,9 @@ from linalg_zero.generator.composition.components import (
     DeterminantWrapperComponent,
     FrobeniusNormWrapperComponent,
     LinearSystemSolverWrapperComponent,
+    MatrixTraceWrapperComponent,
     MatrixVectorMultiplicationWrapperComponent,
     RankWrapperComponent,
-    TraceWrapperComponent,
     TransposeWrapperComponent,
 )
 from linalg_zero.generator.composition.composition import (
@@ -45,7 +45,9 @@ from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
 )
 
 
-def make_composite(components: list, difficulty: DifficultyCategory = DifficultyCategory.MEDIUM) -> CompositeProblem:
+def make_composite(
+    components: list, difficulty: DifficultyCategory = DifficultyCategory.TWO_TOOL_CALLS
+) -> CompositeProblem:
     config = get_problem_config(difficulty, Topic.LINEAR_ALGEBRA, Task.COMPOSITE_SEQUENTIAL)
     sample_args = config.create_sample_args_for_composition(num_components=len(components))
     return CompositeProblem(
@@ -81,7 +83,7 @@ class TestSequential_MVM_then_LinearSystem:
 
         # Question contains both steps in order
         text = q.question
-        assert text.startswith("First, ") and "Then, " in text
+        assert text.startswith("Step 1: ") and "Step 2: " in text
 
         # Answer should contain both tools in JSON format
         import json
@@ -137,7 +139,7 @@ class TestSequential_LinearSystem_then_MVM:
 
         # Question contains both steps in order
         text = q.question
-        assert text.startswith("First, ") and "Then, " in text
+        assert text.startswith("Step 1: ") and "Step 2: " in text
 
         # Answer has two parts that can be parsed as JSON
         import json
@@ -210,7 +212,7 @@ class TestWrapperComponentGeneratorSelectionComprehensive:
             (FrobeniusNormWrapperComponent, Task.FROBENIUS_NORM, FrobeniusNormGenerator),
             (LinearSystemSolverWrapperComponent, Task.LINEAR_SYSTEM_SOLVER, LinearSystemGenerator),
             (RankWrapperComponent, Task.MATRIX_RANK, MatrixRankGenerator),
-            (TraceWrapperComponent, Task.MATRIX_TRACE, MatrixTraceGenerator),
+            (MatrixTraceWrapperComponent, Task.MATRIX_TRACE, MatrixTraceGenerator),
             (TransposeWrapperComponent, Task.MATRIX_TRANSPOSE, MatrixTransposeGenerator),
             (
                 MatrixVectorMultiplicationWrapperComponent,
@@ -234,7 +236,7 @@ class TestWrapperComponentGeneratorSelectionComprehensive:
             (FrobeniusNormWrapperComponent, Task.FROBENIUS_NORM, FrobeniusNormGeneratorDependent),
             (LinearSystemSolverWrapperComponent, Task.LINEAR_SYSTEM_SOLVER, LinearSystemGeneratorDependent),
             (RankWrapperComponent, Task.MATRIX_RANK, MatrixRankGeneratorDependent),
-            (TraceWrapperComponent, Task.MATRIX_TRACE, MatrixTraceGeneratorDependent),
+            (MatrixTraceWrapperComponent, Task.MATRIX_TRACE, MatrixTraceGeneratorDependent),
             (TransposeWrapperComponent, Task.MATRIX_TRANSPOSE, MatrixTransposeGeneratorDependent),
             (
                 MatrixVectorMultiplicationWrapperComponent,

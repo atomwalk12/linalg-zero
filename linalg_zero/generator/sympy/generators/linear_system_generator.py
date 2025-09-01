@@ -233,10 +233,8 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
 
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
-        base_vars = super().get_template_variables(template)
-
-        # The indices start from 0, so we add 1 to make it more readable
-        base_vars["target_b"] = f"the result from step {self.input_index + 1}"
-        input_var = template.context_info["input_variable_name"]
-        base_vars["input_variable_name"] = input_var
+        base_vars = {}
+        base_vars["matrix"] = template.context_info["matrix_A"]
+        base_vars["x_symbols"] = template.context_info["x_symbols"]
+        base_vars["target_b"] = f"step {self.input_index + 1}"
         return base_vars

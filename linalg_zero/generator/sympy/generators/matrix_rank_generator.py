@@ -87,8 +87,10 @@ class MatrixRankGenerator(MatrixVectorBaseGenerator):
         # Calculate using lib.py with the primitives
         lib_result = matrix_rank(matrix_a_primitive)
 
-        # Calculate using SymPy
-        sympy_result = matrix_a.rank()
+        # Convert primitives back to SymPy Matrix at the same precision level
+        # This ensures both calculations work with the same precision
+        matrix_a_precision_matched = Matrix(matrix_a_primitive)
+        sympy_result = matrix_a_precision_matched.rank()
         assert isinstance(sympy_result, int)  # noqa: S101
 
         return Integer(sympy_result), lib_result
@@ -122,3 +124,8 @@ class MatrixRankGeneratorDependent(MatrixRankGenerator):
             "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),
         })
         return base_data
+
+    @override
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Return template variables for dependent matrix rank generator."""
+        return {"matrix": f"step {self.input_index + 1}"}

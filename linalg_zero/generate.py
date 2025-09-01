@@ -1,4 +1,9 @@
+import argparse
 import logging
+import random
+
+import numpy as np
+from sympy.core.random import seed
 
 from linalg_zero.generator.core import DatasetGenerator
 from linalg_zero.generator.models import Question, Topic
@@ -26,7 +31,7 @@ def main() -> None:  # pragma: no cover
         return len(question.answer) > 0
 
     generator = DatasetGenerator(topic=Topic.LINEAR_ALGEBRA, validator_factory=matrix_only_validator)
-    dataset = generator.generate_dataset(num_questions=100)
+    dataset = generator.generate_dataset(num_questions=3000)
     print_dataset(dataset)
     verify_dataset(dataset)
 
@@ -39,4 +44,13 @@ def main() -> None:  # pragma: no cover
 
 
 if __name__ == "__main__":  # pragma: no cover
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=None)
+    argv = parser.parse_args()
+
+    if argv.seed is not None:
+        random.seed(argv.seed)
+        np.random.seed(argv.seed)
+        seed(argv.seed)
+
     main()

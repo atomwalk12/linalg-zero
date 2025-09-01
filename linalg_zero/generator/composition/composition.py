@@ -153,15 +153,9 @@ class CompositeProblem(SympyProblemGenerator):
         for i, result in enumerate(component_results, 1):
             formatted_question = result.generator.format_question(result.template)
             formatted_question = formatted_question[0].lower() + formatted_question[1:]
-            if i == 1:
-                step_descriptions.append(f"First, {formatted_question}")
-            elif i == 2 and len(component_results) == 2:
-                # For two-step problems, template system handles composition context
-                step_descriptions.append(f"Then, {formatted_question}")
-            else:
-                step_descriptions.append(f"Then, {formatted_question}")
+            step_descriptions.append(f"Step {i}: {formatted_question}")
 
-        return " ".join(step_descriptions)
+        return "\n".join(step_descriptions)
 
     @override
     def format_solution(self, template: ProblemTemplate) -> str:

@@ -190,6 +190,12 @@ class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         })
         return base_data
 
+    @override
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        """Return template variables for dependent matrix-vector multiplication generator."""
+        matrix = template.context_info["matrix"]
+        return {"matrix": matrix, "vector": f"step {self.input_index + 1}"}
+
 
 class MatrixMatrixMultiplicationGeneratorDependent(MatrixVectorMultiplicationGenerator):
     def __init__(
@@ -207,6 +213,21 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         self.input_matrix_B = input_matrix_B
         self.input_index_matrix_A = input_matrix_A_index
         self.input_index_matrix_B = input_matrix_B_index
+
+    @override
+    def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
+        base_vars = {}
+
+        # There are two possibilities: the input values come from separate problems
+        # or the same problem. Adjust the template variables accordingly.
+        if self.input_index_matrix_A == self.input_index_matrix_B:
+            base_vars["matrix_A_ref"] = f"step {self.input_index_matrix_A + 1}"
+        else:
+            # Different matrices from different steps
+            base_vars["matrix_A_ref"] = f"step {self.input_index_matrix_A + 1}"
+            base_vars["matrix_B_ref"] = f"step {self.input_index_matrix_B + 1}"
+
+        return base_vars
 
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         # No entropy is used since both matrices are provided

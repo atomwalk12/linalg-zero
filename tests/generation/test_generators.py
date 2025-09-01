@@ -10,7 +10,7 @@ def test_question_generator_factory_pattern() -> None:
             question="Test question",
             answer="42",
             topic=Topic.LINEAR_ALGEBRA,
-            difficulty=DifficultyCategory.EASY,
+            difficulty=DifficultyCategory.ONE_TOOL_CALL,
             problem_type=Task.DETERMINANT,
         )
 
@@ -37,4 +37,8 @@ def test_dataset_generation() -> None:
         assert question.is_valid is True  # Only valid questions should be returned
         assert len(question.question) > 0
         assert len(question.answer) > 0
-        assert question.difficulty in [DifficultyCategory.EASY, DifficultyCategory.MEDIUM, DifficultyCategory.HARD]
+        assert question.difficulty in [
+            DifficultyCategory.ONE_TOOL_CALL,
+            DifficultyCategory.TWO_TOOL_CALLS,
+            DifficultyCategory.THREE_TOOL_CALLS,
+        ]
