@@ -24,8 +24,9 @@ class ProblemComponent(ABC):
     be combined with other components to create more complex problems.
     """
 
-    def __init__(self, name: Task):
+    def __init__(self, name: Task, is_independent: bool):
         self.name = name
+        self.is_independent = is_independent
 
     @abstractmethod
     def generate(self, context: CompositionContext) -> ComponentResult:
@@ -39,6 +40,15 @@ class ProblemComponent(ABC):
         Check if this component can execute given the current context.
         """
         return True
+
+    @abstractmethod
+    def entropy_weight(self) -> float:
+        """Relative weight for entropy allocation in compositions.
+
+        Override in subclasses that truly perform pure transformations to return 0.0.
+        Defaults to 1.0, meaning the component participates in entropy allocation.
+        """
+        pass
 
 
 class CompositionStrategy(ABC):

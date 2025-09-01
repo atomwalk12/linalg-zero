@@ -36,8 +36,24 @@ class SequentialComposition(CompositionStrategy):
         """Execute components using DeepMind-style entropy distribution."""
         results = []
 
-        # Split entropy among components using Dirichlet distribution
-        component_sample_args = sample_args.split(len(components))
+        # Allocate entropy proportionally to integer module counts (simple, DM-style).
+        def component_modules(c: ProblemComponent) -> int:
+            return max(0, c.entropy_weight())
+
+        modules = [component_modules(c) for c in components]
+        total_modules = sum(modules)
+
+        if sample_args.entropy <= 0:
+            raise ValueError("Configured entropy must be > 0 for composite problems")
+
+        if total_modules <= 0:
+            raise ValueError("Total modules must be > 0 for composite problems")
+            # Alternative use:
+            # component_sample_args = sample_args.split(len(components))
+        else:
+            total_entropy = sample_args.entropy
+            allocations = [total_entropy * m / total_modules for m in modules]
+            component_sample_args = [SampleArgs(num_modules=1, entropy=e) for e in allocations]
 
         for component, comp_sample_args in zip(components, component_sample_args, strict=True):
             if not component.can_execute(base_context):

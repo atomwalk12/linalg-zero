@@ -60,10 +60,9 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         gen_constraints: GenerationConstraints | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(name, **kwargs)
+        super().__init__(name, is_independent=constraints.pop("is_independent"), **kwargs)
         self.constraints = constraints
         self.gen_constraints = gen_constraints if gen_constraints else GenerationConstraints()
-        self.is_independent = self.constraints.pop("is_independent")
         self.generator_class = generator_class
         self.component_type = component_type
         self.topic = topic
@@ -229,6 +228,14 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
     def get_input_name(self) -> list[str]:
         return ["input_vector_b"]
 
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+
+        # This component still needs to generate a matrix, even if a vector is
+        # provided, so we provide 0.5 entropy weight.
+        return 0.5
+
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True, "column_vector": True}
 
@@ -237,8 +244,8 @@ class MatrixMatrixMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
     """Wrapper for the MatrixMatrixMultiplicationGeneratorDependent."""
 
     def __init__(self, name: Task, **kwargs: Any) -> None:
-        constraints = kwargs["constraints"]
-        is_independent = constraints["is_independent"]
+        self.constraints = kwargs["constraints"]
+        is_independent = self.constraints["is_independent"]
         generator_cls = (
             MatrixVectorMultiplicationGenerator if is_independent else MatrixMatrixMultiplicationGeneratorDependent
         )
@@ -249,6 +256,11 @@ class MatrixMatrixMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
+
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
 
     def get_input_name(self) -> list[str]:
         return ["input_matrix_A", "input_matrix_B"]
@@ -271,6 +283,11 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
+
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
 
     def get_input_name(self) -> list[str]:
         return ["input_vector_b"]
@@ -300,6 +317,11 @@ class FrobeniusNormWrapperComponent(SympyGeneratorWrapperComponent):
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True}
 
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
+
 
 class DeterminantWrapperComponent(SympyGeneratorWrapperComponent):
     """Wrapper for the DeterminantGenerator."""
@@ -315,6 +337,11 @@ class DeterminantWrapperComponent(SympyGeneratorWrapperComponent):
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
+
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
 
     def get_input_name(self) -> list[str]:
         return ["input_matrix"]
@@ -338,6 +365,11 @@ class RankWrapperComponent(SympyGeneratorWrapperComponent):
             **kwargs,
         )
 
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
+
     def get_input_name(self) -> list[str]:
         return ["input_matrix"]
 
@@ -359,6 +391,11 @@ class TransposeWrapperComponent(SympyGeneratorWrapperComponent):
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
+
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
 
     def get_input_name(self) -> list[str]:
         return ["input_matrix"]
@@ -382,6 +419,11 @@ class MatrixTraceWrapperComponent(SympyGeneratorWrapperComponent):
             **kwargs,
         )
 
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
+
     def get_input_name(self) -> list[str]:
         return ["input_matrix"]
 
@@ -403,6 +445,11 @@ class MatrixInverseWrapperComponent(SympyGeneratorWrapperComponent):
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
+
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
 
     def get_input_name(self) -> list[str]:
         return ["input_matrix"]

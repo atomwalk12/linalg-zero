@@ -158,9 +158,9 @@ class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         self.input_index = input_vector_b_index
 
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
-        # Only matrix generation consumes entropy; vector is provided
-        sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
-        return sample_args.entropy, 0.0
+        """Allocate some entropy to matrix generation even when vector is provided."""
+        # Reserve all available context entropy for matrix generation; vector consumes none.
+        return context.entropy, 0.0
 
     def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int]:
         req_cols = int(self.input_vector_b.rows)
@@ -243,7 +243,7 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         return base_vars
 
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
-        # No entropy is used since both matrices are provided
+        # Both inputs provided; do not consume additional entropy
         return 0.0, 0.0
 
     def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int]:
