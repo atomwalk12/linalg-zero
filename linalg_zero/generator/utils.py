@@ -42,19 +42,19 @@ def _verify_step_dependencies(step: dict[str, Any], question_stepwise: list[dict
         raise TypeError(f"Step {step_id}: dependent_on must be a dict, got {type(dependent_on)}")
 
     # Verify each input_* field against its corresponding referenced step's result
-    for field_name, field_value_json in step["verification"].items():
-        if field_name.startswith("input_"):
-            expected_step_index = dependent_on[field_name]
+    for input_name, input_value in step["verification"].items():
+        if input_name.startswith("input_"):
+            expected_step_index = dependent_on[input_name]
 
             # Validate the reference step exists
             if not isinstance(expected_step_index, int):
                 raise TypeError(
-                    f"Step {step_id}: dependency index for '{field_name}' must be an integer, got {type(expected_step_index)}"
+                    f"Step {step_id}: dependency index for '{input_name}' must be an integer, got {type(expected_step_index)}"
                 )
 
             if expected_step_index < 0 or expected_step_index >= len(question_stepwise):
                 raise ValueError(
-                    f"Step {step_id}: dependent_on index {expected_step_index} for '{field_name}' out of bounds "
+                    f"Step {step_id}: dependent_on index {expected_step_index} for '{input_name}' out of bounds "
                     f"(stepwise has {len(question_stepwise)} steps)"
                 )
 
@@ -64,11 +64,11 @@ def _verify_step_dependencies(step: dict[str, Any], question_stepwise: list[dict
             if referenced_result is None:
                 raise ValueError(f"Step {step_id}: referenced step {expected_step_index} has invalid result")
 
-            field_value = json.loads(field_value_json)
+            field_value = json.loads(input_value)
             if not verify_answers(field_value, referenced_result) or field_value != referenced_result:
                 raise ValueError(
                     f"Step {step_id}: dependency verification failed - "
-                    f"{field_name} ({field_value}) does not match referenced step {expected_step_index} result ({referenced_result})"
+                    f"{input_name} ({field_value}) does not match referenced step {expected_step_index} result ({referenced_result})"
                 )
 
 

@@ -82,7 +82,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
 
         return ProblemTemplate(
             expression=problem_expression,
-            variables=[sympy.Symbol(f"x_{i + 1}") for i in range(size)],
+            variables={"matrix_A": matrix_A, "x_symbols": x_symbols, "target_b": vector_b},
             sympy_solution=sympy_sol,
             lib_result=lib_result,
             question_templates=question_templates,

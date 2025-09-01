@@ -65,7 +65,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
 
         return ProblemTemplate(
             expression=problem_expression,
-            variables=[],
+            variables={"matrix": matrix_A, "vector": vector_b},
             sympy_solution=sympy_sol,
             lib_result=lib_result,
             question_templates=question_templates,
@@ -205,6 +205,7 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         input_matrix_B: sympy.Matrix,
         input_matrix_A_index: int,
         input_matrix_B_index: int,
+        sources: dict[str, str],
         **kwargs: Any,
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, is_independent=False, **kwargs)
@@ -213,19 +214,31 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
         self.input_matrix_B = input_matrix_B
         self.input_index_matrix_A = input_matrix_A_index
         self.input_index_matrix_B = input_matrix_B_index
+        self.sources = sources
 
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         base_vars = {}
 
-        # There are two possibilities: the input values come from separate problems
-        # or the same problem. Adjust the template variables accordingly.
-        if self.input_index_matrix_A == self.input_index_matrix_B:
+        # Use sources to determine how to display each matrix reference
+        source_A = self.sources.get("input_matrix_A", "result")
+        source_B = self.sources.get("input_matrix_B", "result")
+
+        # Matrix A reference
+        if source_A == "result":
             base_vars["matrix_A_ref"] = f"step {self.input_index_matrix_A + 1}"
         else:
-            # Different matrices from different steps
-            base_vars["matrix_A_ref"] = f"step {self.input_index_matrix_A + 1}"
+            matrix_a = template.context_info["matrix"]
+            assert self.input_matrix_A == matrix_a  # noqa: S101
+            base_vars["matrix_A_ref"] = self.input_matrix_A
+
+        # Matrix B reference
+        if source_B == "result":
             base_vars["matrix_B_ref"] = f"step {self.input_index_matrix_B + 1}"
+        else:
+            matrix_b = template.context_info["vector"]
+            assert self.input_matrix_B == matrix_b  # noqa: S101
+            base_vars["matrix_B_ref"] = self.input_matrix_B
 
         return base_vars
 
@@ -281,4 +294,11 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
             "input_matrix_A": MathFormatter.sympy_to_primitive(self.input_matrix_A, precision=self.precision),
             "input_matrix_B": MathFormatter.sympy_to_primitive(self.input_matrix_B, precision=self.precision),
         })
+
+        # Remove the inputs that are not assigned to the result of the previous step
+        for key, value in self.sources.items():
+            if value != "result":
+                base_data.pop(key)
+                base_data["dependent_on"].pop(key)
+
         return base_data

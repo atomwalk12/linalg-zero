@@ -73,24 +73,45 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         if not self.is_independent:
             params = {}
             input_indices = self.constraints["input_indices"]
+            sources = self.constraints.get("sources", {})
 
             # Validate we have indices for all input names
             for input_name in input_names:
                 if input_name not in input_indices:
                     raise ValueError(f"Missing input_index for input '{input_name}'")
 
-                input_index = input_indices[input_name]
-                previous_result = context.component_results[input_index]
-                if not hasattr(previous_result.template, "sympy_solution"):
-                    raise ValueError(f"Previous component result has no sympy_solution: {previous_result}")
+                component_index = input_indices[input_name]
+                source_type = sources.get(input_name, "result")  # Default to "result"
 
-                # Get the result from previous computation
-                previous_sol = previous_result.template.sympy_solution
+                previous_result = context.component_results[component_index]
+
+                # Get the appropriate data based on source type
+                if source_type == "result":
+                    # Get the computed result from the previous component
+                    if not hasattr(previous_result.template, "sympy_solution"):
+                        raise ValueError(f"Previous component result has no sympy_solution: {previous_result}")
+                    previous_sol = previous_result.template.sympy_solution
+                else:
+                    # Get a specific variable from the previous component's variables
+                    if not hasattr(previous_result.template, "variables"):
+                        raise ValueError(f"Previous component result has no variables: {previous_result}")
+
+                    variables = previous_result.template.variables
+                    if source_type not in variables:
+                        available_vars = list(variables.keys())
+                        raise ValueError(
+                            f"Variable '{source_type}' not found in component {component_index}. Available variables: {available_vars}"
+                        )
+
+                    previous_sol = variables[source_type]
+
                 self._validate_dependent_input(previous_sol)
 
                 # Add to params
                 params[input_name] = previous_sol
-                params[f"{input_name}_index"] = input_index
+                params[f"{input_name}_index"] = component_index
+
+            params["sources"] = sources
 
             return params
         return {}

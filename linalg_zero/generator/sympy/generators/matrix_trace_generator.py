@@ -63,7 +63,7 @@ class MatrixTraceGenerator(MatrixVectorBaseGenerator):
 
         return ProblemTemplate(
             expression=problem_expression,
-            variables=[],
+            variables={"matrix": matrix_A},
             sympy_solution=sympy_trace,
             lib_result=lib_result,
             question_templates=[t.template_string for t in question_templates],

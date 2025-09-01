@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from sympy import Expr, Symbol
+from sympy import Expr
 
 from linalg_zero.shared.types import LibTypes
 
@@ -84,7 +84,7 @@ class ProblemTemplate:
     """
 
     expression: Expr
-    variables: list[Symbol]
+    variables: dict[str, Expr]
     sympy_solution: Expr | list[Expr] | str
     lib_result: LibTypes
     context_info: dict[str, Any]
@@ -125,7 +125,6 @@ class CompositeResultBuilder:
     def __init__(self, composition_strategy: "CompositionStrategy"):
         self.composition_strategy = composition_strategy
         self.expressions: list = []
-        self.variables: list[Symbol] = []
         self.solutions: list = []
         self.lib_results: list = []
         self.question_templates: list[str] = []
@@ -138,7 +137,8 @@ class CompositeResultBuilder:
 
         self.expressions.append(template.expression)
         self.component_templates.append(template)
-        self.variables.extend(template.variables)
+        # Variables are accessed directly from component results via sources system
+        # No need to aggregate here as it would cause naming conflicts
 
         self.solutions.append(template.sympy_solution)
         self.lib_results.append(template.lib_result)
@@ -166,16 +166,11 @@ class CompositeResultBuilder:
         """Build the main expression (single vs list)."""
         return self.expressions[0] if len(self.expressions) == 1 else self.expressions
 
-    def _deduplicate_variables(self) -> list[Symbol]:
-        """Remove duplicate variables while preserving order."""
-        unique_variables = []
-        seen_names = set()
-        for var in self.variables:
-            var_name = str(var)
-            if var_name not in seen_names:
-                unique_variables.append(var)
-                seen_names.add(var_name)
-        return unique_variables
+    def _deduplicate_variables(self) -> dict[str, Expr]:
+        """Return empty dict since composite problems don't aggregate variables."""
+        # Variables are accessed directly from individual component results
+        # via the sources system in composition constraints
+        return {}
 
     def _build_context_info(
         self, comp_context: "CompositionContext", component_results: list[ComponentResult]
