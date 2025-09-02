@@ -65,6 +65,34 @@ class CompositionStrategy(ABC):
         pass
 
 
+class DependentGeneratorMixin:
+    """Mixin providing generic template variable handling for dependent generators."""
+
+    def __init__(
+        self,
+        sources: dict[str, str] | None = None,
+        input_variables: dict[str, tuple[Any, int]] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.sources = sources or {}
+        self.input_variables = input_variables or {}
+        super().__init__(**kwargs)  # Continue the MRO chain
+
+    def get_dependent_template_variables(self) -> dict[str, Any]:
+        """Generic implementation for result/value reference handling."""
+        base_vars = {}
+
+        for var_name, (value, step_index) in self.input_variables.items():
+            source_type = self.sources.get(f"input_{var_name}", "result")
+
+            if source_type == "result":
+                base_vars[var_name] = f"the result from step {step_index + 1}"
+            else:
+                base_vars[var_name] = value
+
+        return base_vars
+
+
 class SympyProblemGenerator(ABC):
     """
     Abstract base class for SymPy-based mathematical problem generators.
@@ -88,9 +116,8 @@ class SympyProblemGenerator(ABC):
         self.config = get_problem_config(difficulty_level, topic, problem_type)
         self.lib = get_lib()
 
-        # If no entropy provided (or 0), sample from config - used by simple generators
-        # If entropy provided, use it - used by composition generators
-        self.entropy = entropy if entropy is not None and entropy > 0 else self.config.sample_entropy
+        assert entropy is not None  # noqa: S101
+        self.entropy = entropy
 
         self.template_engine = TemplateEngine()
         self.formatter = MathFormatter()

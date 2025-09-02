@@ -58,8 +58,8 @@ class ProblemContext:
         if constraints is not None:
             sampled = constraints.sample_entropy(center_biased_draw=center_biased_draw)
             if sampled is not None:
-                assert isinstance(sampled, float)  # noqa: S101
-                amount = sampled
+                assert isinstance(sampled, float | int)  # noqa: S101
+                amount = float(sampled)
 
         if amount is None:
             amount = remaining
@@ -67,9 +67,7 @@ class ProblemContext:
         if amount > remaining + 1e-12:
             raise ValueError(f"Entropy budget exceeded: request {amount:.3f}, remaining {remaining:.3f}")
 
-        # Record consumption and return allocated amount
         self.record_entropy_usage(amount)
-
         return amount
 
     def _prepare_verification_data(self, input_data: dict[str, Any]) -> dict[str, Any]:

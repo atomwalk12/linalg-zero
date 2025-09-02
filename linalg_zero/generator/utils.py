@@ -198,7 +198,8 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
     logger.info("  Per-Difficulty Averages:")
     for diff, qs in sorted(buckets.items(), key=lambda x: x[0].value if hasattr(x[0], "value") else str(x[0])):
         avg_entropy = sum(q.entropy_used for q in qs) / len(qs)
-        logger.info("    %s -> entropy avg: %.2f", str(diff), avg_entropy)
+        avg_tool_calls = sum(q.tool_calls_required for q in qs) / len(qs)
+        logger.info("    %s -> entropy avg: %.2f, tool calls avg: %.2f", str(diff), avg_entropy, avg_tool_calls)
     logger.info("=" * 30)
 
 
@@ -257,6 +258,6 @@ def convert_to_dataset_splits(
         train_val = split["train"].train_test_split(
             test_size=relative_val, seed=seed, stratify_by_column=stratify_column
         )
-        return DatasetDict(train=train_val["train"], validation=train_val["test"], test=split["test"])
+        return DatasetDict(train=train_val["train"], validation=train_val["test"], test=split["test"])  # type: ignore[reportCallIssue]
 
-    return DatasetDict(train=split["train"], test=split["test"])
+    return DatasetDict(train=split["train"], test=split["test"])  # type: ignore[reportCallIssue]

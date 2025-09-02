@@ -6,7 +6,7 @@ from linalg_zero.generator.composition.composition import (
     CompositionStrategy,
     ProblemComponent,
 )
-from linalg_zero.generator.difficulty_config import SampleArgs
+from linalg_zero.generator.difficulty_config import SampleArgs, get_problem_config
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
@@ -18,6 +18,9 @@ from linalg_zero.generator.sympy.generators.matrix_cofactor_generator import (
 )
 from linalg_zero.generator.sympy.generators.matrix_inverse_generator import (
     MatrixInverseGenerator,
+)
+from linalg_zero.generator.sympy.generators.matrix_matrix_generator import (
+    MatrixMatrixMultiplicationGenerator,
 )
 from linalg_zero.generator.sympy.generators.matrix_rank_generator import MatrixRankGenerator
 from linalg_zero.generator.sympy.generators.matrix_trace_generator import MatrixTraceGenerator
@@ -55,6 +58,16 @@ def create_matrix_vector_multiplication_factory(difficulty: DifficultyCategory) 
         MatrixVectorMultiplicationGenerator,
         difficulty_level=difficulty,
         problem_type=Task.MATRIX_VECTOR_MULTIPLICATION,
+        topic=Topic.LINEAR_ALGEBRA,
+    )
+
+
+def create_matrix_matrix_multiplication_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
+    """Helper to create matrix-matrix multiplication factory with specific parameters."""
+    return create_sympy_factory(
+        MatrixMatrixMultiplicationGenerator,
+        difficulty_level=difficulty,
+        problem_type=Task.MATRIX_MATRIX_MULTIPLICATION,
         topic=Topic.LINEAR_ALGEBRA,
     )
 
@@ -162,12 +175,14 @@ def create_sympy_factory(
     """
     Convenience function for generating a factory function for registry registration.
     """
+    entropy = get_problem_config(difficulty_level, topic, problem_type).sample_entropy()
 
     def factory() -> Question:
         generator: SympyProblemGenerator = generator_class(
             difficulty_level=difficulty_level,
             problem_type=problem_type,
             topic=topic,
+            entropy=entropy,
             gen_constraints=gen_constraints,
             **kwargs,
         )

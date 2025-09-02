@@ -15,6 +15,7 @@ class Precision(Enum):
     """Precision for formatting mathematical expressions."""
 
     MATRIX_VECTOR_MULTIPLICATION = 2
+    MATRIX_MATRIX_MULTIPLICATION = 2
     LINEAR_SYSTEM_SOLVER = 2
     DETERMINANT = 2
     FROBENIUS_NORM = 2
@@ -43,9 +44,8 @@ class ProblemConfig:
     allow_rationals: bool
     entropy_range: tuple[float, float]
     # NOTE: for small entropy ranges it is better to set this to False
-    center_biased_draw: bool = False
+    center_biased_draw: bool
 
-    @property
     def sample_entropy(self) -> float:
         """Get entropy from configuration."""
         entropy = self._sample_entropy()
@@ -91,18 +91,21 @@ DIFFICULTY_CONFIGS = {
         matrix_size_range=(2, 2),
         allow_rationals=False,
         entropy_range=(1.2, 1.8),
+        center_biased_draw=True,
     ),
     DifficultyCategory.TWO_TOOL_CALLS: ProblemConfig(
         target_tool_calls=1,
         matrix_size_range=(2, 3),
         allow_rationals=False,
         entropy_range=(2.6, 3.6),
+        center_biased_draw=True,
     ),
     DifficultyCategory.THREE_TOOL_CALLS: ProblemConfig(
         target_tool_calls=1,
         matrix_size_range=(3, 3),
         allow_rationals=True,
         entropy_range=(2.6, 3.6),
+        center_biased_draw=True,
     ),
 }
 
@@ -110,11 +113,6 @@ DIFFICULTY_CONFIGS = {
 def get_problem_config(difficulty: DifficultyCategory, topic: Topic, problem_type: Task) -> ProblemConfig:
     """Get problem configuration for a given difficulty level, topic, and problem type."""
     return DIFFICULTY_CONFIGS[difficulty]
-
-
-def sample_entropy(difficulty: DifficultyCategory, topic: Topic, problem_type: Task) -> float:
-    """Get sampled entropy for a given difficulty level."""
-    return get_problem_config(difficulty, topic, problem_type).sample_entropy
 
 
 def validate_tool_calls(expected: int, actual: int, problem_type: Task) -> bool:

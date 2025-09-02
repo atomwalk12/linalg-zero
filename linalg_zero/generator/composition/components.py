@@ -32,6 +32,10 @@ from linalg_zero.generator.sympy.generators.matrix_inverse_generator import (
     MatrixInverseGenerator,
     MatrixInverseGeneratorDependent,
 )
+from linalg_zero.generator.sympy.generators.matrix_matrix_generator import (
+    MatrixMatrixMultiplicationGenerator,
+    MatrixMatrixMultiplicationGeneratorDependent,
+)
 from linalg_zero.generator.sympy.generators.matrix_rank_generator import (
     MatrixRankGenerator,
     MatrixRankGeneratorDependent,
@@ -45,7 +49,6 @@ from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
     MatrixTransposeGeneratorDependent,
 )
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
-    MatrixMatrixMultiplicationGeneratorDependent,
     MatrixVectorMultiplicationGenerator,
     MatrixVectorMultiplicationGeneratorDependent,
 )
@@ -251,23 +254,37 @@ class MatrixMatrixMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
         self.constraints = kwargs["constraints"]
         is_independent = self.constraints["is_independent"]
         generator_cls = (
-            MatrixVectorMultiplicationGenerator if is_independent else MatrixMatrixMultiplicationGeneratorDependent
+            MatrixMatrixMultiplicationGenerator if is_independent else MatrixMatrixMultiplicationGeneratorDependent
         )
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.MATRIX_VECTOR_MULTIPLICATION,
+            component_type=Task.MATRIX_MATRIX_MULTIPLICATION,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
 
     def entropy_weight(self) -> float:
+        # If independent, allocate all entropy
         if self.is_independent:
             return 1.0
-        return 0.0
+
+        input_indices = self.constraints.get("input_indices", {})
+        if "input_matrix_B" not in input_indices:
+            # matrix_B is not provided, so it will be generated inside the component
+            # allocate half of the total entropy amount
+            return 0.5
+        else:
+            # All components provided, allocate no entropy
+            return 0.0
 
     def get_input_name(self) -> list[str]:
-        return ["input_matrix_A", "input_matrix_B"]
+        # Check if we need both matrices or just one based on constraints
+        input_indices = self.constraints["input_indices"]
+        if "input_matrix_B" in input_indices:
+            return ["input_matrix_A", "input_matrix_B"]
+        else:
+            return ["input_matrix_A"]
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True}
@@ -291,7 +308,10 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
     def entropy_weight(self) -> float:
         if self.is_independent:
             return 1.0
-        return 0.0
+
+        # This component still needs to generate a matrix, even if vector b is
+        # provided, so we provide 0.5 entropy weight.
+        return 0.5
 
     def get_input_name(self) -> list[str]:
         return ["input_vector_b"]

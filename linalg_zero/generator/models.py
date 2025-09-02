@@ -23,6 +23,7 @@ class Task(Enum):
     DETERMINANT = "determinant"
     LINEAR_SYSTEM_SOLVER = "linear_system_solver"
     MATRIX_VECTOR_MULTIPLICATION = "matrix_vector_multiplication"
+    MATRIX_MATRIX_MULTIPLICATION = "matrix_matrix_multiplication"
     FROBENIUS_NORM = "frobenius_norm"
     MATRIX_RANK = "matrix_rank"
     MATRIX_TRANSPOSE = "matrix_transpose"

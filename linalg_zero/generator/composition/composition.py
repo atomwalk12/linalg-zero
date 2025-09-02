@@ -55,8 +55,8 @@ class SequentialComposition(CompositionStrategy):
             allocations = [total_entropy * m / total_modules for m in modules]
             component_sample_args = [SampleArgs(num_modules=1, entropy=e) for e in allocations]
 
-        for component, comp_sample_args in zip(components, component_sample_args, strict=True):
-            if not component.can_execute(base_context):
+        for component_wrapper, comp_sample_args in zip(components, component_sample_args, strict=True):
+            if not component_wrapper.can_execute(base_context):
                 continue
 
             # Create a context copy with the allocated entropy for this component
@@ -69,7 +69,7 @@ class SequentialComposition(CompositionStrategy):
             # Pass previous component results to enable sequential data flow
             component_context.component_results = base_context.component_results.copy()
 
-            result = component.generate(component_context)
+            result = component_wrapper.generate(component_context)
             base_context.record_component_result(result)
 
             base_context.stepwise_results.extend(component_context.stepwise_results)

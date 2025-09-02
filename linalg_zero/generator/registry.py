@@ -7,7 +7,6 @@ from linalg_zero.generator.composition.components import (
     LinearSystemSolverWrapperComponent,
     MatrixCofactorWrapperComponent,
     MatrixMatrixMultiplicationWrapperComponent,
-    MatrixVectorMultiplicationWrapperComponent,
     RankWrapperComponent,
     TransposeWrapperComponent,
 )
@@ -22,9 +21,9 @@ from linalg_zero.generator.generator_factories import (
     create_frobenius_norm_factory,
     create_linear_system_generator,
     create_matrix_cofactor_factory,
+    create_matrix_matrix_multiplication_factory,
     create_matrix_rank_factory,
     create_matrix_transpose_factory,
-    create_matrix_vector_multiplication_factory,
 )
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.base import (
@@ -39,6 +38,7 @@ class FactoryRegistry:
     def __init__(self) -> None:
         self._factories: dict[Topic, dict[Task, Callable[[], Question]]] = {}
         self._factory_difficulties: dict[Topic, dict[Task, DifficultyCategory]] = {}
+        self._composite_components: dict[Topic, dict[Task, list[tuple[Task, bool]]]] = {}
 
     def register_factory(
         self,
@@ -119,6 +119,15 @@ class FactoryRegistry:
         # Store difficulty for the composite factory
         self.register_factory(topic, problem_type, factory, difficulty=difficulty_level)
 
+        # Store composite component metadata used in tests
+        if topic not in self._composite_components:
+            self._composite_components[topic] = {}
+        self._composite_components[topic][problem_type] = [(c.name, c.is_independent) for c in components]
+
+    def get_composite_components(self, topic: Topic, problem_type: Task) -> list[tuple[Task, bool]]:
+        """Return (component task, is_independent) for a registered composite problem, or empty list."""
+        return self._composite_components.get(topic, {}).get(problem_type, [])
+
 
 def create_default_registry() -> FactoryRegistry:
     """Create and populate the default factory registry."""
@@ -137,8 +146,8 @@ def create_default_registry() -> FactoryRegistry:
 
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
-        Task.MATRIX_VECTOR_MULTIPLICATION,
-        create_matrix_vector_multiplication_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        Task.MATRIX_MATRIX_MULTIPLICATION,
+        create_matrix_matrix_multiplication_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
     registry.register_factory(
@@ -267,11 +276,11 @@ def create_default_registry() -> FactoryRegistry:
                 gen_constraints=GenerationConstraints(square=True),
             ),
             MatrixMatrixMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                name=Task.MATRIX_MATRIX_MULTIPLICATION,
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
-                    "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
+                    "sources": {"input_matrix_A": "result", "input_matrix_B": "matrix"},
                 },
             ),
             DeterminantWrapperComponent(
@@ -294,11 +303,11 @@ def create_default_registry() -> FactoryRegistry:
                 gen_constraints=GenerationConstraints(square=True),
             ),
             MatrixMatrixMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                name=Task.MATRIX_MATRIX_MULTIPLICATION,
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
-                    "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
+                    "sources": {"input_matrix_A": "result", "input_matrix_B": "matrix"},
                 },
             ),
             RankWrapperComponent(
@@ -320,9 +329,9 @@ def create_default_registry() -> FactoryRegistry:
                 constraints={"is_independent": True},
                 gen_constraints=GenerationConstraints(square=True, invertible=True),
             ),
-            MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION,
-                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
+            MatrixMatrixMultiplicationWrapperComponent(
+                name=Task.MATRIX_MATRIX_MULTIPLICATION,
+                constraints={"is_independent": False, "input_indices": {"input_matrix_A": 0}},
             ),
             FrobeniusNormWrapperComponent(
                 name=Task.FROBENIUS_NORM,
