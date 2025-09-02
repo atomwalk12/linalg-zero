@@ -263,6 +263,48 @@ def matrix_inverse(matrix: list[list[float | int]]) -> list[list[float | int]]:
     raise TypeError(f"Expected list of lists, got {type(result)}")
 
 
+def matrix_cofactor(matrix: list[list[float | int]]) -> list[list[float | int]]:
+    """Calculate the cofactor matrix of a square matrix using SymPy.
+
+    The cofactor matrix is formed by taking the cofactor of each element of the matrix.
+    The cofactor of element (i,j) is (-1)^(i+j) * det(minor(i,j)), where minor(i,j)
+    is the (n-1)x(n-1) submatrix obtained by removing row i and column j.
+
+    Examples:
+        >>> matrix_cofactor([[1, 2], [3, 4]])
+        [[4, -3], [-2, 1]]
+        >>> matrix_cofactor([[2, 0], [0, 3]])
+        [[3, 0], [0, 2]]
+        >>> matrix_cofactor([[1]])  # 1x1 matrix
+        [[1]]
+
+    Args:
+        matrix: The square matrix as a list of lists.
+
+    Returns:
+        The cofactor matrix as a list of lists.
+
+    Raises:
+        ValueError: If the matrix is not square.
+    """
+    try:
+        sym_matrix = Matrix(matrix)
+
+        cofactor_result = sym_matrix.cofactor_matrix()
+
+        result = MathFormatter.sympy_to_primitive(cofactor_result, precision=Precision.MATRIX_COFACTOR)
+
+        if isinstance(result, list) and all(isinstance(row, list) for row in result):
+            return result
+
+    except NonSquareMatrixError as e:
+        raise ValueError(f"Matrix must be square for cofactor calculation: {e}") from e
+    except Exception as e:
+        raise ValueError(f"Cannot calculate cofactor matrix: {e}") from e
+
+    raise TypeError(f"Expected list of lists, got {type(result)}")
+
+
 def matrix_trace(matrix: list[list[float | int]]) -> float:
     """Calculate the trace of a square matrix using SymPy.
 
@@ -309,9 +351,10 @@ def get_lib() -> dict[str, Callable[..., Any]]:
         "frobenius_norm": frobenius_norm,
         "matrix_rank": matrix_rank,
         "matrix_transpose": matrix_transpose,
-        "matrix_inverse": matrix_inverse,
+        "matrix_cofactor": matrix_cofactor,
         # Not used
         # "matrix_trace": matrix_trace,
+        # "matrix_inverse": matrix_inverse,
     }
 
 

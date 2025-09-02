@@ -28,6 +28,7 @@ class Task(Enum):
     MATRIX_TRANSPOSE = "matrix_transpose"
     MATRIX_INVERSE = "matrix_inverse"
     MATRIX_TRACE = "matrix_trace"
+    MATRIX_COFACTOR = "matrix_cofactor"
     COMPOSITE_SEQUENTIAL = "sequential"
     COMPOSITE_SYSTEM_DEPENDENCY = "system_dependency"
     COMPOSITE_TRANSPOSE_DETERMINANT = "transpose_determinant"

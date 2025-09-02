@@ -7,11 +7,15 @@ from linalg_zero.generator.composition.composition import (
     ProblemComponent,
 )
 from linalg_zero.generator.difficulty_config import SampleArgs
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.determinant_generator import DeterminantGenerator
 from linalg_zero.generator.sympy.generators.frobenius_norm_generator import FrobeniusNormGenerator
 from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
+from linalg_zero.generator.sympy.generators.matrix_cofactor_generator import (
+    MatrixCofactorGenerator,
+)
 from linalg_zero.generator.sympy.generators.matrix_inverse_generator import (
     MatrixInverseGenerator,
 )
@@ -85,13 +89,16 @@ def create_matrix_transpose_factory(difficulty: DifficultyCategory) -> Callable[
     )
 
 
-def create_matrix_inverse_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
+def create_matrix_inverse_factory(
+    difficulty: DifficultyCategory, gen_constraints: GenerationConstraints | None = None
+) -> Callable[[], Question]:
     """Helper to create matrix inverse factory with specific parameters."""
     return create_sympy_factory(
         MatrixInverseGenerator,
         difficulty_level=difficulty,
         problem_type=Task.MATRIX_INVERSE,
         topic=Topic.LINEAR_ALGEBRA,
+        gen_constraints=gen_constraints,
     )
 
 
@@ -102,6 +109,19 @@ def create_matrix_trace_factory(difficulty: DifficultyCategory) -> Callable[[], 
         difficulty_level=difficulty,
         problem_type=Task.MATRIX_TRACE,
         topic=Topic.LINEAR_ALGEBRA,
+    )
+
+
+def create_matrix_cofactor_factory(
+    difficulty: DifficultyCategory, gen_constraints: GenerationConstraints | None = None
+) -> Callable[[], Question]:
+    """Helper to create matrix cofactor factory with specific parameters."""
+    return create_sympy_factory(
+        MatrixCofactorGenerator,
+        difficulty_level=difficulty,
+        problem_type=Task.MATRIX_COFACTOR,
+        topic=Topic.LINEAR_ALGEBRA,
+        gen_constraints=gen_constraints,
     )
 
 
@@ -136,6 +156,7 @@ def create_sympy_factory(
     difficulty_level: DifficultyCategory,
     problem_type: Task,
     topic: Topic,
+    gen_constraints: GenerationConstraints | None = None,
     **kwargs: Any,
 ) -> Callable[[], Question]:
     """
@@ -147,6 +168,7 @@ def create_sympy_factory(
             difficulty_level=difficulty_level,
             problem_type=problem_type,
             topic=topic,
+            gen_constraints=gen_constraints,
             **kwargs,
         )
         return generator.generate()

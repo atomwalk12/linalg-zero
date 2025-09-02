@@ -405,6 +405,34 @@ class TemplateEngine:
                 ),
             ])
 
+        elif question_type == Task.MATRIX_COFACTOR:
+            templates.extend([
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the cofactor matrix of matrix A, where A = {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_COFACTOR,
+                ),
+                QuestionTemplate(
+                    template_string="Given matrix A = {matrix}, find the cofactor matrix of A.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_COFACTOR,
+                ),
+                QuestionTemplate(
+                    template_string="For A = {matrix}, compute the cofactor matrix.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_COFACTOR,
+                ),
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the matrix of cofactors for A = {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_COFACTOR,
+                ),
+            ])
+
         return templates
 
     def create_composite_templates(
@@ -567,6 +595,22 @@ class TemplateEngine:
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_INVERSE,
+                ),
+            ])
+
+        elif question_type == Task.MATRIX_COFACTOR:
+            templates.extend([
+                QuestionTemplate(
+                    template_string=f"{compute_verb} the cofactor matrix of the matrix from {{matrix}}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_COFACTOR,
+                ),
+                QuestionTemplate(
+                    template_string="Find the cofactor matrix of A where A is {matrix}.",
+                    required_variables=["matrix"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_COFACTOR,
                 ),
             ])
 

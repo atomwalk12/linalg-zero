@@ -24,6 +24,10 @@ from linalg_zero.generator.sympy.generators.linear_system_generator import (
     LinearSystemGenerator,
     LinearSystemGeneratorDependent,
 )
+from linalg_zero.generator.sympy.generators.matrix_cofactor_generator import (
+    MatrixCofactorGenerator,
+    MatrixCofactorGeneratorDependent,
+)
 from linalg_zero.generator.sympy.generators.matrix_inverse_generator import (
     MatrixInverseGenerator,
     MatrixInverseGeneratorDependent,
@@ -456,3 +460,30 @@ class MatrixInverseWrapperComponent(SympyGeneratorWrapperComponent):
 
     def _get_input_validation_spec(self) -> dict[str, bool]:
         return {"require_matrix": True, "non_empty": True, "square": True, "invertible": True}
+
+
+class MatrixCofactorWrapperComponent(SympyGeneratorWrapperComponent):
+    """Wrapper for the MatrixCofactorGenerator."""
+
+    def __init__(self, name: Task, **kwargs: Any) -> None:
+        constraints = kwargs["constraints"]
+        is_independent = constraints["is_independent"]
+        generator_cls = MatrixCofactorGenerator if is_independent else MatrixCofactorGeneratorDependent
+        super().__init__(
+            name=name,
+            generator_class=generator_cls,
+            component_type=Task.MATRIX_COFACTOR,
+            topic=Topic.LINEAR_ALGEBRA,
+            **kwargs,
+        )
+
+    def entropy_weight(self) -> float:
+        if self.is_independent:
+            return 1.0
+        return 0.0
+
+    def get_input_name(self) -> list[str]:
+        return ["input_matrix"]
+
+    def _get_input_validation_spec(self) -> dict[str, bool]:
+        return {"require_matrix": True, "non_empty": True, "square": True}

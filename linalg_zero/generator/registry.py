@@ -5,7 +5,7 @@ from linalg_zero.generator.composition.components import (
     DeterminantWrapperComponent,
     FrobeniusNormWrapperComponent,
     LinearSystemSolverWrapperComponent,
-    MatrixInverseWrapperComponent,
+    MatrixCofactorWrapperComponent,
     MatrixMatrixMultiplicationWrapperComponent,
     MatrixVectorMultiplicationWrapperComponent,
     RankWrapperComponent,
@@ -21,7 +21,7 @@ from linalg_zero.generator.generator_factories import (
     create_determinant_factory,
     create_frobenius_norm_factory,
     create_linear_system_generator,
-    create_matrix_inverse_factory,
+    create_matrix_cofactor_factory,
     create_matrix_rank_factory,
     create_matrix_transpose_factory,
     create_matrix_vector_multiplication_factory,
@@ -167,8 +167,10 @@ def create_default_registry() -> FactoryRegistry:
     )
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
-        Task.MATRIX_INVERSE,
-        create_matrix_inverse_factory(difficulty=DifficultyCategory.ONE_TOOL_CALL),
+        Task.MATRIX_COFACTOR,
+        create_matrix_cofactor_factory(
+            difficulty=DifficultyCategory.ONE_TOOL_CALL, gen_constraints=GenerationConstraints(entropy_range=(1, 1))
+        ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
@@ -194,15 +196,15 @@ def create_default_registry() -> FactoryRegistry:
         difficulty_level=DifficultyCategory.TWO_TOOL_CALLS,
     )
 
-    # Problem 2: A → A^(-1) → ||A^(-1)||_F (inverse + frobenius_norm)
+    # Problem 2: A → cofactor(A) → ||cofactor(A)||_F (cofactor + frobenius_norm)
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
         problem_type=Task.COMPOSITE_INVERSE_FROBENIUS,
         components=[
-            MatrixInverseWrapperComponent(
-                name=Task.MATRIX_INVERSE,
+            MatrixCofactorWrapperComponent(
+                name=Task.MATRIX_COFACTOR,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True, invertible=True),
+                gen_constraints=GenerationConstraints(square=True),
             ),
             FrobeniusNormWrapperComponent(
                 name=Task.FROBENIUS_NORM,
@@ -213,15 +215,15 @@ def create_default_registry() -> FactoryRegistry:
         difficulty_level=DifficultyCategory.TWO_TOOL_CALLS,
     )
 
-    # Problem 3: A → A^(-1) → rank(A^(-1)) (inverse + matrix_rank)
+    # Problem 3: A → cofactor(A) → rank(cofactor(A)) (cofactor + matrix_rank)
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
         problem_type=Task.COMPOSITE_INVERSE_RANK,
         components=[
-            MatrixInverseWrapperComponent(
-                name=Task.MATRIX_INVERSE,
+            MatrixCofactorWrapperComponent(
+                name=Task.MATRIX_COFACTOR,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True, invertible=True),
+                gen_constraints=GenerationConstraints(square=True),
             ),
             RankWrapperComponent(
                 name=Task.MATRIX_RANK,
@@ -281,15 +283,15 @@ def create_default_registry() -> FactoryRegistry:
         difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
     )
 
-    # Problem 2: A → A^(-1) → A^(-1)*B → rank(result) (inverse + multiply + matrix_rank)
+    # Problem 2: A → cofactor(A) → cofactor(A)*B → rank(result) (cofactor + multiply + matrix_rank)
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
         problem_type=Task.COMPOSITE_TRIPLE_INVERSE_RANK,
         components=[
-            MatrixInverseWrapperComponent(
-                name=Task.MATRIX_INVERSE,
+            MatrixCofactorWrapperComponent(
+                name=Task.MATRIX_COFACTOR,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True, invertible=True),
+                gen_constraints=GenerationConstraints(square=True),
             ),
             MatrixMatrixMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
