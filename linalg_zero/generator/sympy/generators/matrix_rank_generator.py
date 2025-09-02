@@ -8,8 +8,14 @@ from linalg_zero.generator.difficulty_config import (
     validate_tool_calls,
 )
 from linalg_zero.generator.models import DifficultyCategory, Task
-from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
-from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
+from linalg_zero.generator.sympy.base import (
+    DependentGeneratorMixin,
+    ProblemContext,
+    ProblemTemplate,
+)
+from linalg_zero.generator.sympy.generators.base_generator import (
+    MatrixVectorBaseGenerator,
+)
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.lib import matrix_rank
 
@@ -96,7 +102,7 @@ class MatrixRankGenerator(MatrixVectorBaseGenerator):
         return Integer(sympy_result), lib_result
 
 
-class MatrixRankGeneratorDependent(MatrixRankGenerator):
+class MatrixRankGeneratorDependent(DependentGeneratorMixin, MatrixRankGenerator):
     """Dependent variant: uses provided input matrix and reports dependency index in difficulty markers."""
 
     def __init__(
@@ -104,9 +110,14 @@ class MatrixRankGeneratorDependent(MatrixRankGenerator):
         difficulty_level: DifficultyCategory,
         input_matrix: Matrix,
         input_matrix_index: int,
+        sources: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(difficulty_level=difficulty_level, **kwargs)
+        # Build input_variables for the mixin
+        input_variables = {"matrix": (input_matrix, input_matrix_index)}
+
+        super().__init__(difficulty_level=difficulty_level, sources=sources, input_variables=input_variables, **kwargs)
+
         assert self.problem_type == Task.MATRIX_RANK  # noqa: S101
         self.input_matrix = input_matrix
         self.input_index = input_matrix_index
@@ -128,4 +139,4 @@ class MatrixRankGeneratorDependent(MatrixRankGenerator):
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return template variables for dependent matrix rank generator."""
-        return {"matrix": f"step {self.input_index + 1}"}
+        return self.get_dependent_template_variables()

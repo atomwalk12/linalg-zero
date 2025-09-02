@@ -9,7 +9,11 @@ from linalg_zero.generator.difficulty_config import (
     validate_tool_calls,
 )
 from linalg_zero.generator.models import DifficultyCategory, Task
-from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
+from linalg_zero.generator.sympy.base import (
+    DependentGeneratorMixin,
+    ProblemContext,
+    ProblemTemplate,
+)
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.lib import frobenius_norm
@@ -106,7 +110,7 @@ class FrobeniusNormGenerator(MatrixVectorBaseGenerator):
         return self._get_matrix_with_constraints(context)
 
 
-class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
+class FrobeniusNormGeneratorDependent(DependentGeneratorMixin, FrobeniusNormGenerator):
     """Dependent variant: consumes a provided input matrix and does not use entropy."""
 
     def __init__(
@@ -114,9 +118,15 @@ class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
         difficulty_level: DifficultyCategory,
         input_matrix: sympy.Matrix,
         input_matrix_index: int,
+        sources: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(difficulty_level=difficulty_level, **kwargs)
+        # Build input_variables for the mixin
+        input_variables = {"matrix": (input_matrix, input_matrix_index)}
+
+        # Initialize with mixin functionality
+        super().__init__(difficulty_level=difficulty_level, sources=sources, input_variables=input_variables, **kwargs)
+
         assert self.problem_type == Task.FROBENIUS_NORM  # noqa: S101
         self.input_matrix = input_matrix
         self.input_index = input_matrix_index
@@ -138,4 +148,4 @@ class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return template variables for dependent frobenius norm generator."""
-        return {"matrix": f"step {self.input_index + 1}"}
+        return self.get_dependent_template_variables()

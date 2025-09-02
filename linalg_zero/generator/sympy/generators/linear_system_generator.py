@@ -11,8 +11,14 @@ from linalg_zero.generator.difficulty_config import (
 from linalg_zero.generator.entropy_control import SampleArgs
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Task
-from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
-from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
+from linalg_zero.generator.sympy.base import (
+    DependentGeneratorMixin,
+    ProblemContext,
+    ProblemTemplate,
+)
+from linalg_zero.generator.sympy.generators.base_generator import (
+    MatrixVectorBaseGenerator,
+)
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.lib import solve_linear_system
 
@@ -76,13 +82,13 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         # Problem: "Solve Ax = b for x"
         problem_expression = sympy.Eq(matrix_A * x_symbols, vector_b)
 
-        context_info = self._prepare_context_info(matrix_A, x_symbols, vector_b, size)
+        context_info = self._prepare_context_info(matrix_A, vector_b, size)
 
         question_templates = self._question_templates(context_info)
 
         return ProblemTemplate(
             expression=problem_expression,
-            variables={"matrix_A": matrix_A, "x_symbols": x_symbols, "target_b": vector_b},
+            variables={"matrix_A": matrix_A, "target_b": vector_b},
             sympy_solution=sympy_sol,
             lib_result=lib_result,
             question_templates=question_templates,
@@ -96,9 +102,8 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         """Return the variables dictionary to pass to the template engine."""
         matrix_a = template.context_info["matrix_A"]
         target_b = template.context_info["target_b"]
-        x_symbols = template.context_info["x_symbols"]
 
-        return {"matrix": matrix_a, "x_symbols": x_symbols, "target_b": target_b}
+        return {"matrix": matrix_a, "target_b": target_b}
 
     def _solve_linear_system_sympy(
         self, matrix_a: sympy.Matrix, vector_b: sympy.Matrix
@@ -157,7 +162,6 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     def _prepare_context_info(
         self,
         matrix_A: sympy.Matrix,
-        x_symbols: sympy.Matrix,
         vector_b: sympy.Matrix,
         size: int,
     ) -> dict[str, Any]:
@@ -165,7 +169,6 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
             "matrix_dimensions": (size, size),
             "problem_type": self.problem_type,
             "matrix_A": matrix_A,
-            "x_symbols": x_symbols,
             "target_b": vector_b,
         }
 
@@ -174,7 +177,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         return [t.template_string for t in question_templates]
 
 
-class LinearSystemGeneratorDependent(LinearSystemGenerator):
+class LinearSystemGeneratorDependent(DependentGeneratorMixin, LinearSystemGenerator):
     """Dependent variant: uses provided b vector from previous component."""
 
     def __init__(
@@ -182,10 +185,22 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
         difficulty_level: DifficultyCategory,
         input_vector_b: sympy.Matrix,
         input_vector_b_index: int,
+        sources: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(difficulty_level=difficulty_level, is_independent=False, **kwargs)
+        input_variables = {"target_b": (input_vector_b, input_vector_b_index)}
+
+        super().__init__(
+            difficulty_level=difficulty_level,
+            is_independent=False,
+            sources=sources,
+            input_variables=input_variables,
+            **kwargs,
+        )
+
         assert self.problem_type == Task.LINEAR_SYSTEM_SOLVER  # noqa: S101
+
+        # Keep instance variables for other methods that need them
         self.input_vector_b = input_vector_b
         self.input_index = input_vector_b_index
 
@@ -209,11 +224,10 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
     def _prepare_context_info(
         self,
         matrix_A: sympy.Matrix,
-        x_symbols: sympy.Matrix,
         vector_b: sympy.Matrix,
         size: int,
     ) -> dict[str, Any]:
-        context_info = super()._prepare_context_info(matrix_A, x_symbols, vector_b, size)
+        context_info = super()._prepare_context_info(matrix_A, vector_b, size)
         context_info["input_variable_name"] = "b"
         context_info["input_indices"] = self.input_index
         return context_info
@@ -234,8 +248,11 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
 
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
-        base_vars = {}
+        """Use the mixin's generic logic for consistent result/value handling."""
+        # Get variables from the mixin (handles target_b)
+        base_vars = self.get_dependent_template_variables()
+
+        # Matrix is always generated locally (not from previous step)
         base_vars["matrix"] = template.context_info["matrix_A"]
-        base_vars["x_symbols"] = template.context_info["x_symbols"]
-        base_vars["target_b"] = f"step {self.input_index + 1}"
+
         return base_vars

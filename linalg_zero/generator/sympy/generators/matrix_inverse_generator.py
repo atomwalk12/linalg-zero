@@ -9,8 +9,14 @@ from linalg_zero.generator.difficulty_config import (
 )
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Task
-from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate
-from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
+from linalg_zero.generator.sympy.base import (
+    DependentGeneratorMixin,
+    ProblemContext,
+    ProblemTemplate,
+)
+from linalg_zero.generator.sympy.generators.base_generator import (
+    MatrixVectorBaseGenerator,
+)
 from linalg_zero.generator.sympy.templates import MathFormatter
 from linalg_zero.shared.lib import matrix_inverse
 
@@ -97,7 +103,7 @@ class MatrixInverseGenerator(MatrixVectorBaseGenerator):
         return sympy_result, lib_result
 
 
-class MatrixInverseGeneratorDependent(MatrixInverseGenerator):
+class MatrixInverseGeneratorDependent(DependentGeneratorMixin, MatrixInverseGenerator):
     """Dependent variant: uses provided input matrix and reports dependency index in difficulty markers."""
 
     def __init__(
@@ -105,9 +111,13 @@ class MatrixInverseGeneratorDependent(MatrixInverseGenerator):
         difficulty_level: DifficultyCategory,
         input_matrix: Matrix,
         input_matrix_index: int,
+        sources: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(difficulty_level=difficulty_level, **kwargs)
+        input_variables = {"matrix": (input_matrix, input_matrix_index)}
+
+        super().__init__(difficulty_level=difficulty_level, sources=sources, input_variables=input_variables, **kwargs)
+
         assert self.problem_type == Task.MATRIX_INVERSE  # noqa: S101
         self.input_matrix = input_matrix
         self.input_index = input_matrix_index
@@ -129,4 +139,4 @@ class MatrixInverseGeneratorDependent(MatrixInverseGenerator):
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return template variables for dependent matrix inverse generator."""
-        return {"matrix": f"step {self.input_index + 1}"}
+        return self.get_dependent_template_variables()
