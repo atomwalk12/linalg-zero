@@ -13,6 +13,7 @@ from linalg_zero.generator.models import (
 )
 from linalg_zero.generator.sympy.templates import MathFormatter, TemplateEngine
 from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.types import LibTypes
 
 
@@ -85,6 +86,7 @@ class SympyProblemGenerator(ABC):
         self.problem_type = problem_type
         self.topic = topic
         self.config = get_problem_config(difficulty_level, topic, problem_type)
+        self.lib = get_lib()
 
         # If no entropy provided (or 0), sample from config - used by simple generators
         # If entropy provided, use it - used by composition generators

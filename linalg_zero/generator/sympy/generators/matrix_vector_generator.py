@@ -91,7 +91,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
 
         # Calculate using lib.py with the primitives
-        lib_result = multiply_matrices(a_list, b_list)
+        lib_result = self.lib["multiply_matrices"](a_list, b_list)
 
         # Convert primitives back to SymPy matrices at the same precision level
         # This ensures both calculations work with the same precision

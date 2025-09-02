@@ -110,7 +110,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         assert isinstance(matrix_a_sympy, list) and isinstance(vector_b_sympy, list)  # noqa: S101
 
         # Calculate using lib.py
-        lib_result = solve_linear_system(matrix_a_sympy, vector_b_sympy)
+        lib_result = self.lib["solve_linear_system"](matrix_a_sympy, vector_b_sympy)
 
         # This ensures there is no precision loss during verification
         matrix_a_precision_matched = Matrix(matrix_a_sympy)

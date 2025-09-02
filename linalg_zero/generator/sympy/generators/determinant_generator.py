@@ -87,7 +87,7 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         assert isinstance(matrix_a_primitive, list)  # noqa: S101
 
         # Calculate using lib.py with the primitives
-        lib_result = determinant(matrix_a_primitive)
+        lib_result = self.lib["determinant"](matrix_a_primitive)
 
         # Convert primitives back to SymPy Matrix at the same precision level
         # This ensures both calculations work with the same precision
