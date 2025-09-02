@@ -109,23 +109,7 @@ class TemplateEngine:
     human-readable questions using templates and formatters.
     """
 
-    SOLVE_VERBS: ClassVar[dict[DifficultyCategory, list[str]]] = {
-        DifficultyCategory.ONE_TOOL_CALL: ["Find", "Calculate"],
-        DifficultyCategory.TWO_TOOL_CALLS: ["Find", "Solve", "Determine"],
-        DifficultyCategory.THREE_TOOL_CALLS: ["Solve", "Determine", "Evaluate", "Derive"],
-    }
-
-    QUESTION_STARTERS: ClassVar[dict[DifficultyCategory, list[str]]] = {
-        DifficultyCategory.ONE_TOOL_CALL: ["What is", "Find"],
-        DifficultyCategory.TWO_TOOL_CALLS: ["Find", "Calculate", "Determine", "Compute"],
-        DifficultyCategory.THREE_TOOL_CALLS: ["Evaluate", "Determine", "Derive", "Establish"],
-    }
-
-    COMPUTE_VERBS: ClassVar[dict[DifficultyCategory, list[str]]] = {
-        DifficultyCategory.ONE_TOOL_CALL: ["Find"],
-        DifficultyCategory.TWO_TOOL_CALLS: ["Calculate", "Compute"],
-        DifficultyCategory.THREE_TOOL_CALLS: ["Determine", "Evaluate"],
-    }
+    VERBS: ClassVar[list[str]] = ["Find", "Calculate", "Compute", "Determine", "Evaluate"]
 
     def __init__(self) -> None:
         self.math_formatter = MathFormatter()
@@ -187,35 +171,55 @@ class TemplateEngine:
         return json.dumps(result_dict)
 
     def create_default_templates(
-        self, question_type: Task, difficulty: DifficultyCategory, is_independent: bool = True
+        self,
+        question_type: Task,
+        difficulty: DifficultyCategory,
+        is_independent: bool = True,
+        *,
+        deterministic: bool = False,
+        verb_index: int = 0,
     ) -> list[QuestionTemplate]:
         """
         Create default question templates for common problem types.
         This simplifies the creation of question/answer pairs.
         """
         if is_independent:
-            return self.create_independent_templates(question_type, difficulty)
+            return self.create_independent_templates(
+                question_type, difficulty, deterministic=deterministic, verb_index=verb_index
+            )
         else:
-            return self.create_composite_templates(question_type, difficulty)
+            return self.create_composite_templates(
+                question_type, difficulty, deterministic=deterministic, verb_index=verb_index
+            )
 
-    def create_independent_templates(
-        self, question_type: Task, difficulty: DifficultyCategory
+    def create_independent_templates(  # noqa: C901
+        self,
+        question_type: Task,
+        difficulty: DifficultyCategory,
+        *,
+        deterministic: bool = False,
+        verb_index: int = 0,
     ) -> list[QuestionTemplate]:
         templates = []
-        solve_verb = random.choice(self.SOLVE_VERBS[difficulty])
-        compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
+        verb = self.VERBS[verb_index % len(self.VERBS)] if deterministic else random.choice(self.VERBS)
 
         if question_type == Task.LINEAR_SYSTEM_SOLVER:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{solve_verb} the linear system A{{x_symbols}} = b for {{x_symbols}}, where A = {{matrix}} and b = {{target_b}}.",
-                    required_variables=["matrix", "x_symbols", "target_b"],
+                    template_string=f"{verb} the linear system Ax = b for x, where A = {{matrix}} and b = {{target_b}}.",
+                    required_variables=["matrix", "target_b"],
                     difficulty_level=difficulty,
                     question_type=Task.LINEAR_SYSTEM_SOLVER,
                 ),
                 QuestionTemplate(
-                    template_string="Given matrix A = {matrix} and vector b = {target_b}, solve A*{x_symbols} = b for {x_symbols}.",
-                    required_variables=["matrix", "x_symbols", "target_b"],
+                    template_string="Given matrix A = {matrix} and vector b = {target_b}, solve Ax = b for x.",
+                    required_variables=["matrix", "target_b"],
+                    difficulty_level=difficulty,
+                    question_type=Task.LINEAR_SYSTEM_SOLVER,
+                ),
+                QuestionTemplate(
+                    template_string="What is the solution x to the equation Ax = b, where A = {matrix} and b = {target_b}?",
+                    required_variables=["matrix", "target_b"],
                     difficulty_level=difficulty,
                     question_type=Task.LINEAR_SYSTEM_SOLVER,
                 ),
@@ -224,7 +228,7 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_VECTOR_MULTIPLICATION:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the matrix-vector product Av, where A = {{matrix}} and v = {{vector}}.",
+                    template_string=f"{verb} the matrix-vector product Av, where A = {{matrix}} and v = {{vector}}.",
                     required_variables=["matrix", "vector"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
@@ -236,17 +240,39 @@ class TemplateEngine:
                     question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
                 ),
                 QuestionTemplate(
-                    template_string=f"{compute_verb} A * v where A = {{matrix}} and v = {{vector}}.",
+                    template_string="Multiply matrix A = {matrix} by vector v = {vector}.",
                     required_variables=["matrix", "vector"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
                 ),
             ])
 
+        elif question_type == Task.MATRIX_MATRIX_MULTIPLICATION:
+            templates.extend([
+                QuestionTemplate(
+                    template_string=f"{verb} the matrix-matrix product AB, where A = {{matrix_A}} and B = {{matrix_B}}.",
+                    required_variables=["matrix_A", "matrix_B"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
+                ),
+                QuestionTemplate(
+                    template_string="Given matrix A = {matrix_A} and matrix B = {matrix_B}, compute AB.",
+                    required_variables=["matrix_A", "matrix_B"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
+                ),
+                QuestionTemplate(
+                    template_string="Multiply matrix A = {matrix_A} by matrix B = {matrix_B}.",
+                    required_variables=["matrix_A", "matrix_B"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
+                ),
+            ])
+
         elif question_type == Task.DETERMINANT:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the determinant of matrix A, where A = {{matrix}}.",
+                    template_string=f"{verb} the determinant of matrix A, where A = {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.DETERMINANT,
@@ -268,7 +294,7 @@ class TemplateEngine:
         elif question_type == Task.FROBENIUS_NORM:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the Frobenius norm of matrix A, where A = {{matrix}}.",
+                    template_string=f"{verb} the Frobenius norm of matrix A = {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.FROBENIUS_NORM,
@@ -280,13 +306,7 @@ class TemplateEngine:
                     question_type=Task.FROBENIUS_NORM,
                 ),
                 QuestionTemplate(
-                    template_string=f"{compute_verb} ||A||_F where A = {{matrix}}.",
-                    required_variables=["matrix"],
-                    difficulty_level=difficulty,
-                    question_type=Task.FROBENIUS_NORM,
-                ),
-                QuestionTemplate(
-                    template_string="For A = {matrix}, compute the Frobenius norm ||A||_F.",
+                    template_string="What is ||A||_F for A = {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.FROBENIUS_NORM,
@@ -296,25 +316,19 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_RANK:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the rank of matrix A, where A = {{matrix}}.",
+                    template_string=f"{verb} the rank of matrix A = {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_RANK,
                 ),
                 QuestionTemplate(
-                    template_string="Given matrix A = {matrix}, find rank(A).",
+                    template_string="What is the rank of matrix A = {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_RANK,
                 ),
                 QuestionTemplate(
-                    template_string="For A = {matrix}, compute rank(A).",
-                    required_variables=["matrix"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_RANK,
-                ),
-                QuestionTemplate(
-                    template_string=f"{compute_verb} the number of linearly independent rows in matrix A = {{matrix}}.",
+                    template_string="Find rank(A) for A = {matrix}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_RANK,
@@ -324,25 +338,19 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_TRANSPOSE:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the transpose of matrix A, where A = {{matrix}}.",
+                    template_string=f"{verb} the transpose of matrix A = {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRANSPOSE,
                 ),
                 QuestionTemplate(
-                    template_string="Given matrix A = {matrix}, find A^T.",
+                    template_string="Find A^T for A = {matrix}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRANSPOSE,
                 ),
                 QuestionTemplate(
-                    template_string="For A = {matrix}, compute A^T.",
-                    required_variables=["matrix"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_TRANSPOSE,
-                ),
-                QuestionTemplate(
-                    template_string=f"{compute_verb} A^T where A = {{matrix}}.",
+                    template_string="What is the transpose of A = {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRANSPOSE,
@@ -352,25 +360,19 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_INVERSE:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the inverse of matrix A, where A = {{matrix}}.",
+                    template_string=f"{verb} the inverse of matrix A = {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_INVERSE,
                 ),
                 QuestionTemplate(
-                    template_string="Given matrix A = {matrix}, find A^(-1).",
+                    template_string="Find A^(-1) for A = {matrix}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_INVERSE,
                 ),
                 QuestionTemplate(
-                    template_string="For A = {matrix}, compute A^(-1).",
-                    required_variables=["matrix"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_INVERSE,
-                ),
-                QuestionTemplate(
-                    template_string=f"{compute_verb} A^(-1) where A = {{matrix}}.",
+                    template_string="What is the inverse of matrix A = {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_INVERSE,
@@ -380,25 +382,19 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_TRACE:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the trace of matrix A, where A = {{matrix}}.",
+                    template_string=f"{verb} the trace of matrix A = {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRACE,
                 ),
                 QuestionTemplate(
-                    template_string="Given matrix A = {matrix}, find tr(A).",
+                    template_string="Find tr(A) for A = {matrix}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRACE,
                 ),
                 QuestionTemplate(
-                    template_string="For A = {matrix}, compute tr(A).",
-                    required_variables=["matrix"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_TRACE,
-                ),
-                QuestionTemplate(
-                    template_string=f"{compute_verb} the sum of the diagonal elements of matrix A = {{matrix}}.",
+                    template_string="What is the trace of A = {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRACE,
@@ -408,25 +404,19 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_COFACTOR:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the cofactor matrix of matrix A, where A = {{matrix}}.",
+                    template_string=f"{verb} the cofactor matrix of A = {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_COFACTOR,
                 ),
                 QuestionTemplate(
-                    template_string="Given matrix A = {matrix}, find the cofactor matrix of A.",
+                    template_string="Find the cofactor matrix for A = {matrix}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_COFACTOR,
                 ),
                 QuestionTemplate(
-                    template_string="For A = {matrix}, compute the cofactor matrix.",
-                    required_variables=["matrix"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_COFACTOR,
-                ),
-                QuestionTemplate(
-                    template_string=f"{compute_verb} the matrix of cofactors for A = {{matrix}}.",
+                    template_string="What is the matrix of cofactors for A = {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_COFACTOR,
@@ -435,45 +425,26 @@ class TemplateEngine:
 
         return templates
 
-    def create_composite_templates(
-        self, question_type: Task, difficulty: DifficultyCategory
+    def create_composite_templates(  # noqa: C901
+        self,
+        question_type: Task,
+        difficulty: DifficultyCategory,
+        *,
+        deterministic: bool = False,
+        verb_index: int = 0,
     ) -> list[QuestionTemplate]:
         """
         Create question templates specifically for composite problems.
         These templates handle multi-step operations with intermediate results.
         """
         templates = []
-        compute_verb = random.choice(self.COMPUTE_VERBS[difficulty])
-        solve_verb = random.choice(self.SOLVE_VERBS[difficulty])
+        verb = self.VERBS[verb_index % len(self.VERBS)] if deterministic else random.choice(self.VERBS)
 
         if question_type == Task.MATRIX_VECTOR_MULTIPLICATION:
             templates.extend([
+                # Matrix-vector multiplication
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the matrix product AB, where A = {{matrix_A_ref}} and B = {{matrix_B_ref}}.",
-                    required_variables=["matrix_A_ref", "matrix_B_ref"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
-                ),
-                QuestionTemplate(
-                    template_string="Given A = {matrix_A_ref} and B = {matrix_B_ref}, find AB.",
-                    required_variables=["matrix_A_ref", "matrix_B_ref"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
-                ),
-                QuestionTemplate(
-                    template_string=f"{compute_verb} A^2, where A = {{matrix_A_ref}}.",
-                    required_variables=["matrix_A_ref"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
-                ),
-                QuestionTemplate(
-                    template_string="Given matrix A defined in {matrix_A_ref}, compute A^2.",
-                    required_variables=["matrix_A_ref"],
-                    difficulty_level=difficulty,
-                    question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
-                ),
-                QuestionTemplate(
-                    template_string=f"{compute_verb} the matrix-vector product using A = {{matrix}} and the vector from {{vector}}.",
+                    template_string=f"{verb} the matrix-vector product using A = {{matrix}} and the vector from {{vector}}.",
                     required_variables=["matrix", "vector"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
@@ -486,17 +457,34 @@ class TemplateEngine:
                 ),
             ])
 
+        elif question_type == Task.MATRIX_MATRIX_MULTIPLICATION:
+            templates.extend([
+                # Matrix-matrix multiplication
+                QuestionTemplate(
+                    template_string=f"{verb} the matrix product AB, where A = {{matrix_A}} and B = {{matrix_B}}.",
+                    required_variables=["matrix_A", "matrix_B"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
+                ),
+                QuestionTemplate(
+                    template_string="Given A = {matrix_A} and B = {matrix_B}, find AB.",
+                    required_variables=["matrix_A", "matrix_B"],
+                    difficulty_level=difficulty,
+                    question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
+                ),
+            ])
+
         elif question_type == Task.LINEAR_SYSTEM_SOLVER:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{solve_verb} the linear system Ax = b for x, where A = {{matrix}} and b is the result from {{target_b}}.",
+                    template_string=f"{verb} the linear system Ax = b for x, where A = {{matrix}} and b is the result from {{target_b}}.",
                     required_variables=["matrix", "target_b"],
                     difficulty_level=difficulty,
                     question_type=Task.LINEAR_SYSTEM_SOLVER,
                 ),
                 QuestionTemplate(
-                    template_string="TODO: fix this template.",
-                    required_variables=["matrix", "target_b", "x_symbols"],
+                    template_string="What is the solution x to Ax = b, where A = {matrix} and b comes from {target_b}?",
+                    required_variables=["matrix", "target_b"],
                     difficulty_level=difficulty,
                     question_type=Task.LINEAR_SYSTEM_SOLVER,
                 ),
@@ -505,13 +493,13 @@ class TemplateEngine:
         elif question_type == Task.DETERMINANT:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the determinant of the matrix from {{matrix}}.",
+                    template_string=f"{verb} the determinant of the matrix from {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.DETERMINANT,
                 ),
                 QuestionTemplate(
-                    template_string="Find det(A) where A is {matrix}.",
+                    template_string="What is the determinant of the resulting matrix from {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.DETERMINANT,
@@ -521,13 +509,13 @@ class TemplateEngine:
         elif question_type == Task.FROBENIUS_NORM:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the Frobenius norm of the matrix from {{matrix}}.",
+                    template_string=f"{verb} the Frobenius norm of the matrix from {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.FROBENIUS_NORM,
                 ),
                 QuestionTemplate(
-                    template_string="Find ||A||_F where A is {matrix}.",
+                    template_string="What is the Frobenius norm of the resulting matrix from {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.FROBENIUS_NORM,
@@ -537,13 +525,13 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_TRACE:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the trace of the matrix from {{matrix}}.",
+                    template_string=f"{verb} the trace of the matrix from {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRACE,
                 ),
                 QuestionTemplate(
-                    template_string="Find tr(A) where A is {matrix}.",
+                    template_string="What is the trace of the resulting matrix from {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRACE,
@@ -553,13 +541,13 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_RANK:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the rank of the matrix from {{matrix}}.",
+                    template_string=f"{verb} the rank of the matrix from {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_RANK,
                 ),
                 QuestionTemplate(
-                    template_string="Find rank(A) where A is {matrix}.",
+                    template_string="What is the rank of the resulting matrix from {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_RANK,
@@ -569,13 +557,13 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_TRANSPOSE:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the transpose of the matrix from {{matrix}}.",
+                    template_string=f"{verb} the transpose of the matrix from {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRANSPOSE,
                 ),
                 QuestionTemplate(
-                    template_string="Find A^T where A is {matrix}.",
+                    template_string="What is the transpose of the resulting matrix from {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_TRANSPOSE,
@@ -585,13 +573,13 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_INVERSE:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the inverse of the matrix from {{matrix}}.",
+                    template_string=f"{verb} the inverse of the matrix from {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_INVERSE,
                 ),
                 QuestionTemplate(
-                    template_string="Find A^(-1) where A is {matrix}.",
+                    template_string="What is the inverse of the resulting matrix from {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_INVERSE,
@@ -601,13 +589,13 @@ class TemplateEngine:
         elif question_type == Task.MATRIX_COFACTOR:
             templates.extend([
                 QuestionTemplate(
-                    template_string=f"{compute_verb} the cofactor matrix of the matrix from {{matrix}}.",
+                    template_string=f"{verb} the cofactor matrix of the matrix from {{matrix}}.",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_COFACTOR,
                 ),
                 QuestionTemplate(
-                    template_string="Find the cofactor matrix of A where A is {matrix}.",
+                    template_string="What is the cofactor matrix of the resulting matrix from {matrix}?",
                     required_variables=["matrix"],
                     difficulty_level=difficulty,
                     question_type=Task.MATRIX_COFACTOR,
@@ -622,6 +610,8 @@ class TemplateEngine:
         question_type: Task,
         difficulty: DifficultyCategory,
         available_variables: dict[str, Any],
+        *,
+        template_index: int | None = None,
     ) -> QuestionTemplate:
         """
         Select an appropriate template from a list based on specified criteria.
@@ -642,5 +632,10 @@ class TemplateEngine:
                 candidates = variable_compatible
             else:
                 raise ValueError(f"No variable compatible templates found for {available_variables}")
+
+        # Deterministic selection by index if provided
+        if template_index is not None:
+            pool = candidates if candidates else templates
+            return pool[template_index % len(pool)]
 
         return random.choice(candidates if candidates else templates)
