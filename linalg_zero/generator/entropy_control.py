@@ -76,6 +76,22 @@ class EntropyController:
             raise TypeError(f"This can never happen: {rational}")
 
 
+def sample_entropy_from_range(entropy_range: tuple[float, float], center_biased_draw: bool = False) -> float:
+    """Sample an entropy value from a range with optional center bias.
+
+    When center_biased_draw is True, sample from a symmetric Beta(2,2) and
+    scale to [low, high], matching the project's recommended approach.
+    """
+    low, high = entropy_range
+    if not center_biased_draw:
+        return random.uniform(low, high)
+    if low == high:
+        return low
+    alpha = 2.0
+    x = random.betavariate(alpha, alpha)
+    return low + x * (high - low)
+
+
 def uniform_positive_integers_with_sum(count: int, sum_: int) -> list[int]:
     """Returns list of size `count` of integers >= 1, summing to `sum_`."""
     if sum_ < 0:

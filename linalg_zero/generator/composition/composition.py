@@ -37,7 +37,7 @@ class SequentialComposition(CompositionStrategy):
         results = []
 
         # Allocate entropy proportionally to integer module counts (simple, DM-style).
-        def component_modules(c: ProblemComponent) -> int:
+        def component_modules(c: ProblemComponent) -> float:
             return max(0, c.entropy_weight())
 
         modules = [component_modules(c) for c in components]

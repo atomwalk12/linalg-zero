@@ -2,6 +2,7 @@ import json
 from types import TracebackType
 from typing import Any
 
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import ComponentResult, DifficultyCategory
 from linalg_zero.shared.types import LibTypes
 
@@ -32,6 +33,44 @@ class ProblemContext:
         Record entropy usage for tracking problem complexity.
         """
         self.used_entropy += amount
+
+    def allocate_entropy(
+        self,
+        constraints: GenerationConstraints | None,
+        center_biased_draw: bool = False,
+    ) -> float:
+        """
+        Resolve and consume an entropy amount based on the provided constraints.
+
+        The allocation priority is:
+        1) constraints.entropy or constraints.entropy_range (sampled)
+        2) remaining budget (self.entropy - self.used_entropy)
+
+        The chosen amount is recorded against the context budget.
+        """
+
+        remaining = self.entropy - self.used_entropy
+        if remaining <= 1e-12:
+            raise ValueError(f"Entropy budget exceeded: remaining {remaining:.3f}")
+
+        amount: float | None = None
+
+        if constraints is not None:
+            sampled = constraints.sample_entropy(center_biased_draw=center_biased_draw)
+            if sampled is not None:
+                assert isinstance(sampled, float)  # noqa: S101
+                amount = sampled
+
+        if amount is None:
+            amount = remaining
+
+        if amount > remaining + 1e-12:
+            raise ValueError(f"Entropy budget exceeded: request {amount:.3f}, remaining {remaining:.3f}")
+
+        # Record consumption and return allocated amount
+        self.record_entropy_usage(amount)
+
+        return amount
 
     def _prepare_verification_data(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """Prepare verification data by extracting dependencies and input fields."""

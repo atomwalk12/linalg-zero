@@ -134,9 +134,10 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         vector_entropy: float,
         context: ProblemContext,
     ) -> Matrix:
-        vector_b = self._generate_vector(cols, vector_entropy)
-        context.record_entropy_usage(vector_entropy)
-        return vector_b
+        # Use centralized vector generation. Provide fixed entropy via constraints
+        # so the allocator records exactly this amount.
+        constraints = GenerationConstraints(entropy=vector_entropy)
+        return self._get_vector_with_constraints(context, size=cols, added_constraints=constraints)
 
     def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
         question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)

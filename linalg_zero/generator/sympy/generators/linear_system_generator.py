@@ -149,8 +149,9 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         vector_entropy: float,
         context: ProblemContext,
     ) -> sympy.Matrix:
-        solution_x = self._generate_vector(size, vector_entropy)
-        context.record_entropy_usage(vector_entropy)
+        # Generate solution vector using centralized entropy allocation, with fixed amount
+        constraints = GenerationConstraints(entropy=vector_entropy)
+        solution_x = self._get_vector_with_constraints(context, size=size, added_constraints=constraints)
         return matrix_A * solution_x
 
     def _prepare_context_info(

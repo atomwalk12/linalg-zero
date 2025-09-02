@@ -4,7 +4,7 @@ import random
 from dataclasses import dataclass
 from enum import Enum
 
-from linalg_zero.generator.entropy_control import SampleArgs
+from linalg_zero.generator.entropy_control import SampleArgs, sample_entropy_from_range
 from linalg_zero.generator.models import DifficultyCategory, Task, Topic
 from linalg_zero.shared.utils import get_logger
 
@@ -22,6 +22,7 @@ class Precision(Enum):
     MATRIX_TRANSPOSE = 2
     MATRIX_INVERSE = 2
     MATRIX_TRACE = 2
+    MATRIX_COFACTOR = 2
     FULL = -1
 
 
@@ -41,7 +42,8 @@ class ProblemConfig:
     matrix_size_range: tuple[int, int]
     allow_rationals: bool
     entropy_range: tuple[float, float]
-    center_biased_draw: bool = True
+    # NOTE: for small entropy ranges it is better to set this to False
+    center_biased_draw: bool = False
 
     @property
     def sample_entropy(self) -> float:
@@ -59,16 +61,7 @@ class ProblemConfig:
         To avoid extreme values while preserving diversity, we sample from a
         symmetric Beta distribution (center-biased) and scale to the range.
         """
-        if not self.center_biased_draw:
-            return random.uniform(*self.entropy_range)
-
-        low, high = self.entropy_range
-        if low == high:
-            return low
-
-        alpha = 2.0
-        x = random.betavariate(alpha, alpha)
-        return low + x * (high - low)
+        return sample_entropy_from_range(self.entropy_range, self.center_biased_draw)
 
     def create_sample_args_for_composition(self, num_components: int) -> SampleArgs:
         """Create SampleArgs for compositions - always uses entropy for Dirichlet distribution."""

@@ -66,7 +66,7 @@ def main(push_dataset: bool = False) -> None:  # pragma: no cover
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--push_dataset", action="store_true", default=True)
+    parser.add_argument("--push_dataset", action="store_true", default=False)
     argv = parser.parse_args()
 
     if argv.seed is not None:
