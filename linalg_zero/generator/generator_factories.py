@@ -30,6 +30,7 @@ from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
 from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     MatrixVectorMultiplicationGenerator,
 )
+from linalg_zero.generator.sympy.template_engine import TemplateEngine
 
 
 def create_frobenius_norm_factory(difficulty: DifficultyCategory) -> Callable[[], Question]:
@@ -155,6 +156,7 @@ def create_composite_factory(
             components=components,
             composition_strategy=composition_strategy,
             sample_args=sample_args,
+            template_engine=TemplateEngine(),
             difficulty_level=difficulty_level,
             problem_type=problem_type,
             topic=topic,
@@ -182,8 +184,11 @@ def create_sympy_factory(
             difficulty_level=difficulty_level,
             problem_type=problem_type,
             topic=topic,
+            template_engine=TemplateEngine(),
             entropy=entropy,
+            local_index=0,
             gen_constraints=gen_constraints,
+            constraints={},
             **kwargs,
         )
         return generator.generate()

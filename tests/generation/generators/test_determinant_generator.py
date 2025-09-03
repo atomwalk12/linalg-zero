@@ -16,8 +16,15 @@ class TestDeterminantGenerator:
     config = get_problem_config(DifficultyCategory.TWO_TOOL_CALLS, Topic.LINEAR_ALGEBRA, Task.DETERMINANT)
 
     def _make_generator(self, difficulty: DifficultyCategory) -> DeterminantGenerator:
+        from linalg_zero.generator.generation_constraints import GenerationConstraints
+        from linalg_zero.generator.sympy.template_engine import TemplateEngine
+
         return DeterminantGenerator(
-            entropy=self.config.sample_entropy,
+            gen_constraints=GenerationConstraints(),
+            template_engine=TemplateEngine(),
+            local_index=0,
+            constraints={},
+            entropy=self.config.sample_entropy(),
             difficulty_level=difficulty,
             problem_type=Task.DETERMINANT,
             topic=Topic.LINEAR_ALGEBRA,

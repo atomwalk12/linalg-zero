@@ -12,14 +12,13 @@ from linalg_zero.generator.entropy_control import SampleArgs
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import (
-    DependentGeneratorMixin,
     ProblemContext,
     ProblemTemplate,
 )
 from linalg_zero.generator.sympy.generators.base_generator import (
     MatrixVectorBaseGenerator,
 )
-from linalg_zero.generator.sympy.templates import MathFormatter
+from linalg_zero.generator.sympy.template_engine import MathFormatter
 from linalg_zero.shared.lib import solve_linear_system
 
 
@@ -84,14 +83,11 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
 
         context_info = self._prepare_context_info(matrix_A, vector_b, size)
 
-        question_templates = self._question_templates(context_info)
-
         return ProblemTemplate(
             expression=problem_expression,
             variables={"matrix_A": matrix_A, "target_b": vector_b},
             sympy_solution=sympy_sol,
             lib_result=lib_result,
-            question_templates=question_templates,
             context_info=context_info,
             difficulty_markers=self.build_difficulty_markers(context),
             difficulty=self.difficulty_level,
@@ -100,10 +96,11 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return the variables dictionary to pass to the template engine."""
-        matrix_a = template.context_info["matrix_A"]
-        target_b = template.context_info["target_b"]
-
-        return {"matrix": matrix_a, "target_b": target_b}
+        input_variables = {"matrix_A": (template.context_info["matrix_A"], self.local_index)}
+        input_variables["target_b"] = (template.context_info["target_b"], self.local_index)
+        self.sources.update({"input_matrix_A": "local"})
+        self.sources.update({"input_target_b": "local"})
+        return self.get_dependent_template_variables(input_variables, self.sources)
 
     def _solve_linear_system_sympy(
         self, matrix_a: sympy.Matrix, vector_b: sympy.Matrix
@@ -172,12 +169,8 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
             "target_b": vector_b,
         }
 
-    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
-        question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)
-        return [t.template_string for t in question_templates]
 
-
-class LinearSystemGeneratorDependent(DependentGeneratorMixin, LinearSystemGenerator):
+class LinearSystemGeneratorDependent(LinearSystemGenerator):
     """Dependent variant: uses provided b vector from previous component."""
 
     def __init__(
@@ -185,16 +178,10 @@ class LinearSystemGeneratorDependent(DependentGeneratorMixin, LinearSystemGenera
         difficulty_level: DifficultyCategory,
         input_vector_b: sympy.Matrix,
         input_vector_b_index: int,
-        sources: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
-        input_variables = {"target_b": (input_vector_b, input_vector_b_index)}
-
         super().__init__(
             difficulty_level=difficulty_level,
-            is_independent=False,
-            sources=sources,
-            input_variables=input_variables,
             **kwargs,
         )
 
@@ -202,7 +189,7 @@ class LinearSystemGeneratorDependent(DependentGeneratorMixin, LinearSystemGenera
 
         # Keep instance variables for other methods that need them
         self.input_vector_b = input_vector_b
-        self.input_index = input_vector_b_index
+        self.input_vector_b_index = input_vector_b_index
 
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         sample_args = SampleArgs(num_modules=1, entropy=context.entropy)
@@ -229,19 +216,15 @@ class LinearSystemGeneratorDependent(DependentGeneratorMixin, LinearSystemGenera
     ) -> dict[str, Any]:
         context_info = super()._prepare_context_info(matrix_A, vector_b, size)
         context_info["input_variable_name"] = "b"
-        context_info["input_indices"] = self.input_index
+        context_info["input_indices"] = self.input_vector_b_index
         return context_info
-
-    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
-        # Defer to composition-aware question formatting downstream
-        return None
 
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
         assert self.input_vector_b == kwargs["vector_b"]  # noqa: S101
         base_data.update({
-            "dependent_on": {"input_vector_b": self.input_index},
+            "dependent_on": {"input_vector_b": self.input_vector_b_index},
             "input_vector_b": MathFormatter.sympy_to_primitive(self.input_vector_b, precision=self.precision),
         })
         return base_data
@@ -249,10 +232,10 @@ class LinearSystemGeneratorDependent(DependentGeneratorMixin, LinearSystemGenera
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Use the mixin's generic logic for consistent result/value handling."""
-        # Get variables from the mixin (handles target_b)
-        base_vars = self.get_dependent_template_variables()
+        input_variables = {}
+        input_variables["target_b"] = (self.input_vector_b, self.input_vector_b_index)
+        input_variables["matrix"] = (template.context_info["matrix_A"], self.local_index)
 
-        # Matrix is always generated locally (not from previous step)
-        base_vars["matrix"] = template.context_info["matrix_A"]
+        base_vars = self.get_dependent_template_variables(input_variables, self.sources)
 
         return base_vars

@@ -7,7 +7,7 @@ from sympy.solvers.solvers import NonInvertibleMatrixError
 from transformers.utils.chat_template_utils import get_json_schema
 
 from linalg_zero.generator.difficulty_config import Precision
-from linalg_zero.generator.sympy.templates import MathFormatter
+from linalg_zero.generator.sympy.template_engine import MathFormatter
 from linalg_zero.shared.types import assert_lib_returns
 
 

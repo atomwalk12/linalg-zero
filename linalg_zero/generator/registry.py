@@ -198,7 +198,11 @@ def create_default_registry() -> FactoryRegistry:
             ),
             DeterminantWrapperComponent(
                 name=Task.DETERMINANT,
-                constraints={"is_independent": False, "input_indices": {"input_matrix": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -217,7 +221,11 @@ def create_default_registry() -> FactoryRegistry:
             ),
             FrobeniusNormWrapperComponent(
                 name=Task.FROBENIUS_NORM,
-                constraints={"is_independent": False, "input_indices": {"input_matrix": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -236,7 +244,11 @@ def create_default_registry() -> FactoryRegistry:
             ),
             RankWrapperComponent(
                 name=Task.MATRIX_RANK,
-                constraints={"is_independent": False, "input_indices": {"input_matrix": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -254,7 +266,11 @@ def create_default_registry() -> FactoryRegistry:
             ),
             FrobeniusNormWrapperComponent(
                 name=Task.FROBENIUS_NORM,
-                constraints={"is_independent": False, "input_indices": {"input_matrix": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -285,7 +301,11 @@ def create_default_registry() -> FactoryRegistry:
             ),
             DeterminantWrapperComponent(
                 name=Task.DETERMINANT,
-                constraints={"is_independent": False, "input_indices": {"input_matrix": 1}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 1},
+                    "sources": {"input_matrix": "result"},
+                },
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -312,7 +332,11 @@ def create_default_registry() -> FactoryRegistry:
             ),
             RankWrapperComponent(
                 name=Task.MATRIX_RANK,
-                constraints={"is_independent": False, "input_indices": {"input_matrix": 1}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 1},
+                    "sources": {"input_matrix": "result"},
+                },
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -331,11 +355,19 @@ def create_default_registry() -> FactoryRegistry:
             ),
             MatrixMatrixMultiplicationWrapperComponent(
                 name=Task.MATRIX_MATRIX_MULTIPLICATION,
-                constraints={"is_independent": False, "input_indices": {"input_matrix_A": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix_A": 0},
+                    "sources": {"input_matrix_A": "result"},
+                },
             ),
             FrobeniusNormWrapperComponent(
                 name=Task.FROBENIUS_NORM,
-                constraints={"is_independent": False, "input_indices": {"input_matrix": 1}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 1},
+                    "sources": {"input_matrix": "result"},
+                },
             ),
         ],
         composition_strategy=SequentialComposition(),

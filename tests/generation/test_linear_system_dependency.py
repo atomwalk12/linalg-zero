@@ -12,6 +12,7 @@ from linalg_zero.generator.composition.composition import CompositeProblem, Sequ
 from linalg_zero.generator.difficulty_config import get_problem_config
 from linalg_zero.generator.generator_factories import create_linear_system_generator
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
+from linalg_zero.generator.sympy.template_engine import TemplateEngine
 
 
 def create_composite_generator():
@@ -27,11 +28,19 @@ def create_composite_generator():
             ),
             MatrixVectorMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
-                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_vector_b": 0},
+                    "sources": {"input_vector_b": "result"},
+                },
             ),
             FrobeniusNormWrapperComponent(
                 name=Task.FROBENIUS_NORM,
-                constraints={"is_independent": False, "input_indices": {"input_matrix": 1}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 1},
+                    "sources": {"input_matrix": "result"},
+                },
             ),
         ]
 
@@ -42,6 +51,7 @@ def create_composite_generator():
             components=components,
             composition_strategy=SequentialComposition(),
             sample_args=sample_args,
+            template_engine=TemplateEngine(),
             difficulty_level=difficulty_level,
             problem_type=problem_type,
             topic=topic,

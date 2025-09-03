@@ -12,12 +12,13 @@ from linalg_zero.generator.sympy.base import ProblemContext, SympyProblemGenerat
 class MatrixVectorBaseGenerator(SympyProblemGenerator):
     """Base class for matrix-vector problem generators."""
 
-    def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
+    def __init__(
+        self, difficulty_level: DifficultyCategory, gen_constraints: GenerationConstraints, **kwargs: Any
+    ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        self.constraints = kwargs.get("constraints", {})
 
         # Convert gen_constraints to GenerationConstraints object
-        incoming_constraints = kwargs.get("gen_constraints")
+        incoming_constraints = gen_constraints
         self.gen_constraints = (
             incoming_constraints
             if isinstance(incoming_constraints, GenerationConstraints)

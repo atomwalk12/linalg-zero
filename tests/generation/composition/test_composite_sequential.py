@@ -43,6 +43,7 @@ from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
     MatrixVectorMultiplicationGenerator,
     MatrixVectorMultiplicationGeneratorDependent,
 )
+from linalg_zero.generator.sympy.template_engine import TemplateEngine
 
 
 def make_composite(
@@ -57,6 +58,7 @@ def make_composite(
         difficulty_level=difficulty,
         problem_type=Task.COMPOSITE_SEQUENTIAL,
         topic=Topic.LINEAR_ALGEBRA,
+        template_engine=TemplateEngine(),
     )
 
 
@@ -157,7 +159,11 @@ class TestSequential_LinearSystem_then_MVM:
             ),
             LinearSystemSolverWrapperComponent(
                 name=Task.LINEAR_SYSTEM_SOLVER,
-                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_vector_b": 0},
+                    "sources": {"input_vector_b": "result"},
+                },
             ),
         ])
 
@@ -182,7 +188,11 @@ class TestSequential_LinearSystem_then_MVM:
             LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}),
             MatrixVectorMultiplicationWrapperComponent(
                 name=Task.MATRIX_VECTOR_MULTIPLICATION,
-                constraints={"is_independent": False, "input_indices": {"input_vector_b": 0}},
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_vector_b": 0},
+                    "sources": {"input_vector_b": "result"},
+                },
             ),
         ])
 

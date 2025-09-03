@@ -18,8 +18,15 @@ class TestLinearSystemGenerator:
     config = get_problem_config(DifficultyCategory.TWO_TOOL_CALLS, Topic.LINEAR_ALGEBRA, Task.LINEAR_SYSTEM_SOLVER)
 
     def _make_generator(self, difficulty: DifficultyCategory) -> LinearSystemGenerator:
+        from linalg_zero.generator.generation_constraints import GenerationConstraints
+        from linalg_zero.generator.sympy.template_engine import TemplateEngine
+
         return LinearSystemGenerator(
-            entropy=self.config.sample_entropy,
+            gen_constraints=GenerationConstraints(),
+            template_engine=TemplateEngine(),
+            local_index=0,
+            constraints={},
+            entropy=self.config.sample_entropy(),
             difficulty_level=difficulty,
             problem_type=Task.LINEAR_SYSTEM_SOLVER,
             topic=Topic.LINEAR_ALGEBRA,

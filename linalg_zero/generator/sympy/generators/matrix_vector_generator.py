@@ -12,14 +12,13 @@ from linalg_zero.generator.entropy_control import SampleArgs
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import (
-    DependentGeneratorMixin,
     ProblemContext,
     ProblemTemplate,
 )
 from linalg_zero.generator.sympy.generators.base_generator import (
     MatrixVectorBaseGenerator,
 )
-from linalg_zero.generator.sympy.templates import MathFormatter
+from linalg_zero.generator.sympy.template_engine import MathFormatter
 from linalg_zero.shared.lib import multiply_matrices
 
 
@@ -64,14 +63,11 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
             "vector": vector_b,
         }
 
-        question_templates = self._question_templates(context_info)
-
         return ProblemTemplate(
             expression=problem_expression,
             variables={"matrix": matrix_A, "vector": vector_b},
             sympy_solution=sympy_sol,
             lib_result=lib_result,
-            question_templates=question_templates,
             context_info={**context_info},
             difficulty_markers=self.build_difficulty_markers(
                 context, matrix_size=(matrix_A.rows, matrix_A.cols), vector_size=vector_b.rows
@@ -82,9 +78,11 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return the variables dictionary to pass to the template engine."""
-        matrix = template.context_info["matrix"]
-        vector = template.context_info["vector"]
-        return {"matrix": matrix, "vector": vector}
+        input_variables = {"matrix": (template.context_info["matrix"], self.local_index)}
+        input_variables["vector"] = (template.context_info["vector"], self.local_index)
+        self.sources.update({"input_matrix": "local"})
+        self.sources.update({"input_vector": "local"})
+        return self.get_dependent_template_variables(input_variables, self.sources)
 
     def _multiply_matrices_sympy(self, matrix_a: Matrix, vector_b: Matrix) -> tuple[Matrix, list[list[float]]]:
         """Multiply two sympy matrices using lib.py function."""
@@ -142,33 +140,23 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         constraints = GenerationConstraints(entropy=vector_entropy)
         return self._get_vector_with_constraints(context, size=cols, added_constraints=constraints)
 
-    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
-        question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)
-        return [t.template_string for t in question_templates]
 
-
-class MatrixVectorMultiplicationGeneratorDependent(DependentGeneratorMixin, MatrixVectorMultiplicationGenerator):
+class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGenerator):
     def __init__(
         self,
         difficulty_level: DifficultyCategory,
         input_vector_b: sympy.Matrix,
         input_vector_b_index: int,
-        sources: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
-        input_variables = {"vector": (input_vector_b, input_vector_b_index)}
-
         super().__init__(
             difficulty_level=difficulty_level,
-            is_independent=False,
-            sources=sources,
-            input_variables=input_variables,
             **kwargs,
         )
 
         assert self.problem_type == Task.MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
         self.input_vector_b = input_vector_b
-        self.input_index = input_vector_b_index
+        self.input_vector_b_index = input_vector_b_index
 
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         """Allocate some entropy to matrix generation even when vector is provided."""
@@ -189,16 +177,12 @@ class MatrixVectorMultiplicationGeneratorDependent(DependentGeneratorMixin, Matr
         # No entropy usage for provided vector
         return self.input_vector_b
 
-    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
-        # Composition will handle question formatting
-        return None
-
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        assert self.input_vector_b == kwargs["vector_b"]  # noqa: S101
+        assert self.input_vector_b == kwargs["matrix_b"]  # noqa: S101
         base_data.update({
-            "dependent_on": {"input_vector_b": self.input_index},
+            "dependent_on": {"input_vector_b": self.input_vector_b_index},
             "input_vector_b": MathFormatter.sympy_to_primitive(self.input_vector_b, precision=self.precision),
         })
         return base_data
@@ -206,10 +190,9 @@ class MatrixVectorMultiplicationGeneratorDependent(DependentGeneratorMixin, Matr
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return template variables for dependent matrix-vector multiplication generator."""
-        # Get variables from the mixin (handles target_b)
-        base_vars = self.get_dependent_template_variables()
-
-        # Matrix is always generated locally (not from previous step)
-        base_vars["matrix"] = template.context_info["matrix"]
+        input_variables = {}
+        input_variables["vector"] = (self.input_vector_b, self.input_vector_b_index)
+        input_variables["matrix"] = (template.context_info["matrix"], self.local_index)
+        base_vars = self.get_dependent_template_variables(input_variables, self.sources)
 
         return base_vars

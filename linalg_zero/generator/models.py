@@ -64,6 +64,18 @@ class DifficultyCategory(Enum):
 
 
 @dataclass
+class QuestionTemplate:
+    """
+    Data class template for generating natural language questions.
+    """
+
+    template_string: str
+    required_variables: list[str]
+    difficulty_level: DifficultyCategory
+    question_type: Task
+
+
+@dataclass
 class Question:
     """Represents a generated question with its answer."""
 
@@ -91,7 +103,6 @@ class ProblemTemplate:
     lib_result: LibTypes
     context_info: dict[str, Any]
     difficulty_markers: dict[str, float | tuple]
-    question_templates: list[str] | None
     difficulty: DifficultyCategory | None = None
 
 
@@ -129,7 +140,6 @@ class CompositeResultBuilder:
         self.expressions: list = []
         self.solutions: list = []
         self.lib_results: list = []
-        self.question_templates: list[str] = []
         self.context_info: dict[str, Any] = {}
         self.component_templates: list[ProblemTemplate] = []
 
@@ -147,9 +157,6 @@ class CompositeResultBuilder:
 
         self.context_info.update(template.context_info)
 
-        # This is omitted because it is calculated by the composite problem base class
-        # self.question_templates.extend(template.question_templates)
-
     def build_template(
         self, comp_context: "CompositionContext", component_results: list[ComponentResult]
     ) -> ProblemTemplate:
@@ -159,7 +166,6 @@ class CompositeResultBuilder:
             variables=self._deduplicate_variables(),
             sympy_solution=self.solutions,
             lib_result=self.lib_results,
-            question_templates=self.question_templates or ["Solve the following problem:"],
             context_info=self._build_context_info(comp_context, component_results),
             difficulty_markers=self._build_difficulty_markers(comp_context),
         )

@@ -11,7 +11,7 @@ from linalg_zero.generator.models import (
     Task,
     Topic,
 )
-from linalg_zero.generator.sympy.templates import MathFormatter, TemplateEngine
+from linalg_zero.generator.sympy.template_engine import MathFormatter, TemplateEngine
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.types import LibTypes
@@ -65,34 +65,6 @@ class CompositionStrategy(ABC):
         pass
 
 
-class DependentGeneratorMixin:
-    """Mixin providing generic template variable handling for dependent generators."""
-
-    def __init__(
-        self,
-        sources: dict[str, str] | None = None,
-        input_variables: dict[str, tuple[Any, int]] | None = None,
-        **kwargs: Any,
-    ) -> None:
-        self.sources = sources or {}
-        self.input_variables = input_variables or {}
-        super().__init__(**kwargs)  # Continue the MRO chain
-
-    def get_dependent_template_variables(self) -> dict[str, Any]:
-        """Generic implementation for result/value reference handling."""
-        base_vars = {}
-
-        for var_name, (value, step_index) in self.input_variables.items():
-            source_type = self.sources.get(f"input_{var_name}", "result")
-
-            if source_type == "result":
-                base_vars[var_name] = f"the result from step {step_index + 1}"
-            else:
-                base_vars[var_name] = value
-
-        return base_vars
-
-
 class SympyProblemGenerator(ABC):
     """
     Abstract base class for SymPy-based mathematical problem generators.
@@ -106,20 +78,23 @@ class SympyProblemGenerator(ABC):
         difficulty_level: DifficultyCategory,
         problem_type: Task,
         topic: Topic,
+        template_engine: TemplateEngine,
+        local_index: int,
+        constraints: dict[str, Any],
         entropy: float | None = None,
         is_independent: bool = True,
-        **kwargs: dict[str, Any],
     ):
         self.difficulty_level = difficulty_level
         self.problem_type = problem_type
         self.topic = topic
+        self.local_index = local_index
         self.config = get_problem_config(difficulty_level, topic, problem_type)
         self.lib = get_lib()
-
         assert entropy is not None  # noqa: S101
         self.entropy = entropy
+        self.sources = constraints.get("sources", {})
 
-        self.template_engine = TemplateEngine()
+        self.template_engine = template_engine
         self.formatter = MathFormatter()
         self.is_independent = is_independent
 
@@ -150,7 +125,7 @@ class SympyProblemGenerator(ABC):
 
         # Get templates for the problem type
         templates = self.template_engine.create_default_templates(
-            problem_type, self.difficulty_level, self.is_independent
+            problem_type, self.difficulty_level, variables, self.is_independent
         )
         if templates:
             selected_template = self.template_engine.select_template(
@@ -226,3 +201,43 @@ class SympyProblemGenerator(ABC):
             key: self.formatter.sympy_to_primitive(value, precision=self.precision) for key, value in kwargs.items()
         }
         return {"generator_type": self.__class__.__name__, **converted_kwargs}
+
+    def get_dependent_template_variables(
+        self, input_variables: dict[str, tuple[Any, int]], sources: dict[str, str]
+    ) -> dict[str, Any]:
+        """Generic implementation for result/value reference handling."""
+        base_vars: dict[str, Any] = {}
+        base_vars["context_info"] = []
+
+        for var_name, (value, gen_source) in input_variables.items():
+            source_var_name = sources[f"input_{var_name}"]
+
+            if source_var_name == "result":
+                base_vars[var_name] = f"the result from step {gen_source + 1}"
+                base_vars["context_info"].append({
+                    "source_index": gen_source,
+                    "generate_new": True,
+                    "source_var": self.sources[f"input_{var_name}"],
+                    "local_index": self.local_index,
+                    "template_var": var_name,
+                })
+            elif source_var_name == "local":
+                base_vars[var_name] = value
+                base_vars["context_info"].append({
+                    "source_index": gen_source,
+                    "generate_new": True,
+                    "source_var": var_name,
+                    "local_index": self.local_index,
+                    "template_var": var_name,
+                })
+            else:
+                base_vars[var_name] = value
+                base_vars["context_info"].append({
+                    "source_index": gen_source,
+                    "generate_new": False,
+                    "source_var": self.sources[f"input_{var_name}"],
+                    "local_index": self.local_index,
+                    "template_var": var_name,
+                })
+
+        return base_vars

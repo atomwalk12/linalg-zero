@@ -12,12 +12,11 @@ from linalg_zero.generator.entropy_control import SampleArgs
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.generator.sympy.base import (
-    DependentGeneratorMixin,
     ProblemContext,
     ProblemTemplate,
 )
 from linalg_zero.generator.sympy.generators.base_generator import MatrixVectorBaseGenerator
-from linalg_zero.generator.sympy.templates import MathFormatter
+from linalg_zero.generator.sympy.template_engine import MathFormatter
 from linalg_zero.shared.lib import multiply_matrices
 
 
@@ -62,14 +61,11 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
             "matrix_B": matrix_B,
         }
 
-        question_templates = self._question_templates(context_info)
-
         return ProblemTemplate(
             expression=problem_expression,
             variables={"matrix_A": matrix_A, "matrix_B": matrix_B},
             sympy_solution=sympy_sol,
             lib_result=lib_result,
-            question_templates=question_templates,
             context_info={**context_info},
             difficulty_markers=self.build_difficulty_markers(
                 context, matrix_size=(matrix_A.rows, matrix_A.cols), matrix_size_B=(matrix_B.rows, matrix_B.cols)
@@ -80,9 +76,11 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Return the variables dictionary to pass to the template engine."""
-        matrix_A = template.context_info["matrix_A"]
-        matrix_B = template.context_info["matrix_B"]
-        return {"matrix_A": matrix_A, "matrix_B": matrix_B}
+        input_variables = {"matrix_A": (template.context_info["matrix_A"], self.local_index)}
+        input_variables["matrix_B"] = (template.context_info["matrix_B"], self.local_index)
+        self.sources.update({"input_matrix_A": "local"})
+        self.sources.update({"input_matrix_B": "local"})
+        return self.get_dependent_template_variables(input_variables, self.sources)
 
     def _multiply_matrices_sympy(self, matrix_a: Matrix, matrix_b: Matrix) -> tuple[Matrix, list[list[float]]]:
         """Multiply two sympy matrices using lib.py function."""
@@ -143,12 +141,8 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
 
         return matrix_B
 
-    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
-        question_templates = self.template_engine.create_default_templates(self.problem_type, self.difficulty_level)
-        return [t.template_string for t in question_templates]
 
-
-class MatrixMatrixMultiplicationGeneratorDependent(DependentGeneratorMixin, MatrixMatrixMultiplicationGenerator):
+class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGenerator):
     def __init__(
         self,
         difficulty_level: DifficultyCategory,
@@ -156,44 +150,33 @@ class MatrixMatrixMultiplicationGeneratorDependent(DependentGeneratorMixin, Matr
         input_matrix_A_index: int,
         input_matrix_B: sympy.Matrix | None = None,
         input_matrix_B_index: int | None = None,
-        sources: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
-        # Build input_variables for the mixin
-        input_variables = {"matrix_A": (input_matrix_A, input_matrix_A_index)}
-        if input_matrix_B is not None:
-            assert input_matrix_B_index is not None  # noqa: S101
-            input_variables["matrix_B"] = (input_matrix_B, input_matrix_B_index)
-
-        # Initialize with mixin functionality
         super().__init__(
             difficulty_level=difficulty_level,
-            is_independent=False,
-            sources=sources,
-            input_variables=input_variables,
             **kwargs,
         )
 
         assert self.problem_type == Task.MATRIX_MATRIX_MULTIPLICATION  # noqa: S101
-
-        # Keep instance variables for other methods that need them
         self.input_matrix_A = input_matrix_A
         self.input_matrix_B = input_matrix_B
-        self.input_index_matrix_A = input_matrix_A_index
-        self.input_index_matrix_B = input_matrix_B_index
+        self.input_matrix_A_index = input_matrix_A_index
+        self.input_matrix_B_index = input_matrix_B_index
 
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
         """Use the mixin's generic logic for consistent result/value handling."""
-        # Get variables from the mixin's generic implementation
-        base_vars = self.get_dependent_template_variables()
+        input_variables: dict[str, tuple[Any, int]] = {}
+        input_variables["matrix_A"] = (self.input_matrix_A, self.input_matrix_A_index)
 
-        # Handle the special case where matrix_B might be generated (not from input_variables)
-        if self.input_matrix_B is None:
-            assert "input_matrix_B" not in base_vars  # noqa: S101
-            # Matrix B was generated, use the actual matrix from template
-            matrix_b = template.context_info["matrix_B"]
-            base_vars["matrix_B"] = matrix_b
+        if self.input_matrix_B is not None:
+            assert self.input_matrix_B_index is not None  # noqa: S101
+            input_variables["matrix_B"] = (self.input_matrix_B, self.input_matrix_B_index)
+        else:
+            input_variables["matrix_B"] = (template.context_info["matrix_B"], self.local_index)
+            self.sources.update({"input_matrix_B": "local"})
+
+        base_vars = self.get_dependent_template_variables(input_variables, self.sources)
 
         return base_vars
 
@@ -246,24 +229,20 @@ class MatrixMatrixMultiplicationGeneratorDependent(DependentGeneratorMixin, Matr
     ) -> Matrix:
         return self.input_matrix_A
 
-    def _question_templates(self, context_info: dict[str, Any]) -> list[str] | None:
-        # Composition will handle question formatting
-        return None
-
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
         assert self.input_matrix_A == kwargs["matrix_a"]  # noqa: S101
 
-        dependent_on = {"input_matrix_A": self.input_index_matrix_A}
+        dependent_on = {"input_matrix_A": self.input_matrix_A_index}
         base_data.update({
             "input_matrix_A": MathFormatter.sympy_to_primitive(self.input_matrix_A, precision=self.precision),
         })
 
         if self.input_matrix_B is not None:
             assert self.input_matrix_B == kwargs["matrix_b"]  # noqa: S101
-            assert self.input_index_matrix_B is not None  # noqa: S101
-            dependent_on["input_matrix_B"] = self.input_index_matrix_B
+            assert self.input_matrix_B_index is not None  # noqa: S101
+            dependent_on["input_matrix_B"] = self.input_matrix_B_index
             base_data["input_matrix_B"] = MathFormatter.sympy_to_primitive(
                 self.input_matrix_B, precision=self.precision
             )
@@ -271,9 +250,10 @@ class MatrixMatrixMultiplicationGeneratorDependent(DependentGeneratorMixin, Matr
         base_data["dependent_on"] = dependent_on
 
         # Remove the inputs that are not assigned to the result of the previous step
-        for key, value in self.sources.items():
-            if value != "result":
-                base_data.pop(key)
-                base_data["dependent_on"].pop(key)
+        if self.sources is not None:
+            for key, value in self.sources.items():
+                if value != "result" and value != "local":
+                    base_data.pop(key)
+                    base_data["dependent_on"].pop(key)
 
         return base_data

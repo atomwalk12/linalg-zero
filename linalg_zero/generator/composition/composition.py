@@ -18,6 +18,7 @@ from linalg_zero.generator.sympy.base import (
     ProblemTemplate,
     SympyProblemGenerator,
 )
+from linalg_zero.generator.sympy.template_engine import TemplateEngine
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.types import LibTypes
 
@@ -55,13 +56,19 @@ class SequentialComposition(CompositionStrategy):
             allocations = [total_entropy * m / total_modules for m in modules]
             component_sample_args = [SampleArgs(num_modules=1, entropy=e) for e in allocations]
 
-        for component_wrapper, comp_sample_args in zip(components, component_sample_args, strict=True):
+        for local_index, (component_wrapper, comp_sample_args) in enumerate(
+            zip(components, component_sample_args, strict=True)
+        ):
             if not component_wrapper.can_execute(base_context):
                 continue
 
             # Create a context copy with the allocated entropy for this component
             component_context = CompositionContext(
-                comp_sample_args.entropy, base_context.difficulty_level, base_context._step_counter
+                comp_sample_args.entropy,
+                base_context.difficulty_level,
+                base_context._step_counter,
+                template_engine=base_context.template_engine,
+                local_index=local_index,
             )
 
             # NOTE[atom]: these variables can be useful to share state between components
@@ -94,12 +101,19 @@ class CompositeProblem(SympyProblemGenerator):
         components: list[ProblemComponent],
         composition_strategy: CompositionStrategy,
         sample_args: SampleArgs,
+        template_engine: TemplateEngine,
         difficulty_level: DifficultyCategory,
         problem_type: Task,
         topic: Topic,
     ):
         super().__init__(
-            entropy=sample_args.entropy, difficulty_level=difficulty_level, problem_type=problem_type, topic=topic
+            entropy=sample_args.entropy,
+            difficulty_level=difficulty_level,
+            problem_type=problem_type,
+            topic=topic,
+            template_engine=template_engine,
+            local_index=-1,
+            constraints={},
         )
 
         self.components = components
@@ -110,7 +124,13 @@ class CompositeProblem(SympyProblemGenerator):
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """Generate composed mathematical content."""
         # Convert to CompositionContext
-        comp_context = CompositionContext(self.sample_args.entropy, context.difficulty_level, context._step_counter)
+        comp_context = CompositionContext(
+            self.sample_args.entropy,
+            context.difficulty_level,
+            context._step_counter,
+            self.template_engine,
+            local_index=-1,
+        )
         comp_context.constraints = context.constraints.copy()
 
         # Execute all components and store their results

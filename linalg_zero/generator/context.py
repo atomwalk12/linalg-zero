@@ -4,6 +4,7 @@ from typing import Any
 
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import ComponentResult, DifficultyCategory
+from linalg_zero.generator.sympy.template_engine import TemplateEngine
 from linalg_zero.shared.types import LibTypes
 
 
@@ -134,9 +135,18 @@ class CompositionContext(ProblemContext):
     across composed problem components.
     """
 
-    def __init__(self, entropy: float, difficulty_level: DifficultyCategory, step_counter: int):
+    def __init__(
+        self,
+        entropy: float,
+        difficulty_level: DifficultyCategory,
+        step_counter: int,
+        template_engine: TemplateEngine,
+        local_index: int,
+    ):
         super().__init__(entropy, difficulty_level, step_counter)
         self.component_results: list[ComponentResult] = []
+        self.template_engine = template_engine
+        self.local_index = local_index
 
     def record_component_result(self, result: ComponentResult) -> None:
         """Record the result of a component execution."""

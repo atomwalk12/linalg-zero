@@ -15,8 +15,15 @@ class TestMatrixVectorMultiplicationGenerator:
     )
 
     def _make_generator(self, difficulty: DifficultyCategory) -> MatrixVectorMultiplicationGenerator:
+        from linalg_zero.generator.generation_constraints import GenerationConstraints
+        from linalg_zero.generator.sympy.template_engine import TemplateEngine
+
         return MatrixVectorMultiplicationGenerator(
-            entropy=self.config.sample_entropy,
+            gen_constraints=GenerationConstraints(),
+            template_engine=TemplateEngine(),
+            local_index=0,
+            constraints={},
+            entropy=self.config.sample_entropy(),
             difficulty_level=difficulty,
             problem_type=Task.MATRIX_VECTOR_MULTIPLICATION,
             topic=Topic.LINEAR_ALGEBRA,

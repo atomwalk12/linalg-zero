@@ -67,7 +67,9 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         gen_constraints: GenerationConstraints | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(name, is_independent=constraints.pop("is_independent"), **kwargs)
+        is_independent = constraints.get("is_independent")
+        assert isinstance(is_independent, bool)  # noqa: S101
+        super().__init__(name, is_independent=is_independent, **kwargs)
         self.constraints = constraints
         self.gen_constraints = gen_constraints if gen_constraints else GenerationConstraints()
         self.generator_class = generator_class
@@ -87,7 +89,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
                     raise ValueError(f"Missing input_index for input '{input_name}'")
 
                 component_index = input_indices[input_name]
-                source_type = sources.get(input_name, "result")  # Default to "result"
+                source_type = sources[input_name]
 
                 previous_result = context.component_results[component_index]
 
@@ -116,8 +118,6 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
                 # Add to params
                 params[input_name] = previous_sol
                 params[f"{input_name}_index"] = component_index
-
-            params["sources"] = sources
 
             return params
         return {}
@@ -184,6 +184,9 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
             problem_type=self.component_type,
             topic=self.topic,
             entropy=problem_context.entropy,
+            is_independent=self.is_independent,
+            template_engine=context.template_engine,
+            local_index=context.local_index,
             **additional_params,
         )
         template: ProblemTemplate = generator.generate_mathematical_content(problem_context)
@@ -195,7 +198,6 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
             variables=template.variables,
             sympy_solution=template.sympy_solution,
             lib_result=template.lib_result,
-            question_templates=template.question_templates,
             context_info={
                 **template.context_info,
             },
