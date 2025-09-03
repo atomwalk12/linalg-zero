@@ -12,7 +12,7 @@ from linalg_zero.shared.types import assert_lib_returns
 
 
 def multiply_matrices(matrix_a: list[list[float]], matrix_b: list[list[float]]) -> list[list[float]]:
-    """Multiplies two matrices.
+    """Multiplies two matrices, or a matrix and a vector, or two vectors.
 
     Examples:
         >>> multiply_matrices([[1, 2], [3, 4]], [[2, 0], [1, 3]])
@@ -23,11 +23,11 @@ def multiply_matrices(matrix_a: list[list[float]], matrix_b: list[list[float]]) 
         [[5, 6], [7, 8]]
 
     Args:
-        matrix_a (list[list[float]]): The first matrix.
-        matrix_b (list[list[float]]): The second matrix.
+        matrix_a (list[list[float]]): The first matrix or vector.
+        matrix_b (list[list[float]]): The second matrix or vector.
 
     Returns:
-        list[list[float]]: The product of the two matrices.
+        list[list[float]]: The product of the two matrices, matrix and vector, or two vectors.
     """
     try:
         sym_a = Matrix(matrix_a)

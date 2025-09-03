@@ -234,7 +234,7 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
         """Use the mixin's generic logic for consistent result/value handling."""
         input_variables = {}
         input_variables["target_b"] = (self.input_vector_b, self.input_vector_b_index)
-        input_variables["matrix"] = (template.context_info["matrix_A"], self.local_index)
+        input_variables["matrix_A"] = (template.context_info["matrix_A"], self.local_index)
 
         base_vars = self.get_dependent_template_variables(input_variables, self.sources)
 

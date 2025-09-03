@@ -125,7 +125,10 @@ class SympyProblemGenerator(ABC):
 
         # Get templates for the problem type
         templates = self.template_engine.create_default_templates(
-            problem_type, self.difficulty_level, variables, self.is_independent
+            question_type=problem_type,
+            difficulty=self.difficulty_level,
+            variables=variables,
+            is_independent=self.is_independent,
         )
         if templates:
             selected_template = self.template_engine.select_template(

@@ -9,8 +9,7 @@ from sympy.matrices import MutableDenseMatrix
 from linalg_zero.generator.difficulty_config import Precision
 from linalg_zero.generator.models import ComponentResult, DifficultyCategory, QuestionTemplate, Task
 from linalg_zero.generator.sympy.templates import (
-    get_composite_templates,
-    get_independent_templates,
+    get_static_templates,
 )
 from linalg_zero.shared.types import LibTypes
 from linalg_zero.shared.utils import get_logger
@@ -174,29 +173,15 @@ class TemplateEngine:
         This simplifies the creation of question/answer pairs.
         """
 
-        allocated_vars: dict[str, Any] = {}
-        context_info = variables.pop("context_info", None)
-        assert context_info is not None  # noqa: S101
+        _ = variables.pop("context_info", None)
 
         # Use the variables when creating the templates
+        if True:
+            return get_static_templates(question_type, difficulty)
 
-        return self.create_independent_templates(
-            question_type, difficulty, deterministic=deterministic, verb_index=verb_index, variables=allocated_vars
-        )
-
-    def create_independent_templates(
-        self,
-        question_type: Task,
-        difficulty: DifficultyCategory,
-        variables: dict[str, str],
-        *,
-        deterministic: bool = False,
-        verb_index: int = 0,
-    ) -> list[QuestionTemplate]:
-        verb = self.VERBS[verb_index % len(self.VERBS)] if deterministic else random.choice(self.VERBS)
-
-        templates = get_independent_templates(question_type, difficulty, verb, variables)
-        return templates
+        # NOTE: Uncomment to use dynamic templates
+        # variables = self.customise_templates(context_info)
+        # return get_dynamic_templates(question_type, difficulty, variables)
 
     def customise_templates(self, context_info: list[dict[str, Any]]) -> dict[str, Any]:
         allocated_vars = {}
@@ -227,25 +212,6 @@ class TemplateEngine:
 
         return allocated_vars
 
-    def create_composite_templates(
-        self,
-        question_type: Task,
-        difficulty: DifficultyCategory,
-        variables: dict[str, Any],
-        *,
-        deterministic: bool = False,
-        verb_index: int = 0,
-    ) -> list[QuestionTemplate]:
-        """
-        Create question templates specifically for composite problems.
-        These templates handle multi-step operations with intermediate results.
-        """
-        templates = []
-        verb = self.VERBS[verb_index % len(self.VERBS)] if deterministic else random.choice(self.VERBS)
-
-        templates = get_composite_templates(question_type, difficulty, verb)
-        return templates
-
     def select_template(
         self,
         templates: list[QuestionTemplate],
@@ -273,7 +239,9 @@ class TemplateEngine:
             if variable_compatible:
                 candidates = variable_compatible
             else:
-                raise ValueError(f"No variable compatible templates found for {available_variables}")
+                raise ValueError(
+                    f"No variable compatible templates found for {available_variables}, candidates: {candidates}"
+                )
 
         # Deterministic selection by index if provided
         if template_index is not None:

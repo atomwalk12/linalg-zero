@@ -1,14 +1,18 @@
+import random
+
 from linalg_zero.generator.models import DifficultyCategory, QuestionTemplate, Task
 
 
-def get_independent_templates(  # noqa: C901
-    question_type: Task, difficulty: DifficultyCategory, verb: str, variables: dict[str, str]
+def get_static_templates(  # noqa: C901
+    question_type: Task, difficulty: DifficultyCategory
 ) -> list[QuestionTemplate]:
+    verb = random.choice(["Find", "Calculate", "Compute", "Determine", "Evaluate"])
+
     templates = []
     if question_type == Task.LINEAR_SYSTEM_SOLVER:
         templates.extend([
             QuestionTemplate(
-                template_string=f"{verb} the linear system Ax = b for x, where A = {{matrix_A}} and b = {{target_b}}.",
+                template_string="Solve the linear system Ax = b for x, where A = {matrix_A} and b = {target_b}.",
                 required_variables=["matrix_A", "target_b"],
                 difficulty_level=difficulty,
                 question_type=Task.LINEAR_SYSTEM_SOLVER,
@@ -26,7 +30,7 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.LINEAR_SYSTEM_SOLVER,
             ),
         ])
-    if question_type == Task.MATRIX_VECTOR_MULTIPLICATION:
+    elif question_type == Task.MATRIX_VECTOR_MULTIPLICATION:
         templates.extend([
             QuestionTemplate(
                 template_string=f"{verb} the matrix-vector product Av, where A = {{matrix}} and v = {{vector}}.",
@@ -47,10 +51,10 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
             ),
         ])
-    if question_type == Task.MATRIX_MATRIX_MULTIPLICATION:
+    elif question_type == Task.MATRIX_MATRIX_MULTIPLICATION:
         templates.extend([
             QuestionTemplate(
-                template_string=f"{verb} the matrix-matrix product AB, where A = {{matrix_A}} and B = {{matrix_B}}.",
+                template_string=f"{verb} the matrix product AB, where A = {{matrix_A}} and B = {{matrix_B}}.",
                 required_variables=["matrix_A", "matrix_B"],
                 difficulty_level=difficulty,
                 question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
@@ -68,7 +72,7 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
             ),
         ])
-    if question_type == Task.DETERMINANT:
+    elif question_type == Task.DETERMINANT:
         templates.extend([
             QuestionTemplate(
                 template_string=f"{verb} the determinant of matrix A, where A = {{matrix}}.",
@@ -89,7 +93,7 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.DETERMINANT,
             ),
         ])
-    if question_type == Task.FROBENIUS_NORM:
+    elif question_type == Task.FROBENIUS_NORM:
         templates.extend([
             QuestionTemplate(
                 template_string=f"{verb} the Frobenius norm of matrix A = {{matrix}}.",
@@ -110,7 +114,7 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.FROBENIUS_NORM,
             ),
         ])
-    if question_type == Task.MATRIX_RANK:
+    elif question_type == Task.MATRIX_RANK:
         templates.extend([
             QuestionTemplate(
                 template_string=f"{verb} the rank of matrix A = {{matrix}}.",
@@ -131,7 +135,7 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.MATRIX_RANK,
             ),
         ])
-    if question_type == Task.MATRIX_TRANSPOSE:
+    elif question_type == Task.MATRIX_TRANSPOSE:
         templates.extend([
             QuestionTemplate(
                 template_string=f"{verb} the transpose of matrix A = {{matrix}}.",
@@ -152,7 +156,7 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.MATRIX_TRANSPOSE,
             ),
         ])
-    if question_type == Task.MATRIX_INVERSE:
+    elif question_type == Task.MATRIX_INVERSE:
         templates.extend([
             QuestionTemplate(
                 template_string=f"{verb} the inverse of matrix A = {{matrix}}.",
@@ -173,7 +177,7 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.MATRIX_INVERSE,
             ),
         ])
-    if question_type == Task.MATRIX_TRACE:
+    elif question_type == Task.MATRIX_TRACE:
         templates.extend([
             QuestionTemplate(
                 template_string=f"{verb} the trace of matrix A = {{matrix}}.",
@@ -194,7 +198,7 @@ def get_independent_templates(  # noqa: C901
                 question_type=Task.MATRIX_TRACE,
             ),
         ])
-    if question_type == Task.MATRIX_COFACTOR:
+    elif question_type == Task.MATRIX_COFACTOR:
         templates.extend([
             QuestionTemplate(
                 template_string=f"{verb} the cofactor matrix of A = {{matrix}}.",
@@ -216,149 +220,3 @@ def get_independent_templates(  # noqa: C901
             ),
         ])
     return templates
-
-
-def get_composite_templates(question_type: Task, difficulty: DifficultyCategory, verb: str) -> list[QuestionTemplate]:
-    composite_templates = {
-        Task.MATRIX_VECTOR_MULTIPLICATION: [
-            QuestionTemplate(
-                template_string=f"{verb} the matrix-vector product using A = {{matrix}} and the vector from {{vector}}.",
-                required_variables=["matrix", "vector"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
-            ),
-            QuestionTemplate(
-                template_string="Using matrix A = {matrix}, multiply by the vector from {vector}.",
-                required_variables=["matrix", "vector"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_VECTOR_MULTIPLICATION,
-            ),
-        ],
-        Task.MATRIX_MATRIX_MULTIPLICATION: [
-            QuestionTemplate(
-                template_string=f"{verb} the matrix-matrix product AB, where A = {{matrix_A}} and B = {{matrix_B}}.",
-                required_variables=["matrix_A", "matrix_B"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
-            ),
-            QuestionTemplate(
-                template_string="Given matrix A = {matrix_A} and matrix B = {matrix_B}, find AB.",
-                required_variables=["matrix_A", "matrix_B"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_MATRIX_MULTIPLICATION,
-            ),
-        ],
-        Task.LINEAR_SYSTEM_SOLVER: [
-            QuestionTemplate(
-                template_string=f"{verb} the linear system Ax = b for x, where A = {{matrix}} and b is the result from {{target_b}}.",
-                required_variables=["matrix", "target_b"],
-                difficulty_level=difficulty,
-                question_type=Task.LINEAR_SYSTEM_SOLVER,
-            ),
-            QuestionTemplate(
-                template_string="What is the solution x to Ax = b, where A = {matrix} and b comes from {target_b}?",
-                required_variables=["matrix", "target_b"],
-                difficulty_level=difficulty,
-                question_type=Task.LINEAR_SYSTEM_SOLVER,
-            ),
-        ],
-        Task.DETERMINANT: [
-            QuestionTemplate(
-                template_string=f"{verb} the determinant of the matrix from {{matrix}}.",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.DETERMINANT,
-            ),
-            QuestionTemplate(
-                template_string="What is the determinant of the resulting matrix from {matrix}?",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.DETERMINANT,
-            ),
-        ],
-        Task.FROBENIUS_NORM: [
-            QuestionTemplate(
-                template_string=f"{verb} the Frobenius norm of the matrix from {{matrix}}.",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.FROBENIUS_NORM,
-            ),
-            QuestionTemplate(
-                template_string="What is the Frobenius norm of the resulting matrix from {matrix}?",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.FROBENIUS_NORM,
-            ),
-        ],
-        Task.MATRIX_TRACE: [
-            QuestionTemplate(
-                template_string=f"{verb} the trace of the matrix from {{matrix}}.",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_TRACE,
-            ),
-            QuestionTemplate(
-                template_string="What is the trace of the resulting matrix from {matrix}?",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_TRACE,
-            ),
-        ],
-        Task.MATRIX_RANK: [
-            QuestionTemplate(
-                template_string=f"{verb} the rank of the matrix from {{matrix}}.",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_RANK,
-            ),
-            QuestionTemplate(
-                template_string="What is the rank of the resulting matrix from {matrix}?",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_RANK,
-            ),
-        ],
-        Task.MATRIX_TRANSPOSE: [
-            QuestionTemplate(
-                template_string=f"{verb} the transpose of the matrix from {{matrix}}.",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_TRANSPOSE,
-            ),
-            QuestionTemplate(
-                template_string="What is the transpose of the resulting matrix from {matrix}?",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_TRANSPOSE,
-            ),
-        ],
-        Task.MATRIX_INVERSE: [
-            QuestionTemplate(
-                template_string=f"{verb} the inverse of the matrix from {{matrix}}.",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_INVERSE,
-            ),
-            QuestionTemplate(
-                template_string="What is the inverse of the resulting matrix from {matrix}?",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_INVERSE,
-            ),
-        ],
-        Task.MATRIX_COFACTOR: [
-            QuestionTemplate(
-                template_string=f"{verb} the cofactor matrix of the matrix from {{matrix}}.",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_COFACTOR,
-            ),
-            QuestionTemplate(
-                template_string="What is the cofactor matrix of the resulting matrix from {matrix}?",
-                required_variables=["matrix"],
-                difficulty_level=difficulty,
-                question_type=Task.MATRIX_COFACTOR,
-            ),
-        ],
-    }
-    return composite_templates[question_type]

@@ -296,7 +296,7 @@ def create_default_registry() -> FactoryRegistry:
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
-                    "sources": {"input_matrix_A": "result", "input_matrix_B": "matrix"},
+                    "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
                 },
             ),
             DeterminantWrapperComponent(
@@ -327,7 +327,7 @@ def create_default_registry() -> FactoryRegistry:
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
-                    "sources": {"input_matrix_A": "result", "input_matrix_B": "matrix"},
+                    "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
                 },
             ),
             RankWrapperComponent(
