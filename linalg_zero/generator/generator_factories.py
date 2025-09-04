@@ -6,7 +6,7 @@ from linalg_zero.generator.composition.composition import (
     CompositionStrategy,
     ProblemComponent,
 )
-from linalg_zero.generator.difficulty_config import SampleArgs, get_problem_config
+from linalg_zero.generator.difficulty_config import ProblemConfig, SampleArgs, get_problem_config
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
@@ -172,12 +172,14 @@ def create_sympy_factory(
     problem_type: Task,
     topic: Topic,
     gen_constraints: GenerationConstraints | None = None,
+    custom_config: ProblemConfig | None = None,
     **kwargs: Any,
 ) -> Callable[[], Question]:
     """
     Convenience function for generating a factory function for registry registration.
     """
-    entropy = get_problem_config(difficulty_level, topic, problem_type).sample_entropy()
+    default_config = get_problem_config(difficulty_level)
+    entropy = custom_config.sample_entropy() if custom_config else default_config.sample_entropy()
 
     def factory() -> Question:
         generator: SympyProblemGenerator = generator_class(

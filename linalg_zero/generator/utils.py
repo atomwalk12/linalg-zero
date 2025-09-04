@@ -181,15 +181,11 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
     )
     # Distributions
     by_difficulty = Counter(q.difficulty for q in questions_to_print)
-    by_problem = Counter(q.problem_type for q in questions_to_print)
     logger.info("  By Difficulty:")
     for diff, count in sorted(
         by_difficulty.items(), key=lambda x: x[0].value if hasattr(x[0], "value") else str(x[0])
     ):
         logger.info("    %s: %d", str(diff), count)
-    logger.info("  By Problem Type:")
-    for pt, count in sorted(by_problem.items(), key=lambda x: x[0].value):
-        logger.info("    %s: %d", pt.value, count)
 
     # Per-difficulty averages (entropy and tool calls)
     buckets: dict = defaultdict(list)

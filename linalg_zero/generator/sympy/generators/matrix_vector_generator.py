@@ -105,7 +105,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         """Split entropy between matrix and vector generation (independent)."""
         sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
-        matrix_sample_args, vector_sample_args = sample_args.split(count=2)
+        matrix_sample_args, vector_sample_args = sample_args.split(count=2, min_fraction=0.3, concentration_scale=10.0)
         return matrix_sample_args.entropy, vector_sample_args.entropy
 
     def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int]:
@@ -123,9 +123,9 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     ) -> Matrix:
         # Use constraint-based generation with specific dimensions
         # Temporarily set constraints for this specific call
-        mandatory = GenerationConstraints(rows=rows, cols=cols, entropy=matrix_entropy)
+        mandatory = GenerationConstraints(rows=rows, cols=cols)
 
-        matrix_A = self._get_matrix_with_constraints(context, added_constraints=mandatory)
+        matrix_A = self._get_matrix_with_constraints(context, added_constraints=mandatory, entropy=matrix_entropy)
 
         return matrix_A
 
@@ -137,8 +137,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     ) -> Matrix:
         # Use centralized vector generation. Provide fixed entropy via constraints
         # so the allocator records exactly this amount.
-        constraints = GenerationConstraints(entropy=vector_entropy)
-        return self._get_vector_with_constraints(context, size=cols, added_constraints=constraints)
+        return self._get_vector_with_constraints(context, size=cols, entropy=vector_entropy)
 
 
 class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGenerator):

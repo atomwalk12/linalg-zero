@@ -20,6 +20,9 @@ class Topic(Enum):
 class Task(Enum):
     """Enum for problem types used in problem generation."""
 
+    SEQUENTIAL_PROBLEM = "sequential_problem"
+
+    # Single tool call problems
     DETERMINANT = "determinant"
     LINEAR_SYSTEM_SOLVER = "linear_system_solver"
     MATRIX_VECTOR_MULTIPLICATION = "matrix_vector_multiplication"
@@ -30,18 +33,17 @@ class Task(Enum):
     MATRIX_INVERSE = "matrix_inverse"
     MATRIX_TRACE = "matrix_trace"
     MATRIX_COFACTOR = "matrix_cofactor"
-    COMPOSITE_SEQUENTIAL = "sequential"
-    COMPOSITE_SYSTEM_DEPENDENCY = "system_dependency"
-    COMPOSITE_TRANSPOSE_DETERMINANT = "transpose_determinant"
-    COMPOSITE_TRANSPOSE_TRACE = "transpose_trace"
-    COMPOSITE_SYSTEM_NORM = "system_norm"
-    COMPOSITE_TRANSPOSE_DETERMINANT_BALANCED = "transpose_determinant_balanced"
-    COMPOSITE_INVERSE_FROBENIUS = "inverse_frobenius"
-    COMPOSITE_INVERSE_RANK = "inverse_rank"
-    COMPOSITE_TRANSPOSE_FROBENIUS = "transpose_frobenius"
-    COMPOSITE_TRIPLE_TRANSPOSE_DETERMINANT = "triple_transpose_determinant"
-    COMPOSITE_TRIPLE_INVERSE_RANK = "triple_inverse_rank"
-    COMPOSITE_TRIPLE_SYSTEM_FROBENIUS = "triple_system_frobenius"
+
+    # Two tool call problems
+    TWO_TRANSPOSE_DETERMINANT = "transpose_determinant"
+    TWO_COFACTOR_FROBENIUS = "cofactor_frobenius"
+    TWO_COFACTOR_RANK = "cofactor_rank"
+    TWO_TRANSPOSE_FROBENIUS = "transpose_frobenius"
+
+    # Three tool call problems
+    THREE_TRANSPOSE_MATRIXMULT_DETERMINANT = "transpose_matrixmult_determinant"
+    THREE_COFACTOR_MATRIXMULT_RANK = "cofactor_matrixmult_rank"
+    THREE_SYSTEM_MATRIXMULT_FROBENIUS = "system_matrixmult_frobenius"
 
 
 class DifficultyCategory(Enum):
@@ -73,6 +75,7 @@ class QuestionTemplate:
     required_variables: list[str]
     difficulty_level: DifficultyCategory
     question_type: Task
+    context_info: dict[str, Any] | None = None
 
 
 @dataclass

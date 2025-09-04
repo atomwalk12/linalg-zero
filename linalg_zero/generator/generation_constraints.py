@@ -4,24 +4,7 @@ from linalg_zero.generator.entropy_control import sample_entropy_from_range
 
 
 @dataclass
-class GenerationConstraints:
-    """Matrix generation constraints for controlling output properties.
-
-    Attributes:
-        square: Generate square matrix (rows == cols)
-        invertible: Generate invertible matrix (requires square=True)
-        size: Specific size for square matrices (overrides rows/cols)
-        rows: Specific number of rows
-        cols: Specific number of columns
-        entropy: Custom entropy allocation for this generation or a tuple of (min, max) entropy allocation
-        entropy_range: Optional (min, max) tuple to dynamically sample entropy per problem
-    """
-
-    square: bool = False
-    invertible: bool = False
-    size: int | None = None
-    rows: int | None = None
-    cols: int | None = None
+class EntropyConstraints:
     entropy: float | None = None
     entropy_range: tuple[float, float] | None = None
 
@@ -33,6 +16,25 @@ class GenerationConstraints:
         if self.entropy_range is not None:
             return sample_entropy_from_range(self.entropy_range, center_biased_draw)
         return None
+
+
+@dataclass
+class GenerationConstraints:
+    """Matrix generation constraints for controlling output properties.
+
+    Attributes:
+        square: Generate square matrix (rows == cols)
+        invertible: Generate invertible matrix (requires square=True)
+        size: Specific size for square matrices (overrides rows/cols)
+        rows: Specific number of rows
+        cols: Specific number of columns
+    """
+
+    square: bool = False
+    invertible: bool = False
+    size: int | None = None
+    rows: int | None = None
+    cols: int | None = None
 
     def __post_init__(self) -> None:
         """Validate constraint combinations."""
@@ -75,16 +77,6 @@ class GenerationConstraints:
         if self.cols is not None and other.cols is not None and self.cols != other.cols:
             conflicts.append(f"cols: {self.cols} vs {other.cols}")
 
-        if self.entropy is not None and other.entropy is not None and self.entropy != other.entropy:
-            conflicts.append(f"entropy: {self.entropy} vs {other.entropy}")
-
-        if (
-            self.entropy_range is not None
-            and other.entropy_range is not None
-            and self.entropy_range != other.entropy_range
-        ):
-            conflicts.append(f"entropy_range: {self.entropy_range} vs {other.entropy_range}")
-
         if conflicts:
             raise ValueError(f"Conflicting constraints found: {', '.join(conflicts)}")
 
@@ -95,8 +87,6 @@ class GenerationConstraints:
             size=other.size if other.size is not None else self.size,
             rows=other.rows if other.rows is not None else self.rows,
             cols=other.cols if other.cols is not None else self.cols,
-            entropy=other.entropy if other.entropy is not None else self.entropy,
-            entropy_range=other.entropy_range if other.entropy_range is not None else self.entropy_range,
         )
 
         return merged

@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from linalg_zero.generator.models import DifficultyCategory, Question, Topic
-from linalg_zero.generator.registry import create_default_registry
+from linalg_zero.generator.registry import FactoryRegistry, create_default_registry
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
@@ -54,12 +54,13 @@ class DatasetGenerator:
         topic: Topic = Topic.LINEAR_ALGEBRA,
         validator_factory: Callable[[Question], bool] | None = None,
         max_attempts: int = 999999999,
+        registry: FactoryRegistry | None = None,
     ):
         """Initialize with generation configuration."""
         self.topic = topic
         self.validator_factory = validator_factory or QuestionGenerator._default_validator
         self.max_attempts = max_attempts
-        self.registry = create_default_registry()
+        self.registry = registry or create_default_registry()
 
     def generate_dataset(self, num_questions: int) -> list[Question]:
         """Generate a dataset with the configured parameters (randomly across all factories)."""

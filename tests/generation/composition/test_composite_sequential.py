@@ -49,14 +49,14 @@ from linalg_zero.generator.sympy.template_engine import TemplateEngine
 def make_composite(
     components: list, difficulty: DifficultyCategory = DifficultyCategory.TWO_TOOL_CALLS
 ) -> CompositeProblem:
-    config = get_problem_config(difficulty, Topic.LINEAR_ALGEBRA, Task.COMPOSITE_SEQUENTIAL)
+    config = get_problem_config(difficulty)
     sample_args = config.create_sample_args_for_composition(num_components=len(components))
     return CompositeProblem(
         components=components,
-        composition_strategy=SequentialComposition(),
+        composition_strategy=SequentialComposition(config=config),
         sample_args=sample_args,
         difficulty_level=difficulty,
-        problem_type=Task.COMPOSITE_SEQUENTIAL,
+        problem_type=Task.SEQUENTIAL_PROBLEM,
         topic=Topic.LINEAR_ALGEBRA,
         template_engine=TemplateEngine(),
     )

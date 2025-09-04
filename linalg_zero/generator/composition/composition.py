@@ -3,7 +3,8 @@ from typing import Any
 from typing_extensions import override
 
 from linalg_zero.generator.context import CompositionContext
-from linalg_zero.generator.difficulty_config import SampleArgs
+from linalg_zero.generator.difficulty_config import ProblemConfig, SampleArgs
+from linalg_zero.generator.generation_constraints import EntropyConstraints
 from linalg_zero.generator.models import (
     ComponentResult,
     CompositeResultBuilder,
@@ -21,6 +22,9 @@ from linalg_zero.generator.sympy.base import (
 from linalg_zero.generator.sympy.template_engine import TemplateEngine
 from linalg_zero.grpo.verify import verify_answers
 from linalg_zero.shared.types import LibTypes
+from linalg_zero.shared.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class SequentialComposition(CompositionStrategy):
@@ -30,6 +34,9 @@ class SequentialComposition(CompositionStrategy):
     Executes components in order, where each component can use results
     from previous components. Useful for multi-step problems.
     """
+
+    def __init__(self, config: ProblemConfig):
+        self.config = config
 
     def compose(
         self, components: list[ProblemComponent], sample_args: SampleArgs, base_context: CompositionContext
@@ -41,8 +48,8 @@ class SequentialComposition(CompositionStrategy):
         def component_modules(c: ProblemComponent) -> float:
             return max(0, c.entropy_weight())
 
-        modules = [component_modules(c) for c in components]
-        total_modules = sum(modules)
+        weights = [component_modules(c) for c in components]
+        total_modules = sum(weights)
 
         if sample_args.entropy <= 0:
             raise ValueError("Configured entropy must be > 0 for composite problems")
@@ -52,8 +59,17 @@ class SequentialComposition(CompositionStrategy):
             # Alternative use:
             # component_sample_args = sample_args.split(len(components))
         else:
-            total_entropy = sample_args.entropy
-            allocations = [total_entropy * m / total_modules for m in modules]
+            # Instead of a uniform distribution, we sample the provided values component-wise
+            # This allows to provide a range of entropy values or fixed values for each component.
+            allocations: list[float] = []
+            for comp in components:
+                override: EntropyConstraints = comp.entropy_constraints
+                entropy = override.sample_entropy(center_biased_draw=self.config.center_biased_draw)
+                assert entropy is not None  # noqa: S101
+                allocations.append(float(entropy))
+
+            # Floor zero weights to 0
+            allocations = [0.0 if weight == 0 else alloc for alloc, weight in zip(allocations, weights, strict=True)]
             component_sample_args = [SampleArgs(num_modules=1, entropy=e) for e in allocations]
 
         for local_index, (component_wrapper, comp_sample_args) in enumerate(

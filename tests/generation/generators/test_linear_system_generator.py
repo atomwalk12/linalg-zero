@@ -15,7 +15,7 @@ from linalg_zero.shared.lib import solve_linear_system
 class TestLinearSystemGenerator:
     """Focused end-to-end tests for LinearSystemGenerator."""
 
-    config = get_problem_config(DifficultyCategory.TWO_TOOL_CALLS, Topic.LINEAR_ALGEBRA, Task.LINEAR_SYSTEM_SOLVER)
+    config = get_problem_config(DifficultyCategory.TWO_TOOL_CALLS)
 
     def _make_generator(self, difficulty: DifficultyCategory) -> LinearSystemGenerator:
         from linalg_zero.generator.generation_constraints import GenerationConstraints

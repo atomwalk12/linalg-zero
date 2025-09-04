@@ -5,10 +5,18 @@ import random
 import numpy as np
 from sympy.core.random import seed
 
+from linalg_zero.generator.analysis.utils import (
+    compute_stepwise_value_statistics,
+    print_statistics_summary,
+)
 from linalg_zero.generator.core import DatasetGenerator
 from linalg_zero.generator.models import DifficultyCategory, Question, Topic
 from linalg_zero.generator.registry import create_default_registry
-from linalg_zero.generator.utils import convert_to_dataset_splits, print_dataset, verify_dataset
+from linalg_zero.generator.utils import (
+    convert_to_dataset_splits,
+    print_dataset,
+    verify_dataset,
+)
 from linalg_zero.shared.utils import get_logger, push_to_hub, setup_logging
 
 
@@ -38,10 +46,12 @@ def main(push_dataset: bool = False) -> None:  # pragma: no cover
         requests={
             DifficultyCategory.ONE_TOOL_CALL: 2,
             DifficultyCategory.TWO_TOOL_CALLS: 2,
-            DifficultyCategory.THREE_TOOL_CALLS: 2,
+            DifficultyCategory.THREE_TOOL_CALLS: 44,
         }
     )
+    statistics = compute_stepwise_value_statistics(dataset)
     print_dataset(dataset)
+    print_statistics_summary(statistics)
     verify_dataset(dataset)
 
     if push_dataset:

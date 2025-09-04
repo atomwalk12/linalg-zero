@@ -103,7 +103,9 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         """Split entropy between matrix A and matrix B generation (independent)."""
         sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
-        matrix_A_sample_args, matrix_B_sample_args = sample_args.split(count=2)
+        matrix_A_sample_args, matrix_B_sample_args = sample_args.split(
+            count=2, min_fraction=0.3, concentration_scale=10.0
+        )
         return matrix_A_sample_args.entropy, matrix_B_sample_args.entropy
 
     def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int, int]:
@@ -122,9 +124,9 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
     ) -> Matrix:
         # Use constraint-based generation with specific dimensions
         # Temporarily set constraints for this specific call
-        mandatory = GenerationConstraints(rows=rows, cols=cols, entropy=matrix_entropy)
+        mandatory = GenerationConstraints(rows=rows, cols=cols)
 
-        matrix_A = self._get_matrix_with_constraints(context, added_constraints=mandatory)
+        matrix_A = self._get_matrix_with_constraints(context, added_constraints=mandatory, entropy=matrix_entropy)
 
         return matrix_A
 
@@ -135,9 +137,9 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
         matrix_entropy: float,
         context: ProblemContext,
     ) -> Matrix:
-        mandatory = GenerationConstraints(rows=rows, cols=cols, entropy=matrix_entropy)
+        mandatory = GenerationConstraints(rows=rows, cols=cols)
 
-        matrix_B = self._get_matrix_with_constraints(context, added_constraints=mandatory)
+        matrix_B = self._get_matrix_with_constraints(context, added_constraints=mandatory, entropy=matrix_entropy)
 
         return matrix_B
 
@@ -217,8 +219,8 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGen
             return self.input_matrix_B
         else:
             # Generate matrix_B using the parent class logic
-            mandatory = GenerationConstraints(rows=rows, cols=cols, entropy=matrix_entropy)
-            return self._get_matrix_with_constraints(context, added_constraints=mandatory)
+            mandatory = GenerationConstraints(rows=rows, cols=cols)
+            return self._get_matrix_with_constraints(context, added_constraints=mandatory, entropy=matrix_entropy)
 
     def _generate_matrix_A(
         self,

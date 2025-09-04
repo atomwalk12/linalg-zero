@@ -53,6 +53,7 @@ dependencies = [
     "sympy==1.14.0",
     "pyyaml>=6.0.2",
     "numpy>=1.26.4",
+    "matplotlib>=3.10.6",
 ]
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)

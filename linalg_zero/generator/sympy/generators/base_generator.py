@@ -13,16 +13,12 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
     """Base class for matrix-vector problem generators."""
 
     def __init__(
-        self, difficulty_level: DifficultyCategory, gen_constraints: GenerationConstraints, **kwargs: Any
+        self, difficulty_level: DifficultyCategory, gen_constraints: GenerationConstraints | None, **kwargs: Any
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
 
-        # Convert gen_constraints to GenerationConstraints object
-        incoming_constraints = gen_constraints
         self.gen_constraints = (
-            incoming_constraints
-            if isinstance(incoming_constraints, GenerationConstraints)
-            else GenerationConstraints()
+            gen_constraints if isinstance(gen_constraints, GenerationConstraints) else GenerationConstraints()
         )
 
         self.entropy_controller = EntropyController()
@@ -100,35 +96,29 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
         raise ValueError(f"Failed to generate invertible matrix after {max_attempts} attempts")
 
     def _get_matrix_with_constraints(
-        self, context: ProblemContext, added_constraints: GenerationConstraints | None = None
+        self,
+        context: ProblemContext,
+        added_constraints: GenerationConstraints | None = None,
+        entropy: float | None = None,
     ) -> Matrix:
         """Generate matrix based on constructor constraints."""
-        effective_constraints = (
-            self.gen_constraints.merge(added_constraints) if added_constraints else self.gen_constraints
-        )
+        gen_constraints = self.gen_constraints.merge(added_constraints) if added_constraints else self.gen_constraints
 
         # Determine dimensions
-        if effective_constraints.rows is not None and effective_constraints.cols is not None:
-            rows, cols = effective_constraints.rows, effective_constraints.cols
-        elif effective_constraints.square:
-            size = (
-                effective_constraints.size
-                if effective_constraints.size is not None
-                else self.config.get_random_matrix_size()
-            )
+        if gen_constraints.rows is not None and gen_constraints.cols is not None:
+            rows, cols = gen_constraints.rows, gen_constraints.cols
+        elif gen_constraints.square:
+            size = gen_constraints.size if gen_constraints.size is not None else self.config.get_random_matrix_size()
             rows = cols = size
         else:
             rows = self.config.get_random_matrix_size()
             cols = self.config.get_random_matrix_size()
 
         # Determine entropy allocation via context allocator (centralized budget management)
-        matrix_entropy = context.allocate_entropy(
-            constraints=effective_constraints,
-            center_biased_draw=self.config.center_biased_draw,
-        )
+        matrix_entropy = context.allocate_entropy(entropy=entropy)
 
         # Generate matrix based on special properties
-        if effective_constraints.invertible:
+        if gen_constraints.invertible:
             if rows != cols:
                 raise ValueError("Invertible matrices must be square")
             matrix_A = self._generate_invertible_matrix(rows, matrix_entropy)
@@ -137,22 +127,14 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
 
         return matrix_A
 
-    def _get_vector_with_constraints(
-        self, context: ProblemContext, size: int, added_constraints: GenerationConstraints | None = None
-    ) -> Matrix:
+    def _get_vector_with_constraints(self, context: ProblemContext, size: int, entropy: float | None = None) -> Matrix:
         """Generate a vector using centralized entropy allocation.
 
         Dimensions are provided explicitly via `size`. Constraints are used only
         to resolve entropy (fixed or sampled); shape-related fields are ignored
         for vectors.
         """
-        effective_constraints = (
-            self.gen_constraints.merge(added_constraints) if added_constraints else self.gen_constraints
-        )
-
-        vector_entropy = context.allocate_entropy(
-            constraints=effective_constraints, center_biased_draw=self.config.center_biased_draw
-        )
+        vector_entropy = context.allocate_entropy(entropy=entropy)
 
         vector = self._generate_vector(size, vector_entropy)
         return vector

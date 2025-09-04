@@ -77,11 +77,7 @@ class EntropyController:
 
 
 def sample_entropy_from_range(entropy_range: tuple[float, float], center_biased_draw: bool = False) -> float:
-    """Sample an entropy value from a range with optional center bias.
-
-    When center_biased_draw is True, sample from a symmetric Beta(2,2) and
-    scale to [low, high], matching the project's recommended approach.
-    """
+    """Sample an entropy value from a range with a center bias."""
     low, high = entropy_range
     if not center_biased_draw:
         return random.uniform(low, high)
@@ -122,31 +118,49 @@ class SampleArgs:
     num_modules: int
     entropy: float
 
-    def peel(self, frac: float = 1.0) -> tuple[float, SampleArgs]:
-        """This method provides a fraction of the total entropy budget. It is
-        meant to be called iteratively and should be used when we don't know a
-        priori the number of required components.
+    def split(
+        self, count: int, min_fraction: float | None = None, concentration_scale: float = 1.0
+    ) -> list[SampleArgs]:
         """
-        entropy = frac * self.entropy / self.num_modules
-        new_sample_args = SampleArgs(num_modules=self.num_modules, entropy=self.entropy - entropy)
-        return entropy, new_sample_args
-
-    def split(self, count: int) -> list[SampleArgs]:
-        """
-        Splits all available entropy among multiple components using Dirichlet
+        Splits all available entropy among multiple components using constrained Dirichlet
         distribution.
-        """
 
-        # This parameter was modified from the original implementation to ensure
-        # all components get meaningful entropy.
-        # See: https://github.com/google-deepmind/mathematics_dataset/blob/master/mathematics_dataset/util/composition.py#L90
+        Args:
+            count: Number of components to split entropy among
+            min_fraction: Minimum fraction each component should receive (e.g., 0.2 for 20%)
+                         If None, uses pure Dirichlet distribution
+            concentration_scale: Scale factor for Dirichlet concentration. Higher values
+                               produce more uniform allocations (default 1.0)
+        """
         num_child_modules = self.num_modules
 
         # Sample module counts at random - ensure each gets at least some modules
         module_counts = uniform_positive_integers_with_sum(count, num_child_modules)
 
-        # Use Dirichlet distribution for entropy allocation
-        entropies = self.entropy * np.random.dirichlet(np.maximum(1e-9, module_counts))
+        # Scale concentration for smoother allocations
+        alpha = np.maximum(1e-9, module_counts) * concentration_scale
+        dirichlet_fractions = np.random.dirichlet(alpha)
+
+        if min_fraction is not None:
+            if min_fraction <= 0:
+                raise ValueError(f"Minimum fraction must be > 0, got {min_fraction}")
+
+            # Ensure minimum fraction constraint is feasible
+            max_feasible_min = (1.0 - 1e-9) / count
+            if min_fraction > max_feasible_min:
+                min_fraction = max_feasible_min
+
+            # Apply minimum fraction constraint with remaining entropy distributed randomly
+            reserved_total = min_fraction * count
+            remaining = 1.0 - reserved_total
+
+            # Final fractions: minimum + proportional share of remaining
+            fractions = min_fraction + remaining * dirichlet_fractions
+        else:
+            # Use pure Dirichlet (original behaviour)
+            fractions = dirichlet_fractions
+
+        entropies = self.entropy * fractions
 
         sample_args = []
         for i, num_modules in enumerate(module_counts):

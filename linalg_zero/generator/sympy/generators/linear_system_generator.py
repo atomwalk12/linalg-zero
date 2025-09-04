@@ -124,7 +124,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         """Split entropy between matrix and vector generation."""
         sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
-        matrix_sample_args, vector_sample_args = sample_args.split(count=2)
+        matrix_sample_args, vector_sample_args = sample_args.split(count=2, min_fraction=0.2, concentration_scale=3.0)
         return matrix_sample_args.entropy, vector_sample_args.entropy
 
     def _determine_size(self, context: ProblemContext) -> int:
@@ -139,9 +139,9 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
     ) -> sympy.Matrix:
         # Use constraint-based generation for square invertible matrix
         # Temporarily set constraints for this specific call
-        additional = GenerationConstraints(square=True, invertible=True, size=size, entropy=matrix_entropy)
+        additional = GenerationConstraints(square=True, invertible=True, size=size)
 
-        matrix_A = self._get_matrix_with_constraints(context, added_constraints=additional)
+        matrix_A = self._get_matrix_with_constraints(context, added_constraints=additional, entropy=matrix_entropy)
         return matrix_A
 
     def _generate_vector_b(
@@ -152,8 +152,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         context: ProblemContext,
     ) -> sympy.Matrix:
         # Generate solution vector using centralized entropy allocation, with fixed amount
-        constraints = GenerationConstraints(entropy=vector_entropy)
-        solution_x = self._get_vector_with_constraints(context, size=size, added_constraints=constraints)
+        solution_x = self._get_vector_with_constraints(context, size=size, entropy=vector_entropy)
         return matrix_A * solution_x
 
     def _prepare_context_info(

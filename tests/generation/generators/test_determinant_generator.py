@@ -13,7 +13,7 @@ from linalg_zero.shared.lib import determinant
 class TestDeterminantGenerator:
     """Focused end-to-end tests for DeterminantGenerator."""
 
-    config = get_problem_config(DifficultyCategory.TWO_TOOL_CALLS, Topic.LINEAR_ALGEBRA, Task.DETERMINANT)
+    config = get_problem_config(DifficultyCategory.TWO_TOOL_CALLS)
 
     def _make_generator(self, difficulty: DifficultyCategory) -> DeterminantGenerator:
         from linalg_zero.generator.generation_constraints import GenerationConstraints

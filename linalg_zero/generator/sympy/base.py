@@ -3,6 +3,7 @@ from typing import Any
 
 from linalg_zero.generator.context import CompositionContext, ProblemContext
 from linalg_zero.generator.difficulty_config import Precision, SampleArgs, get_problem_config
+from linalg_zero.generator.generation_constraints import EntropyConstraints
 from linalg_zero.generator.models import (
     ComponentResult,
     DifficultyCategory,
@@ -25,9 +26,10 @@ class ProblemComponent(ABC):
     be combined with other components to create more complex problems.
     """
 
-    def __init__(self, name: Task, is_independent: bool):
+    def __init__(self, name: Task, is_independent: bool, entropy_constraints: EntropyConstraints):
         self.name = name
         self.is_independent = is_independent
+        self.entropy_constraints = entropy_constraints
 
     @abstractmethod
     def generate(self, context: CompositionContext) -> ComponentResult:
@@ -88,7 +90,7 @@ class SympyProblemGenerator(ABC):
         self.problem_type = problem_type
         self.topic = topic
         self.local_index = local_index
-        self.config = get_problem_config(difficulty_level, topic, problem_type)
+        self.config = get_problem_config(difficulty_level)
         self.lib = get_lib()
         assert entropy is not None  # noqa: S101
         self.entropy = entropy

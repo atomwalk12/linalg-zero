@@ -147,3 +147,4 @@ wandb/
 results/
 *_debug.py
 *_debug.sh
+entropy_analysis_*.png

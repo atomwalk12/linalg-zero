@@ -2,7 +2,6 @@ import json
 from types import TracebackType
 from typing import Any
 
-from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import ComponentResult, DifficultyCategory
 from linalg_zero.generator.sympy.template_engine import TemplateEngine
 from linalg_zero.shared.types import LibTypes
@@ -35,18 +34,11 @@ class ProblemContext:
         """
         self.used_entropy += amount
 
-    def allocate_entropy(
-        self,
-        constraints: GenerationConstraints | None,
-        center_biased_draw: bool = False,
-    ) -> float:
+    def allocate_entropy(self, entropy: float | None) -> float:
         """
-        Resolve and consume an entropy amount based on the provided constraints.
-
-        The allocation priority is:
-        1) constraints.entropy or constraints.entropy_range (sampled)
-        2) remaining budget (self.entropy - self.used_entropy)
-
+        Resolve and consume an entropy amount based on the given value or use
+        entire entropy budget if None is provided. The provided value allows to
+        allocate entropy multiple times across a context lifetime.
         The chosen amount is recorded against the context budget.
         """
 
@@ -56,11 +48,10 @@ class ProblemContext:
 
         amount: float | None = None
 
-        if constraints is not None:
-            sampled = constraints.sample_entropy(center_biased_draw=center_biased_draw)
-            if sampled is not None:
-                assert isinstance(sampled, float | int)  # noqa: S101
-                amount = float(sampled)
+        if entropy is not None:
+            # If entropy is provided, use it directly.
+            # This can happen during generator lifetime that require multiple variable allocations.
+            amount = entropy
 
         if amount is None:
             amount = remaining

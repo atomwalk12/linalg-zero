@@ -9,7 +9,7 @@ from linalg_zero.generator.composition.composition import (
     CompositionContext,
     ProblemComponent,
 )
-from linalg_zero.generator.generation_constraints import GenerationConstraints
+from linalg_zero.generator.generation_constraints import EntropyConstraints, GenerationConstraints
 from linalg_zero.generator.models import Task, Topic
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate, SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.determinant_generator import (
@@ -64,14 +64,15 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         component_type: Task,
         topic: Topic,
         constraints: dict[str, Any],
+        entropy_constraints: EntropyConstraints,
         gen_constraints: GenerationConstraints | None = None,
         **kwargs: Any,
     ) -> None:
         is_independent = constraints.get("is_independent")
         assert isinstance(is_independent, bool)  # noqa: S101
-        super().__init__(name, is_independent=is_independent, **kwargs)
+        super().__init__(name, is_independent=is_independent, entropy_constraints=entropy_constraints, **kwargs)
         self.constraints = constraints
-        self.gen_constraints = gen_constraints if gen_constraints else GenerationConstraints()
+        self.gen_constraints = gen_constraints
         self.generator_class = generator_class
         self.component_type = component_type
         self.topic = topic

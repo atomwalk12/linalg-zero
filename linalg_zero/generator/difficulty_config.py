@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from linalg_zero.generator.entropy_control import SampleArgs, sample_entropy_from_range
-from linalg_zero.generator.models import DifficultyCategory, Task, Topic
+from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
@@ -90,7 +90,7 @@ DIFFICULTY_CONFIGS = {
         target_tool_calls=1,
         matrix_size_range=(2, 2),
         allow_rationals=False,
-        entropy_range=(1.2, 1.8),
+        entropy_range=(2.0, 2.0),
         center_biased_draw=True,
     ),
     DifficultyCategory.TWO_TOOL_CALLS: ProblemConfig(
@@ -104,13 +104,23 @@ DIFFICULTY_CONFIGS = {
         target_tool_calls=1,
         matrix_size_range=(3, 3),
         allow_rationals=True,
-        entropy_range=(2.6, 3.6),
+        entropy_range=(4.0, 4.0),
         center_biased_draw=True,
     ),
 }
 
 
-def get_problem_config(difficulty: DifficultyCategory, topic: Topic, problem_type: Task) -> ProblemConfig:
+def determine_difficulty(problem_type: Task) -> DifficultyCategory:
+    """Determine difficulty category based on problem type name."""
+    if problem_type.name.startswith("THREE_"):
+        return DifficultyCategory.THREE_TOOL_CALLS
+    elif problem_type.name.startswith("TWO_"):
+        return DifficultyCategory.TWO_TOOL_CALLS
+    else:
+        return DifficultyCategory.ONE_TOOL_CALL
+
+
+def get_problem_config(difficulty: DifficultyCategory) -> ProblemConfig:
     """Get problem configuration for a given difficulty level, topic, and problem type."""
     return DIFFICULTY_CONFIGS[difficulty]
 

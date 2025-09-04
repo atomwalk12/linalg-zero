@@ -18,7 +18,7 @@ from linalg_zero.generator.sympy.template_engine import TemplateEngine
 def create_composite_generator():
     def generator() -> Question:
         difficulty_level = DifficultyCategory.TWO_TOOL_CALLS
-        problem_type = Task.COMPOSITE_SYSTEM_NORM
+        problem_type = Task.TWO_SYSTEM_NORM
         topic = Topic.LINEAR_ALGEBRA
 
         components = [
@@ -44,12 +44,12 @@ def create_composite_generator():
             ),
         ]
 
-        config = get_problem_config(difficulty_level, topic, problem_type)
+        config = get_problem_config(difficulty_level)
         sample_args = config.create_sample_args_for_composition(len(components))
 
         composite_problem = CompositeProblem(
             components=components,
-            composition_strategy=SequentialComposition(),
+            composition_strategy=SequentialComposition(config=config),
             sample_args=sample_args,
             template_engine=TemplateEngine(),
             difficulty_level=difficulty_level,
@@ -87,7 +87,7 @@ class TestLinearSystemDependency:
     def test_composite_problem_generation(self, question):
         """Test that the composite problem generates successfully."""
         assert isinstance(question, Question)
-        assert question.problem_type == Task.COMPOSITE_SYSTEM_NORM
+        assert question.problem_type == Task.TWO_SYSTEM_NORM
         assert question.topic == Topic.LINEAR_ALGEBRA
         assert isinstance(question.question, str)
         assert isinstance(question.answer, str)
@@ -173,7 +173,7 @@ class TestLinearSystemDependency:
         """Test that the composite generator produces the expected problem type."""
         question = composite_generator()
         assert question.topic == Topic.LINEAR_ALGEBRA
-        assert question.problem_type == Task.COMPOSITE_SYSTEM_NORM
+        assert question.problem_type == Task.TWO_SYSTEM_NORM
 
     def test_tool_order_and_names(self, question: Question):
         """Ensure the exact tool call order and names are correct for the composite."""

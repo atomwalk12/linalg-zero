@@ -10,9 +10,7 @@ from linalg_zero.generator.sympy.generators.matrix_vector_generator import (
 class TestMatrixVectorMultiplicationGenerator:
     """Focused end-to-end tests for MatrixVectorMultiplicationGenerator."""
 
-    config = get_problem_config(
-        DifficultyCategory.TWO_TOOL_CALLS, Topic.LINEAR_ALGEBRA, Task.MATRIX_VECTOR_MULTIPLICATION
-    )
+    config = get_problem_config(DifficultyCategory.TWO_TOOL_CALLS)
 
     def _make_generator(self, difficulty: DifficultyCategory) -> MatrixVectorMultiplicationGenerator:
         from linalg_zero.generator.generation_constraints import GenerationConstraints
