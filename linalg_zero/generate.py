@@ -1,9 +1,5 @@
 import argparse
 import logging
-import random
-
-import numpy as np
-from sympy.core.random import seed
 
 from linalg_zero.generator.analysis.utils import (
     compute_stepwise_value_statistics,
@@ -15,6 +11,7 @@ from linalg_zero.generator.registry import create_default_registry
 from linalg_zero.generator.utils import (
     convert_to_dataset_splits,
     print_dataset,
+    set_seed,
     verify_dataset,
 )
 from linalg_zero.shared.utils import get_logger, push_to_hub, setup_logging
@@ -80,8 +77,5 @@ if __name__ == "__main__":  # pragma: no cover
     argv = parser.parse_args()
 
     if argv.seed is not None:
-        random.seed(argv.seed)
-        np.random.seed(argv.seed)
-        seed(argv.seed)
-
+        set_seed(argv.seed)
     main(argv.push_dataset)

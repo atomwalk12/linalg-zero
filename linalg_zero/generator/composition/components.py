@@ -9,7 +9,8 @@ from linalg_zero.generator.composition.composition import (
     CompositionContext,
     ProblemComponent,
 )
-from linalg_zero.generator.generation_constraints import EntropyConstraints, GenerationConstraints
+from linalg_zero.generator.entropy_control import EntropyConstraints
+from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import Task, Topic
 from linalg_zero.generator.sympy.base import ProblemContext, ProblemTemplate, SympyProblemGenerator
 from linalg_zero.generator.sympy.generators.determinant_generator import (
@@ -230,7 +231,7 @@ class MatrixVectorMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.MATRIX_VECTOR_MULTIPLICATION,
+            component_type=Task.ONE_MATRIX_VECTOR_MULTIPLICATION,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -262,7 +263,7 @@ class MatrixMatrixMultiplicationWrapperComponent(SympyGeneratorWrapperComponent)
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.MATRIX_MATRIX_MULTIPLICATION,
+            component_type=Task.ONE_MATRIX_MATRIX_MULTIPLICATION,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -303,7 +304,7 @@ class LinearSystemSolverWrapperComponent(SympyGeneratorWrapperComponent):
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.LINEAR_SYSTEM_SOLVER,
+            component_type=Task.ONE_LINEAR_SYSTEM_SOLVER,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -333,7 +334,7 @@ class FrobeniusNormWrapperComponent(SympyGeneratorWrapperComponent):
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.FROBENIUS_NORM,
+            component_type=Task.ONE_FROBENIUS_NORM,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -360,7 +361,7 @@ class DeterminantWrapperComponent(SympyGeneratorWrapperComponent):
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.DETERMINANT,
+            component_type=Task.ONE_DETERMINANT,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -387,7 +388,7 @@ class RankWrapperComponent(SympyGeneratorWrapperComponent):
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.MATRIX_RANK,
+            component_type=Task.ONE_RANK,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -414,7 +415,7 @@ class TransposeWrapperComponent(SympyGeneratorWrapperComponent):
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.MATRIX_TRANSPOSE,
+            component_type=Task.ONE_TRANSPOSE,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -441,7 +442,7 @@ class MatrixTraceWrapperComponent(SympyGeneratorWrapperComponent):
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.MATRIX_TRACE,
+            component_type=Task.ONE_TRACE,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -468,7 +469,7 @@ class MatrixInverseWrapperComponent(SympyGeneratorWrapperComponent):
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.MATRIX_INVERSE,
+            component_type=Task.ONE_INVERSE,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )
@@ -495,7 +496,7 @@ class MatrixCofactorWrapperComponent(SympyGeneratorWrapperComponent):
         super().__init__(
             name=name,
             generator_class=generator_cls,
-            component_type=Task.MATRIX_COFACTOR,
+            component_type=Task.ONE_COFACTOR,
             topic=Topic.LINEAR_ALGEBRA,
             **kwargs,
         )

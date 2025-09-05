@@ -1,22 +1,5 @@
 from dataclasses import dataclass
 
-from linalg_zero.generator.entropy_control import sample_entropy_from_range
-
-
-@dataclass
-class EntropyConstraints:
-    entropy: float | None = None
-    entropy_range: tuple[float, float] | None = None
-
-    def sample_entropy(self, center_biased_draw: bool) -> float | None:
-        if self.entropy is not None and self.entropy_range is not None:
-            raise ValueError("Cannot specify both 'entropy' and 'entropy_range'")
-        if self.entropy is not None:
-            return self.entropy
-        if self.entropy_range is not None:
-            return sample_entropy_from_range(self.entropy_range, center_biased_draw)
-        return None
-
 
 @dataclass
 class GenerationConstraints:

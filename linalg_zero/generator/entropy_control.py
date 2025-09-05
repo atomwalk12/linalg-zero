@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import numpy as np
 import sympy
 
+from linalg_zero.generator.difficulty_config import get_problem_config
+
 
 class EntropyController:
     """
@@ -14,14 +16,6 @@ class EntropyController:
     The design follows the implementation at:
     https://github.com/google-deepmind/mathematics_dataset/
     """
-
-    def __init__(self, random_seed: int | None = None):
-        """
-        Initialize entropy controller.
-        """
-        if random_seed is not None:
-            random.seed(random_seed)
-            np.random.seed(random_seed)
 
     def _coprime_density(self, value: int) -> float:
         """Returns asymptotic density of integers coprime to `value`."""
@@ -76,36 +70,49 @@ class EntropyController:
             raise TypeError(f"This can never happen: {rational}")
 
 
-def sample_entropy_from_range(entropy_range: tuple[float, float], center_biased_draw: bool = False) -> float:
-    """Sample an entropy value from a range with a center bias."""
-    low, high = entropy_range
-    if not center_biased_draw:
-        return random.uniform(low, high)
-    if low == high:
-        return low
-    alpha = 2.0
-    x = random.betavariate(alpha, alpha)
-    return low + x * (high - low)
+@dataclass
+class EntropyConstraints:
+    entropy: float | tuple[float, float]
 
+    def __post_init__(self) -> None:
+        if isinstance(self.entropy, float):
+            if self.entropy < 0:
+                raise ValueError("Entropy must be >= 0")
+        elif isinstance(self.entropy, tuple):
+            if len(self.entropy) != 2:
+                raise ValueError("Entropy range must be a tuple of length 2")
+            if self.entropy[0] > self.entropy[1] or self.entropy[0] < 0:
+                raise ValueError("Entropy range must be valid")
+        else:
+            raise TypeError("Entropy must be a float or tuple of floats")
 
-def uniform_positive_integers_with_sum(count: int, sum_: int) -> list[int]:
-    """Returns list of size `count` of integers >= 1, summing to `sum_`."""
-    if sum_ < 0:
-        raise ValueError(f"Sum must be non-negative, got {sum_}")
-    if count > sum_:
-        raise ValueError(f"Cannot find {count} numbers >= 1 with sum {sum_}")
-    if count == 0:
-        return []
-    # Select `count - 1` numbers from {1, ..., sum_ - 1}
-    separators = random.sample(list(range(1, sum_)), count - 1)
-    separators = sorted(separators)
-    return [right - left for left, right in zip([0, *separators], [*separators, sum_], strict=False)]
+        self.config = get_problem_config()
 
+    def sample_entropy(self) -> float:
+        if isinstance(self.entropy, float):
+            return self.entropy
+        elif isinstance(self.entropy, tuple):
+            return self.sample_entropy_from_range(self.entropy, self.config.center_biased_draw)
+        raise ValueError("No entropy to sample")
 
-def uniform_non_negative_integers_with_sum(count: int, sum_: int) -> list[int]:
-    """Returns list of size `count` of integers >= 0, summing to `sum_`."""
-    positive = uniform_positive_integers_with_sum(count, sum_ + count)
-    return [i - 1 for i in positive]
+    def create_sample_args_for_composition(self, num_components: int) -> SampleArgs:
+        """Create SampleArgs for compositions - always uses entropy for Dirichlet distribution."""
+        entropy = self.sample_entropy()
+        return SampleArgs(num_modules=num_components, entropy=entropy)
+
+    def sample_entropy_from_range(self, entropy_range: tuple[float, float], center_biased_draw: bool = False) -> float:
+        """Sample an entropy value from a range with a center bias."""
+        if not self.config.center_biased_draw:
+            return random.uniform(entropy_range[0], entropy_range[1])
+
+        low, high = entropy_range
+        if not center_biased_draw:
+            return random.uniform(low, high)
+        if low == high:
+            return low
+        alpha = 2.0
+        x = random.betavariate(alpha, alpha)
+        return low + x * (high - low)
 
 
 @dataclass(frozen=True)
@@ -117,6 +124,14 @@ class SampleArgs:
 
     num_modules: int
     entropy: float
+
+    def __post_init__(self) -> None:
+        if self.entropy is None:
+            raise ValueError("Entropy must be specified")
+        if self.entropy is not None and self.entropy <= 0:
+            raise ValueError("Entropy must be > 0")
+        if self.num_modules <= 0:
+            raise ValueError("Number of modules must be > 0")
 
     def split(
         self, count: int, min_fraction: float | None = None, concentration_scale: float = 1.0
@@ -135,7 +150,7 @@ class SampleArgs:
         num_child_modules = self.num_modules
 
         # Sample module counts at random - ensure each gets at least some modules
-        module_counts = uniform_positive_integers_with_sum(count, num_child_modules)
+        module_counts = self._uniform_positive_integers_with_sum(count, num_child_modules)
 
         # Scale concentration for smoother allocations
         alpha = np.maximum(1e-9, module_counts) * concentration_scale
@@ -168,3 +183,16 @@ class SampleArgs:
             sample_args.append(child_sample_args)
 
         return sample_args
+
+    def _uniform_positive_integers_with_sum(self, count: int, sum_: int) -> list[int]:
+        """Returns list of size `count` of integers >= 1, summing to `sum_`."""
+        if sum_ < 0:
+            raise ValueError(f"Sum must be non-negative, got {sum_}")
+        if count > sum_:
+            raise ValueError(f"Cannot find {count} numbers >= 1 with sum {sum_}")
+        if count == 0:
+            return []
+        # Select `count - 1` numbers from {1, ..., sum_ - 1}
+        separators = random.sample(list(range(1, sum_)), count - 1)
+        separators = sorted(separators)
+        return [right - left for left, right in zip([0, *separators], [*separators, sum_], strict=False)]

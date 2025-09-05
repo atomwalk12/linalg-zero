@@ -298,7 +298,7 @@ def test_inspect_specific_problem_type():
     try:
         for template_idx in range(10):  # Try up to 10 templates
             sample = inspector.generate_sample_for_problem_type(
-                Topic.LINEAR_ALGEBRA, Task.DETERMINANT, DifficultyCategory.ONE_TOOL_CALL, template_idx
+                Topic.LINEAR_ALGEBRA, Task.ONE_DETERMINANT, DifficultyCategory.ONE_TOOL_CALL, template_idx
             )
             samples.append(sample)
     except Exception:  # noqa: S110
@@ -321,9 +321,9 @@ def test_generate_sample_questions():
 
     # Generate a few actual questions to see the full pipeline
     problem_types = [
-        (Topic.LINEAR_ALGEBRA, Task.DETERMINANT, DifficultyCategory.ONE_TOOL_CALL),
-        (Topic.LINEAR_ALGEBRA, Task.MATRIX_TRANSPOSE, DifficultyCategory.ONE_TOOL_CALL),
-        (Topic.LINEAR_ALGEBRA, Task.FROBENIUS_NORM, DifficultyCategory.ONE_TOOL_CALL),
+        (Topic.LINEAR_ALGEBRA, Task.ONE_DETERMINANT, DifficultyCategory.ONE_TOOL_CALL),
+        (Topic.LINEAR_ALGEBRA, Task.ONE_TRANSPOSE, DifficultyCategory.ONE_TOOL_CALL),
+        (Topic.LINEAR_ALGEBRA, Task.ONE_FROBENIUS_NORM, DifficultyCategory.ONE_TOOL_CALL),
     ]
 
     print("\n\nSAMPLE QUESTION GENERATION:")

@@ -4,7 +4,6 @@ import random
 from dataclasses import dataclass
 from enum import Enum
 
-from linalg_zero.generator.entropy_control import SampleArgs, sample_entropy_from_range
 from linalg_zero.generator.models import DifficultyCategory, Task
 from linalg_zero.shared.utils import get_logger
 
@@ -42,31 +41,11 @@ class ProblemConfig:
     target_tool_calls: int
     matrix_size_range: tuple[int, int]
     allow_rationals: bool
-    entropy_range: tuple[float, float]
-    # NOTE: for small entropy ranges it is better to set this to False
     center_biased_draw: bool
-
-    def sample_entropy(self) -> float:
-        """Get entropy from configuration."""
-        entropy = self._sample_entropy()
-        return entropy
 
     def get_random_matrix_size(self) -> int:
         """Get a random matrix size within the allowed range."""
         return random.randint(*self.matrix_size_range)
-
-    def _sample_entropy(self) -> float:
-        """Sample entropy within the configured range for this difficulty.
-
-        To avoid extreme values while preserving diversity, we sample from a
-        symmetric Beta distribution (center-biased) and scale to the range.
-        """
-        return sample_entropy_from_range(self.entropy_range, self.center_biased_draw)
-
-    def create_sample_args_for_composition(self, num_components: int) -> SampleArgs:
-        """Create SampleArgs for compositions - always uses entropy for Dirichlet distribution."""
-        entropy = self._sample_entropy()
-        return SampleArgs(num_modules=num_components, entropy=entropy)
 
 
 # Possible entropy ranges:
@@ -85,29 +64,12 @@ class ProblemConfig:
 #   - 2 tool calls: (2.8, 3.2)
 #   - 3 tool calls: (4.2, 4.8)
 
-DIFFICULTY_CONFIGS = {
-    DifficultyCategory.ONE_TOOL_CALL: ProblemConfig(
-        target_tool_calls=1,
-        matrix_size_range=(2, 2),
-        allow_rationals=False,
-        entropy_range=(2.0, 2.0),
-        center_biased_draw=True,
-    ),
-    DifficultyCategory.TWO_TOOL_CALLS: ProblemConfig(
-        target_tool_calls=1,
-        matrix_size_range=(2, 3),
-        allow_rationals=False,
-        entropy_range=(2.6, 3.6),
-        center_biased_draw=True,
-    ),
-    DifficultyCategory.THREE_TOOL_CALLS: ProblemConfig(
-        target_tool_calls=1,
-        matrix_size_range=(3, 3),
-        allow_rationals=True,
-        entropy_range=(4.0, 4.0),
-        center_biased_draw=True,
-    ),
-}
+PROBLEM_CONFIG = ProblemConfig(
+    target_tool_calls=1,
+    matrix_size_range=(2, 2),
+    allow_rationals=False,
+    center_biased_draw=True,
+)
 
 
 def determine_difficulty(problem_type: Task) -> DifficultyCategory:
@@ -116,13 +78,15 @@ def determine_difficulty(problem_type: Task) -> DifficultyCategory:
         return DifficultyCategory.THREE_TOOL_CALLS
     elif problem_type.name.startswith("TWO_"):
         return DifficultyCategory.TWO_TOOL_CALLS
-    else:
+    elif problem_type.name.startswith("ONE_"):
         return DifficultyCategory.ONE_TOOL_CALL
+    else:
+        raise ValueError(f"Invalid problem type: {problem_type}")
 
 
-def get_problem_config(difficulty: DifficultyCategory) -> ProblemConfig:
+def get_problem_config() -> ProblemConfig:
     """Get problem configuration for a given difficulty level, topic, and problem type."""
-    return DIFFICULTY_CONFIGS[difficulty]
+    return PROBLEM_CONFIG
 
 
 def validate_tool_calls(expected: int, actual: int, problem_type: Task) -> bool:

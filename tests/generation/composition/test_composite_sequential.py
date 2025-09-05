@@ -13,7 +13,6 @@ from linalg_zero.generator.composition.composition import (
     CompositeProblem,
     SequentialComposition,
 )
-from linalg_zero.generator.difficulty_config import get_problem_config
 from linalg_zero.generator.models import DifficultyCategory, Task, Topic
 from linalg_zero.generator.sympy.generators.determinant_generator import (
     DeterminantGenerator,
@@ -49,12 +48,9 @@ from linalg_zero.generator.sympy.template_engine import TemplateEngine
 def make_composite(
     components: list, difficulty: DifficultyCategory = DifficultyCategory.TWO_TOOL_CALLS
 ) -> CompositeProblem:
-    config = get_problem_config(difficulty)
-    sample_args = config.create_sample_args_for_composition(num_components=len(components))
     return CompositeProblem(
         components=components,
-        composition_strategy=SequentialComposition(config=config),
-        sample_args=sample_args,
+        composition_strategy=SequentialComposition(),
         difficulty_level=difficulty,
         problem_type=Task.SEQUENTIAL_PROBLEM,
         topic=Topic.LINEAR_ALGEBRA,
@@ -68,9 +64,11 @@ class TestSequential_MVM_then_LinearSystem:
     def test_mvm_then_linear_system_end_to_end(self):
         composite = make_composite([
             MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
+                name=Task.ONE_MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
             ),
-            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}),
+            LinearSystemSolverWrapperComponent(
+                name=Task.ONE_LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}
+            ),
         ])
 
         q = composite.generate()
@@ -105,9 +103,11 @@ class TestSequential_MVM_then_LinearSystem:
     def test_mvm_then_linear_system_stability(self):
         composite = make_composite([
             MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
+                name=Task.ONE_MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
             ),
-            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}),
+            LinearSystemSolverWrapperComponent(
+                name=Task.ONE_LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}
+            ),
         ])
 
         for _ in range(5):
@@ -123,9 +123,11 @@ class TestSequential_LinearSystem_then_MVM:
 
     def test_linear_system_then_mvm_end_to_end(self):
         composite = make_composite([
-            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}),
+            LinearSystemSolverWrapperComponent(
+                name=Task.ONE_LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}
+            ),
             MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
+                name=Task.ONE_MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
             ),
         ])
 
@@ -155,10 +157,10 @@ class TestSequential_LinearSystem_then_MVM:
         """Second component (LinearSystem) depends on first (MVM) output."""
         composite = make_composite([
             MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
+                name=Task.ONE_MATRIX_VECTOR_MULTIPLICATION, constraints={"is_independent": True}
             ),
             LinearSystemSolverWrapperComponent(
-                name=Task.LINEAR_SYSTEM_SOLVER,
+                name=Task.ONE_LINEAR_SYSTEM_SOLVER,
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_vector_b": 0},
@@ -185,9 +187,11 @@ class TestSequential_LinearSystem_then_MVM:
     def test_linear_system_then_mvm_dependent_second(self):
         """Second component (MVM) depends on first (LinearSystem) output."""
         composite = make_composite([
-            LinearSystemSolverWrapperComponent(name=Task.LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}),
+            LinearSystemSolverWrapperComponent(
+                name=Task.ONE_LINEAR_SYSTEM_SOLVER, constraints={"is_independent": True}
+            ),
             MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                name=Task.ONE_MATRIX_VECTOR_MULTIPLICATION,
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_vector_b": 0},
@@ -218,15 +222,15 @@ class TestWrapperComponentGeneratorSelectionComprehensive:
     @pytest.mark.parametrize(
         "wrapper_class,task,independent_generator",
         [
-            (DeterminantWrapperComponent, Task.DETERMINANT, DeterminantGenerator),
-            (FrobeniusNormWrapperComponent, Task.FROBENIUS_NORM, FrobeniusNormGenerator),
-            (LinearSystemSolverWrapperComponent, Task.LINEAR_SYSTEM_SOLVER, LinearSystemGenerator),
-            (RankWrapperComponent, Task.MATRIX_RANK, MatrixRankGenerator),
-            (MatrixTraceWrapperComponent, Task.MATRIX_TRACE, MatrixTraceGenerator),
-            (TransposeWrapperComponent, Task.MATRIX_TRANSPOSE, MatrixTransposeGenerator),
+            (DeterminantWrapperComponent, Task.ONE_DETERMINANT, DeterminantGenerator),
+            (FrobeniusNormWrapperComponent, Task.ONE_FROBENIUS_NORM, FrobeniusNormGenerator),
+            (LinearSystemSolverWrapperComponent, Task.ONE_LINEAR_SYSTEM_SOLVER, LinearSystemGenerator),
+            (RankWrapperComponent, Task.ONE_RANK, MatrixRankGenerator),
+            (MatrixTraceWrapperComponent, Task.ONE_TRACE, MatrixTraceGenerator),
+            (TransposeWrapperComponent, Task.ONE_TRANSPOSE, MatrixTransposeGenerator),
             (
                 MatrixVectorMultiplicationWrapperComponent,
-                Task.MATRIX_VECTOR_MULTIPLICATION,
+                Task.ONE_MATRIX_VECTOR_MULTIPLICATION,
                 MatrixVectorMultiplicationGenerator,
             ),
         ],
@@ -242,15 +246,15 @@ class TestWrapperComponentGeneratorSelectionComprehensive:
     @pytest.mark.parametrize(
         "wrapper_class,task,dependent_generator",
         [
-            (DeterminantWrapperComponent, Task.DETERMINANT, DeterminantGeneratorDependent),
-            (FrobeniusNormWrapperComponent, Task.FROBENIUS_NORM, FrobeniusNormGeneratorDependent),
-            (LinearSystemSolverWrapperComponent, Task.LINEAR_SYSTEM_SOLVER, LinearSystemGeneratorDependent),
-            (RankWrapperComponent, Task.MATRIX_RANK, MatrixRankGeneratorDependent),
-            (MatrixTraceWrapperComponent, Task.MATRIX_TRACE, MatrixTraceGeneratorDependent),
-            (TransposeWrapperComponent, Task.MATRIX_TRANSPOSE, MatrixTransposeGeneratorDependent),
+            (DeterminantWrapperComponent, Task.ONE_DETERMINANT, DeterminantGeneratorDependent),
+            (FrobeniusNormWrapperComponent, Task.ONE_FROBENIUS_NORM, FrobeniusNormGeneratorDependent),
+            (LinearSystemSolverWrapperComponent, Task.ONE_LINEAR_SYSTEM_SOLVER, LinearSystemGeneratorDependent),
+            (RankWrapperComponent, Task.ONE_RANK, MatrixRankGeneratorDependent),
+            (MatrixTraceWrapperComponent, Task.ONE_TRACE, MatrixTraceGeneratorDependent),
+            (TransposeWrapperComponent, Task.ONE_TRANSPOSE, MatrixTransposeGeneratorDependent),
             (
                 MatrixVectorMultiplicationWrapperComponent,
-                Task.MATRIX_VECTOR_MULTIPLICATION,
+                Task.ONE_MATRIX_VECTOR_MULTIPLICATION,
                 MatrixVectorMultiplicationGeneratorDependent,
             ),
         ],

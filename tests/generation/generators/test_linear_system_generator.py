@@ -28,7 +28,7 @@ class TestLinearSystemGenerator:
             constraints={},
             entropy=self.config.sample_entropy(),
             difficulty_level=difficulty,
-            problem_type=Task.LINEAR_SYSTEM_SOLVER,
+            problem_type=Task.ONE_LINEAR_SYSTEM_SOLVER,
             topic=Topic.LINEAR_ALGEBRA,
         )
 

@@ -26,7 +26,7 @@ class TestDeterminantGenerator:
             constraints={},
             entropy=self.config.sample_entropy(),
             difficulty_level=difficulty,
-            problem_type=Task.DETERMINANT,
+            problem_type=Task.ONE_DETERMINANT,
             topic=Topic.LINEAR_ALGEBRA,
         )
 

@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from linalg_zero.generator.context import CompositionContext, ProblemContext
-from linalg_zero.generator.difficulty_config import Precision, SampleArgs, get_problem_config
-from linalg_zero.generator.generation_constraints import EntropyConstraints
+from linalg_zero.generator.difficulty_config import Precision, get_problem_config
+from linalg_zero.generator.entropy_control import EntropyConstraints
 from linalg_zero.generator.models import (
     ComponentResult,
     DifficultyCategory,
@@ -58,9 +58,7 @@ class CompositionStrategy(ABC):
     """Abstract base class for problem composition strategies."""
 
     @abstractmethod
-    def compose(
-        self, components: list[ProblemComponent], sample_args: SampleArgs, base_context: CompositionContext
-    ) -> list[ComponentResult]:
+    def compose(self, components: list[ProblemComponent], base_context: CompositionContext) -> list[ComponentResult]:
         """
         Execute composition strategy on the given components.
         """
@@ -83,16 +81,15 @@ class SympyProblemGenerator(ABC):
         template_engine: TemplateEngine,
         local_index: int,
         constraints: dict[str, Any],
-        entropy: float | None = None,
+        entropy: float,
         is_independent: bool = True,
     ):
         self.difficulty_level = difficulty_level
         self.problem_type = problem_type
         self.topic = topic
         self.local_index = local_index
-        self.config = get_problem_config(difficulty_level)
+        self.config = get_problem_config()
         self.lib = get_lib()
-        assert entropy is not None  # noqa: S101
         self.entropy = entropy
         self.sources = constraints.get("sources", {})
 

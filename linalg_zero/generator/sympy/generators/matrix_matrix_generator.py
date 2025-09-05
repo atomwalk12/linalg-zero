@@ -28,7 +28,7 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
     ) -> None:
         """Initialize independent matrix-matrix multiplication generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.MATRIX_MATRIX_MULTIPLICATION  # noqa: S101
+        assert self.problem_type == Task.ONE_MATRIX_MATRIX_MULTIPLICATION  # noqa: S101
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
@@ -159,7 +159,7 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGen
             **kwargs,
         )
 
-        assert self.problem_type == Task.MATRIX_MATRIX_MULTIPLICATION  # noqa: S101
+        assert self.problem_type == Task.ONE_MATRIX_MATRIX_MULTIPLICATION  # noqa: S101
         self.input_matrix_A = input_matrix_A
         self.input_matrix_B = input_matrix_B
         self.input_matrix_A_index = input_matrix_A_index

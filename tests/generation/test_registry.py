@@ -11,7 +11,7 @@ def simple_test_factory() -> Question:
         answer="42",
         topic="test",
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
-        problem_type=Task.DETERMINANT,
+        problem_type=Task.ONE_DETERMINANT,
     )
 
 
@@ -22,7 +22,7 @@ def another_test_factory() -> Question:  # pragma: no cover
         answer="24",
         topic="test",
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
-        problem_type=Task.DETERMINANT,
+        problem_type=Task.ONE_DETERMINANT,
     )
 
 

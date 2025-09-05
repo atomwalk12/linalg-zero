@@ -1,7 +1,11 @@
 import ast
 import json
+import random
 from collections import Counter, defaultdict
 from typing import Any
+
+import numpy as np
+from sympy.core.random import seed
 
 from datasets import Dataset, DatasetDict
 from linalg_zero.generator.models import Question
@@ -131,6 +135,13 @@ def verify_dataset(dataset: list[Question]) -> dict[str, Any]:
     )
 
     return verification_results
+
+
+def set_seed(seed_val: int = 42) -> None:
+    """Set the seed for the deterministic generation."""
+    random.seed(seed_val)
+    np.random.seed(seed_val)
+    seed(seed_val)
 
 
 def print_dataset(questions: list[Question], include_invalid: bool = False) -> None:  # pragma: no cover

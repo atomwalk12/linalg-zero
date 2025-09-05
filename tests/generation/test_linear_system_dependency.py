@@ -9,9 +9,14 @@ from linalg_zero.generator.composition.components import (
     MatrixVectorMultiplicationWrapperComponent,
 )
 from linalg_zero.generator.composition.composition import CompositeProblem, SequentialComposition
-from linalg_zero.generator.difficulty_config import get_problem_config
-from linalg_zero.generator.generator_factories import create_linear_system_generator
+
+# from linalg_zero.generator.difficulty_config import get_problem_config
+from linalg_zero.generator.entropy_control import EntropyConstraints
+from linalg_zero.generator.generator_factories import (
+    create_sympy_factory,
+)
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
+from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
 from linalg_zero.generator.sympy.template_engine import TemplateEngine
 
 
@@ -23,11 +28,11 @@ def create_composite_generator():
 
         components = [
             LinearSystemSolverWrapperComponent(
-                name=Task.LINEAR_SYSTEM_SOLVER,
+                name=Task.ONE_LINEAR_SYSTEM_SOLVER,
                 constraints={"is_independent": True},
             ),
             MatrixVectorMultiplicationWrapperComponent(
-                name=Task.MATRIX_VECTOR_MULTIPLICATION,
+                name=Task.ONE_MATRIX_VECTOR_MULTIPLICATION,
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_vector_b": 0},
@@ -35,7 +40,7 @@ def create_composite_generator():
                 },
             ),
             FrobeniusNormWrapperComponent(
-                name=Task.FROBENIUS_NORM,
+                name=Task.ONE_FROBENIUS_NORM,
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_matrix": 1},
@@ -44,13 +49,9 @@ def create_composite_generator():
             ),
         ]
 
-        config = get_problem_config(difficulty_level)
-        sample_args = config.create_sample_args_for_composition(len(components))
-
         composite_problem = CompositeProblem(
             components=components,
-            composition_strategy=SequentialComposition(config=config),
-            sample_args=sample_args,
+            composition_strategy=SequentialComposition(),
             template_engine=TemplateEngine(),
             difficulty_level=difficulty_level,
             problem_type=problem_type,
@@ -63,7 +64,13 @@ def create_composite_generator():
 
 
 def create_simple_atomic_generator():
-    return create_linear_system_generator(difficulty=DifficultyCategory.TWO_TOOL_CALLS)
+    return create_sympy_factory(
+        LinearSystemGenerator,
+        difficulty_level=DifficultyCategory.TWO_TOOL_CALLS,
+        problem_type=Task.ONE_LINEAR_SYSTEM_SOLVER,
+        topic=Topic.LINEAR_ALGEBRA,
+        entropy=EntropyConstraints(entropy=(0.8, 0.8)),
+    )
 
 
 class TestLinearSystemDependency:
@@ -188,7 +195,7 @@ class TestLinearSystemDependency:
         """Atomic linear system solver generates a single-step valid question."""
         q = atomic_generator()
         assert isinstance(q, Question)
-        assert q.problem_type == Task.LINEAR_SYSTEM_SOLVER
+        assert q.problem_type == Task.ONE_LINEAR_SYSTEM_SOLVER
         assert q.topic == Topic.LINEAR_ALGEBRA
         # Atomic tasks use exactly one tool call
         assert q.tool_calls_required == 1

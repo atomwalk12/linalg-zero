@@ -36,7 +36,7 @@ class FrobeniusNormGenerator(MatrixVectorBaseGenerator):
             **kwargs: Additional keyword arguments
         """
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.FROBENIUS_NORM  # noqa: S101
+        assert self.problem_type == Task.ONE_FROBENIUS_NORM  # noqa: S101
 
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
 
@@ -119,7 +119,7 @@ class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
 
-        assert self.problem_type == Task.FROBENIUS_NORM  # noqa: S101
+        assert self.problem_type == Task.ONE_FROBENIUS_NORM  # noqa: S101
         self.input_matrix = input_matrix
         self.input_matrix_index = input_matrix_index
 

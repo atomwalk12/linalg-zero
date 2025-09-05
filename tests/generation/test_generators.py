@@ -11,7 +11,7 @@ def test_question_generator_factory_pattern() -> None:
             answer="42",
             topic=Topic.LINEAR_ALGEBRA,
             difficulty=DifficultyCategory.ONE_TOOL_CALL,
-            problem_type=Task.DETERMINANT,
+            problem_type=Task.ONE_DETERMINANT,
         )
 
     generator = QuestionGenerator(question_factory=simple_factory)

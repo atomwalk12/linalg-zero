@@ -23,27 +23,27 @@ class Task(Enum):
     SEQUENTIAL_PROBLEM = "sequential_problem"
 
     # Single tool call problems
-    DETERMINANT = "determinant"
-    LINEAR_SYSTEM_SOLVER = "linear_system_solver"
-    MATRIX_VECTOR_MULTIPLICATION = "matrix_vector_multiplication"
-    MATRIX_MATRIX_MULTIPLICATION = "matrix_matrix_multiplication"
-    FROBENIUS_NORM = "frobenius_norm"
-    MATRIX_RANK = "matrix_rank"
-    MATRIX_TRANSPOSE = "matrix_transpose"
-    MATRIX_INVERSE = "matrix_inverse"
-    MATRIX_TRACE = "matrix_trace"
-    MATRIX_COFACTOR = "matrix_cofactor"
+    ONE_DETERMINANT = "one_determinant"
+    ONE_LINEAR_SYSTEM_SOLVER = "one_linear_system_solver"
+    ONE_MATRIX_VECTOR_MULTIPLICATION = "one_matrix_vector_multiplication"
+    ONE_MATRIX_MATRIX_MULTIPLICATION = "one_matrix_matrix_multiplication"
+    ONE_FROBENIUS_NORM = "one_frobenius_norm"
+    ONE_RANK = "one_matrix_rank"
+    ONE_TRANSPOSE = "one_matrix_transpose"
+    ONE_INVERSE = "one_matrix_inverse"
+    ONE_TRACE = "one_matrix_trace"
+    ONE_COFACTOR = "one_matrix_cofactor"
 
     # Two tool call problems
-    TWO_TRANSPOSE_DETERMINANT = "transpose_determinant"
-    TWO_COFACTOR_FROBENIUS = "cofactor_frobenius"
-    TWO_COFACTOR_RANK = "cofactor_rank"
-    TWO_TRANSPOSE_FROBENIUS = "transpose_frobenius"
+    TWO_TRANSPOSE_DETERMINANT = "two_transpose_determinant"
+    TWO_COFACTOR_FROBENIUS = "two_cofactor_frobenius"
+    TWO_COFACTOR_RANK = "two_cofactor_rank"
+    TWO_TRANSPOSE_FROBENIUS = "two_transpose_frobenius"
 
     # Three tool call problems
-    THREE_TRANSPOSE_MATRIXMULT_DETERMINANT = "transpose_matrixmult_determinant"
-    THREE_COFACTOR_MATRIXMULT_RANK = "cofactor_matrixmult_rank"
-    THREE_SYSTEM_MATRIXMULT_FROBENIUS = "system_matrixmult_frobenius"
+    THREE_TRANSPOSE_MATRIXMULT_DETERMINANT = "three_transpose_matrixmult_determinant"
+    THREE_COFACTOR_MATRIXMULT_RANK = "three_cofactor_matrixmult_rank"
+    THREE_SYSTEM_MATRIXMULT_FROBENIUS = "three_system_matrixmult_frobenius"
 
 
 class DifficultyCategory(Enum):

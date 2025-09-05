@@ -3,8 +3,7 @@ from typing import Any
 from typing_extensions import override
 
 from linalg_zero.generator.context import CompositionContext
-from linalg_zero.generator.difficulty_config import ProblemConfig, SampleArgs
-from linalg_zero.generator.generation_constraints import EntropyConstraints
+from linalg_zero.generator.entropy_control import EntropyConstraints
 from linalg_zero.generator.models import (
     ComponentResult,
     CompositeResultBuilder,
@@ -35,12 +34,7 @@ class SequentialComposition(CompositionStrategy):
     from previous components. Useful for multi-step problems.
     """
 
-    def __init__(self, config: ProblemConfig):
-        self.config = config
-
-    def compose(
-        self, components: list[ProblemComponent], sample_args: SampleArgs, base_context: CompositionContext
-    ) -> list[ComponentResult]:
+    def compose(self, components: list[ProblemComponent], base_context: CompositionContext) -> list[ComponentResult]:
         """Execute components using DeepMind-style entropy distribution."""
         results = []
 
@@ -50,9 +44,6 @@ class SequentialComposition(CompositionStrategy):
 
         weights = [component_modules(c) for c in components]
         total_modules = sum(weights)
-
-        if sample_args.entropy <= 0:
-            raise ValueError("Configured entropy must be > 0 for composite problems")
 
         if total_modules <= 0:
             raise ValueError("Total modules must be > 0 for composite problems")
@@ -64,23 +55,25 @@ class SequentialComposition(CompositionStrategy):
             allocations: list[float] = []
             for comp in components:
                 override: EntropyConstraints = comp.entropy_constraints
-                entropy = override.sample_entropy(center_biased_draw=self.config.center_biased_draw)
+                entropy = override.sample_entropy()
                 assert entropy is not None  # noqa: S101
                 allocations.append(float(entropy))
 
             # Floor zero weights to 0
             allocations = [0.0 if weight == 0 else alloc for alloc, weight in zip(allocations, weights, strict=True)]
-            component_sample_args = [SampleArgs(num_modules=1, entropy=e) for e in allocations]
 
-        for local_index, (component_wrapper, comp_sample_args) in enumerate(
-            zip(components, component_sample_args, strict=True)
+            # Set the composite budget to the sum of per-component allocations
+            base_context.entropy = float(sum(allocations))
+
+        for local_index, (component_wrapper, component_entropy) in enumerate(
+            zip(components, allocations, strict=True)
         ):
             if not component_wrapper.can_execute(base_context):
                 continue
 
             # Create a context copy with the allocated entropy for this component
             component_context = CompositionContext(
-                comp_sample_args.entropy,
+                component_entropy,
                 base_context.difficulty_level,
                 base_context._step_counter,
                 template_engine=base_context.template_engine,
@@ -116,14 +109,13 @@ class CompositeProblem(SympyProblemGenerator):
         self,
         components: list[ProblemComponent],
         composition_strategy: CompositionStrategy,
-        sample_args: SampleArgs,
         template_engine: TemplateEngine,
         difficulty_level: DifficultyCategory,
         problem_type: Task,
         topic: Topic,
     ):
         super().__init__(
-            entropy=sample_args.entropy,
+            entropy=0.0,
             difficulty_level=difficulty_level,
             problem_type=problem_type,
             topic=topic,
@@ -134,14 +126,14 @@ class CompositeProblem(SympyProblemGenerator):
 
         self.components = components
         self.composition_strategy = composition_strategy
-        self.sample_args = sample_args
+        # No global sample_args: composition strategy allocates per-component entropy
 
     @override
     def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
         """Generate composed mathematical content."""
-        # Convert to CompositionContext
+        # Convert to CompositionContext with a temporary zero budget; the strategy sets the proper budget
         comp_context = CompositionContext(
-            self.sample_args.entropy,
+            0.0,
             context.difficulty_level,
             context._step_counter,
             self.template_engine,
@@ -150,7 +142,7 @@ class CompositeProblem(SympyProblemGenerator):
         comp_context.constraints = context.constraints.copy()
 
         # Execute all components and store their results
-        component_results = self.composition_strategy.compose(self.components, self.sample_args, comp_context)
+        component_results = self.composition_strategy.compose(self.components, comp_context)
 
         if not component_results:
             raise ValueError("No components could be executed")
@@ -169,6 +161,7 @@ class CompositeProblem(SympyProblemGenerator):
 
     def _transfer_context_state(self, comp_context: CompositionContext, original_context: ProblemContext) -> None:
         """Transfer entropy and tool call tracking back to original context."""
+        original_context.entropy = comp_context.entropy
         original_context.used_entropy = comp_context.used_entropy
         original_context.tool_calls_count = comp_context.tool_calls_count
         original_context.stepwise_results = comp_context.stepwise_results

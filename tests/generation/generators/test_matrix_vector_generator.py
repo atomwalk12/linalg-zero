@@ -23,7 +23,7 @@ class TestMatrixVectorMultiplicationGenerator:
             constraints={},
             entropy=self.config.sample_entropy(),
             difficulty_level=difficulty,
-            problem_type=Task.MATRIX_VECTOR_MULTIPLICATION,
+            problem_type=Task.ONE_MATRIX_VECTOR_MULTIPLICATION,
             topic=Topic.LINEAR_ALGEBRA,
         )
 
