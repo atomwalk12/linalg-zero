@@ -1,7 +1,8 @@
 import random
 from typing import Any
 
-from sympy import Integer, Matrix, Rational
+from sympy import Integer, Matrix
+from sympy.core import Rational
 
 from linalg_zero.generator.entropy_control import EntropyController
 from linalg_zero.generator.generation_constraints import GenerationConstraints
@@ -26,22 +27,16 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
     def _generate_matrix(self, rows: int, cols: int, entropy: float) -> Matrix:
         """Generate a matrix consisting of integers or rationals."""
         matrix_elements = []
+        min_abs = self.gen_constraints.min_element_abs
         for _ in range(rows):
             row = []
             for _ in range(cols):
                 if self.config.allow_rationals and random.random() < 0.3:
-                    # 30% chance of rational numbers when allowed
-                    numerator = self.entropy_controller.generate_integer(entropy)
-                    denominator = self.entropy_controller.generate_integer(entropy)
-
-                    # Avoid zero denominators and ensure non-zero numerators for variety
-                    if numerator == 0:
-                        numerator = random.choice([1, -1])
-                    if denominator == 0:
-                        denominator = random.choice([1, -1])
-                    element = Rational(numerator, denominator)
+                    # 30% chance of rational numbers
+                    element = self.entropy_controller.generate_rational(entropy, min_value_abs=min_abs)
+                    element = Rational(element)
                 else:
-                    number = self.entropy_controller.generate_integer(entropy)
+                    number = self.entropy_controller.generate_integer(entropy, min_abs=min_abs)
 
                     # Avoid too many zeros to keep problems interesting
                     if number == 0 and random.random() < 0.7:
@@ -56,20 +51,15 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
     def _generate_vector(self, size: int, entropy: float) -> Matrix:
         """Generate a vector consisting of integers or rationals."""
         vector_elements = []
+        min_abs = self.gen_constraints.min_element_abs
 
         for i in range(size):
             if self.config.allow_rationals and random.random() < 0.2:
                 # 20% chance of rational numbers for vectors
-                numerator = self.entropy_controller.generate_integer(entropy)
-                denominator = self.entropy_controller.generate_integer(entropy)
-
-                if numerator == 0:
-                    numerator = random.choice([1, -1])
-                if denominator == 0:
-                    denominator = random.choice([1, -1])
-                element = Rational(numerator, denominator)
+                element = self.entropy_controller.generate_rational(entropy, min_value_abs=min_abs)
+                element = Rational(element)
             else:
-                number = self.entropy_controller.generate_integer(entropy)
+                number = self.entropy_controller.generate_integer(entropy, min_abs=min_abs)
                 # Ensure first element is non-zero to avoid zero vectors
                 if i == 0 and number == 0:
                     number = random.choice([1, -1])

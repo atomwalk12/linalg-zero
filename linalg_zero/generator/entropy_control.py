@@ -57,17 +57,32 @@ class EntropyController:
 
         return sympy.Integer(value)
 
-    def generate_rational(self, entropy: float, signed: bool = True) -> sympy.Rational:
-        """Generate a non-integer rational following mathematics_dataset approach."""
-        numer_entropy = random.uniform(0, entropy)
-        denom_entropy = entropy - numer_entropy
-        numer = self.generate_integer(numer_entropy, signed, min_abs=1)
-        denom = self.generate_integer(denom_entropy, False, min_abs=2, coprime_to=numer)
-        rational = sympy.Rational(numer, denom)
-        if isinstance(rational, sympy.Rational):
-            return rational
-        else:
-            raise TypeError(f"This can never happen: {rational}")
+    def generate_rational(
+        self,
+        entropy: float,
+        min_value_abs: int | float,
+        signed: bool = True,
+    ) -> sympy.Rational:
+        """Generate a non-integer rational following mathematics_dataset approach.
+
+        If min_value_abs is provided, rejection-sample until |value| >= min_value_abs.
+        """
+        if not isinstance(min_value_abs, (int, float)):
+            raise TypeError(f"min_value_abs must be int or float when provided, got {type(min_value_abs).__name__}")
+        if min_value_abs < 0:
+            raise ValueError("min_value_abs must be >= 0")
+
+        while True:
+            numer_entropy = random.uniform(0, entropy)
+            denom_entropy = entropy - numer_entropy
+            numer = self.generate_integer(numer_entropy, signed, min_abs=1)
+            denom = self.generate_integer(denom_entropy, False, min_abs=2, coprime_to=numer)
+            rational = sympy.Rational(numer, denom)
+            if not isinstance(rational, sympy.Rational):
+                raise TypeError(f"This can never happen: {rational}")
+
+            if min_value_abs is None or abs(rational) >= min_value_abs:
+                return rational
 
 
 @dataclass
@@ -172,7 +187,7 @@ class SampleArgs:
             # Final fractions: minimum + proportional share of remaining
             fractions = min_fraction + remaining * dirichlet_fractions
         else:
-            # Use pure Dirichlet (original behaviour)
+            # Use pure Dirichlet (the deepmind default)
             fractions = dirichlet_fractions
 
         entropies = self.entropy * fractions

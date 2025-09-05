@@ -11,6 +11,7 @@ class GenerationConstraints:
         size: Specific size for square matrices (overrides rows/cols)
         rows: Specific number of rows
         cols: Specific number of columns
+        min_element_abs: Minimum absolute value for generated numeric elements
     """
 
     square: bool = False
@@ -18,6 +19,7 @@ class GenerationConstraints:
     size: int | None = None
     rows: int | None = None
     cols: int | None = None
+    min_element_abs: int = 0
 
     def __post_init__(self) -> None:
         """Validate constraint combinations."""
@@ -36,6 +38,12 @@ class GenerationConstraints:
         # Square matrices can't have different rows/cols specified
         if (self.square and self.rows is not None and self.cols is not None) and (self.rows != self.cols):
             raise ValueError("Square matrices must have equal rows and cols")
+
+        # Validate min_element_abs if provided
+        if not isinstance(self.min_element_abs, int):
+            raise TypeError(f"min_element_abs must be an int when provided, got {type(self.min_element_abs).__name__}")
+        if self.min_element_abs < 0:
+            raise ValueError("min_element_abs must be >= 0")
 
     def merge(self, other: "GenerationConstraints") -> "GenerationConstraints":
         """Merge two GenerationConstraints objects with conflict detection."""
@@ -70,6 +78,7 @@ class GenerationConstraints:
             size=other.size if other.size is not None else self.size,
             rows=other.rows if other.rows is not None else self.rows,
             cols=other.cols if other.cols is not None else self.cols,
+            min_element_abs=other.min_element_abs if other.min_element_abs is not None else self.min_element_abs,
         )
 
         return merged
