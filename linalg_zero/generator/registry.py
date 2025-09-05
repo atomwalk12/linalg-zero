@@ -1,5 +1,6 @@
 import random
 from collections.abc import Callable
+from typing import Any
 
 from linalg_zero.generator.composition.components import (
     DeterminantWrapperComponent,
@@ -37,7 +38,9 @@ from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
 )
 
 
-def register_one_determinant_factory(registry: "FactoryRegistry", entropy: tuple[float, float] | float) -> None:
+def register_one_determinant_factory(
+    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
+) -> None:
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.ONE_DETERMINANT,
@@ -46,6 +49,7 @@ def register_one_determinant_factory(registry: "FactoryRegistry", entropy: tuple
             topic=Topic.LINEAR_ALGEBRA,
             problem_type=Task.ONE_DETERMINANT,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
+            gen_constraints=_merge_gen_constraints({}, gen_constraints),
             entropy=EntropyConstraints(entropy),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
@@ -53,7 +57,7 @@ def register_one_determinant_factory(registry: "FactoryRegistry", entropy: tuple
 
 
 def register_one_matrix_matrix_multiplication_factory(
-    registry: "FactoryRegistry", entropy: tuple[float, float] | float
+    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
 ) -> None:
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
@@ -64,13 +68,14 @@ def register_one_matrix_matrix_multiplication_factory(
             problem_type=Task.ONE_MATRIX_MATRIX_MULTIPLICATION,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
+            gen_constraints=_merge_gen_constraints({}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
 
 def register_one_linear_system_solver_factory(
-    registry: "FactoryRegistry", entropy: tuple[float, float] | float
+    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
 ) -> None:
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
@@ -81,12 +86,15 @@ def register_one_linear_system_solver_factory(
             problem_type=Task.ONE_LINEAR_SYSTEM_SOLVER,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
+            gen_constraints=_merge_gen_constraints({}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
 
-def register_one_frobenius_norm_factory(registry: "FactoryRegistry", entropy: tuple[float, float] | float) -> None:
+def register_one_frobenius_norm_factory(
+    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
+) -> None:
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.ONE_FROBENIUS_NORM,
@@ -96,12 +104,15 @@ def register_one_frobenius_norm_factory(registry: "FactoryRegistry", entropy: tu
             problem_type=Task.ONE_FROBENIUS_NORM,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
+            gen_constraints=_merge_gen_constraints({}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
 
-def register_one_matrix_rank_factory(registry: "FactoryRegistry", entropy: tuple[float, float] | float) -> None:
+def register_one_matrix_rank_factory(
+    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
+) -> None:
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.ONE_RANK,
@@ -111,12 +122,15 @@ def register_one_matrix_rank_factory(registry: "FactoryRegistry", entropy: tuple
             problem_type=Task.ONE_RANK,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
+            gen_constraints=_merge_gen_constraints({}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
 
-def register_one_matrix_transpose_factory(registry: "FactoryRegistry", entropy: tuple[float, float] | float) -> None:
+def register_one_matrix_transpose_factory(
+    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
+) -> None:
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.ONE_TRANSPOSE,
@@ -126,12 +140,15 @@ def register_one_matrix_transpose_factory(registry: "FactoryRegistry", entropy: 
             problem_type=Task.ONE_TRANSPOSE,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
+            gen_constraints=_merge_gen_constraints({}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
 
-def register_one_matrix_cofactor_factory(registry: "FactoryRegistry", entropy: tuple[float, float] | float) -> None:
+def register_one_matrix_cofactor_factory(
+    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
+) -> None:
     registry.register_factory(
         Topic.LINEAR_ALGEBRA,
         Task.ONE_COFACTOR,
@@ -141,13 +158,25 @@ def register_one_matrix_cofactor_factory(registry: "FactoryRegistry", entropy: t
             problem_type=Task.ONE_COFACTOR,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
+            gen_constraints=_merge_gen_constraints({}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
 
 
+def _merge_gen_constraints(mandatory: dict[str, Any], optional: dict[str, Any] | None) -> GenerationConstraints:
+    """Merge optional gen_constraints with mandatory ones, giving priority to mandatory."""
+    if optional is None:
+        return GenerationConstraints(**mandatory)
+
+    merged = {**optional, **mandatory}  # mandatory overwrites optional
+    return GenerationConstraints(**merged)
+
+
 def register_three_transpose_matrixmult_determinant(
-    registry: "FactoryRegistry", entropy: dict[Task, tuple[float, float] | float]
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
 ) -> None:
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
@@ -156,7 +185,9 @@ def register_three_transpose_matrixmult_determinant(
             TransposeWrapperComponent(
                 name=Task.ONE_TRANSPOSE,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True),
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
             ),
             MatrixMatrixMultiplicationWrapperComponent(
@@ -166,6 +197,9 @@ def register_three_transpose_matrixmult_determinant(
                     "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
                     "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_MATRIX_MATRIX_MULTIPLICATION) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_MATRIX_MATRIX_MULTIPLICATION]),
             ),
             DeterminantWrapperComponent(
@@ -175,6 +209,9 @@ def register_three_transpose_matrixmult_determinant(
                     "input_indices": {"input_matrix": 1},
                     "sources": {"input_matrix": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_DETERMINANT]),
             ),
         ],
@@ -184,7 +221,9 @@ def register_three_transpose_matrixmult_determinant(
 
 
 def register_three_system_matrixmult_frobenius(
-    registry: "FactoryRegistry", entropy: dict[Task, tuple[float, float] | float]
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
 ) -> None:
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
@@ -193,7 +232,10 @@ def register_three_system_matrixmult_frobenius(
             LinearSystemSolverWrapperComponent(
                 name=Task.ONE_LINEAR_SYSTEM_SOLVER,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True, invertible=True),
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True, "invertible": True},
+                    gen_constraints.get(Task.ONE_LINEAR_SYSTEM_SOLVER) if gen_constraints else None,
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_LINEAR_SYSTEM_SOLVER]),
             ),
             MatrixMatrixMultiplicationWrapperComponent(
@@ -203,6 +245,9 @@ def register_three_system_matrixmult_frobenius(
                     "input_indices": {"input_matrix_A": 0},
                     "sources": {"input_matrix_A": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_MATRIX_MATRIX_MULTIPLICATION) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_MATRIX_MATRIX_MULTIPLICATION]),
             ),
             FrobeniusNormWrapperComponent(
@@ -212,6 +257,9 @@ def register_three_system_matrixmult_frobenius(
                     "input_indices": {"input_matrix": 1},
                     "sources": {"input_matrix": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
             ),
         ],
@@ -221,7 +269,9 @@ def register_three_system_matrixmult_frobenius(
 
 
 def register_three_cofactor_matrixmult_rank(
-    registry: "FactoryRegistry", entropy: dict[Task, tuple[float, float] | float]
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
 ) -> None:
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
@@ -230,7 +280,9 @@ def register_three_cofactor_matrixmult_rank(
             MatrixCofactorWrapperComponent(
                 name=Task.ONE_COFACTOR,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True),
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
             ),
             MatrixMatrixMultiplicationWrapperComponent(
@@ -240,6 +292,9 @@ def register_three_cofactor_matrixmult_rank(
                     "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
                     "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_MATRIX_MATRIX_MULTIPLICATION) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_MATRIX_MATRIX_MULTIPLICATION]),
             ),
             RankWrapperComponent(
@@ -249,6 +304,9 @@ def register_three_cofactor_matrixmult_rank(
                     "input_indices": {"input_matrix": 1},
                     "sources": {"input_matrix": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_RANK]),
             ),
         ],
@@ -258,7 +316,9 @@ def register_three_cofactor_matrixmult_rank(
 
 
 def register_two_transpose_determinant(
-    registry: "FactoryRegistry", entropy: dict[Task, tuple[float, float] | float]
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
 ) -> None:
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
@@ -267,7 +327,9 @@ def register_two_transpose_determinant(
             TransposeWrapperComponent(
                 name=Task.ONE_TRANSPOSE,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True),
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
             ),
             DeterminantWrapperComponent(
@@ -277,6 +339,9 @@ def register_two_transpose_determinant(
                     "input_indices": {"input_matrix": 0},
                     "sources": {"input_matrix": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_DETERMINANT]),
             ),
         ],
@@ -286,7 +351,9 @@ def register_two_transpose_determinant(
 
 
 def register_two_cofactor_frobenius(
-    registry: "FactoryRegistry", entropy: dict[Task, tuple[float, float] | float]
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
 ) -> None:
     """Register cofactor + frobenius_norm composition."""
     registry.register_composite_factory(
@@ -296,7 +363,9 @@ def register_two_cofactor_frobenius(
             MatrixCofactorWrapperComponent(
                 name=Task.ONE_COFACTOR,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True),
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
             ),
             FrobeniusNormWrapperComponent(
@@ -306,6 +375,9 @@ def register_two_cofactor_frobenius(
                     "input_indices": {"input_matrix": 0},
                     "sources": {"input_matrix": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
             ),
         ],
@@ -314,7 +386,11 @@ def register_two_cofactor_frobenius(
     )
 
 
-def register_two_cofactor_rank(registry: "FactoryRegistry", entropy: dict[Task, tuple[float, float] | float]) -> None:
+def register_two_cofactor_rank(
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
+) -> None:
     """Register cofactor + matrix_rank composition."""
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
@@ -323,7 +399,9 @@ def register_two_cofactor_rank(registry: "FactoryRegistry", entropy: dict[Task, 
             MatrixCofactorWrapperComponent(
                 name=Task.ONE_COFACTOR,
                 constraints={"is_independent": True},
-                gen_constraints=GenerationConstraints(square=True),
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
             ),
             RankWrapperComponent(
@@ -333,6 +411,9 @@ def register_two_cofactor_rank(registry: "FactoryRegistry", entropy: dict[Task, 
                     "input_indices": {"input_matrix": 0},
                     "sources": {"input_matrix": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_RANK]),
             ),
         ],
@@ -342,7 +423,9 @@ def register_two_cofactor_rank(registry: "FactoryRegistry", entropy: dict[Task, 
 
 
 def register_two_transpose_frobenius(
-    registry: "FactoryRegistry", entropy: dict[Task, tuple[float, float] | float]
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
 ) -> None:
     """Register transpose + frobenius_norm composition."""
     registry.register_composite_factory(
@@ -352,6 +435,9 @@ def register_two_transpose_frobenius(
             TransposeWrapperComponent(
                 name=Task.ONE_TRANSPOSE,
                 constraints={"is_independent": True},
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
             ),
             FrobeniusNormWrapperComponent(
@@ -361,6 +447,9 @@ def register_two_transpose_frobenius(
                     "input_indices": {"input_matrix": 0},
                     "sources": {"input_matrix": "result"},
                 },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
+                ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
             ),
         ],

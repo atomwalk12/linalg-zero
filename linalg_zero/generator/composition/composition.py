@@ -59,7 +59,12 @@ class SequentialComposition(CompositionStrategy):
                 assert entropy is not None  # noqa: S101
                 allocations.append(float(entropy))
 
-            # Floor zero weights to 0
+            for alloc, weight, comp in zip(allocations, weights, components, strict=True):
+                if weight == 0 and alloc != 0:
+                    raise ValueError(f"Weight is 0 but allocation is {alloc} for component {comp.name}")
+                if weight != 0 and alloc == 0:
+                    raise ValueError(f"Weight is {weight} but allocation is 0 for component {comp.name}")
+
             allocations = [0.0 if weight == 0 else alloc for alloc, weight in zip(allocations, weights, strict=True)]
 
             # Set the composite budget to the sum of per-component allocations
