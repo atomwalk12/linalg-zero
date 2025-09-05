@@ -7,8 +7,6 @@ from dataclasses import dataclass
 import numpy as np
 import sympy
 
-from linalg_zero.generator.difficulty_config import get_problem_config
-
 
 class EntropyController:
     """
@@ -88,6 +86,7 @@ class EntropyController:
 @dataclass
 class EntropyConstraints:
     entropy: float | tuple[float, float]
+    center_biased_draw: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.entropy, float):
@@ -101,13 +100,11 @@ class EntropyConstraints:
         else:
             raise TypeError("Entropy must be a float or tuple of floats")
 
-        self.config = get_problem_config()
-
     def sample_entropy(self) -> float:
         if isinstance(self.entropy, float):
             return self.entropy
         elif isinstance(self.entropy, tuple):
-            return self.sample_entropy_from_range(self.entropy, self.config.center_biased_draw)
+            return self.sample_entropy_from_range(self.entropy, self.center_biased_draw)
         raise ValueError("No entropy to sample")
 
     def create_sample_args_for_composition(self, num_components: int) -> SampleArgs:
@@ -117,7 +114,7 @@ class EntropyConstraints:
 
     def sample_entropy_from_range(self, entropy_range: tuple[float, float], center_biased_draw: bool = False) -> float:
         """Sample an entropy value from a range with a center bias."""
-        if not self.config.center_biased_draw:
+        if not self.center_biased_draw:
             return random.uniform(entropy_range[0], entropy_range[1])
 
         low, high = entropy_range

@@ -44,9 +44,30 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
         matrix_A_entropy, matrix_B_entropy = self._split_entropy(context)
         rows, inner_dim, cols = self._determine_dimensions(context)
 
-        matrix_A = self._generate_matrix_A(rows, inner_dim, matrix_A_entropy, context)
-        matrix_B = self._generate_matrix_B(inner_dim, cols, matrix_B_entropy, context)
-        sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_a=matrix_A, matrix_b=matrix_B)
+        max_attempts = 200
+
+        for _ in range(max_attempts):
+            matrix_A = self._generate_matrix_A(rows, inner_dim, matrix_A_entropy, context)
+            matrix_B = self._generate_matrix_B(inner_dim, cols, matrix_B_entropy, context)
+            sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_a=matrix_A, matrix_b=matrix_B)
+
+            # Option 1: Accept if not an all-zero product
+            # if not all(value == 0 for value in sympy_sol):
+            #     break
+
+            # Option 2: Accept if no values are zero
+            if not any(value == 0 for value in sympy_sol):
+                break
+
+            # Refund the entropy consumed by this attempt to avoid exhausting the budget
+            used_entropy = matrix_A_entropy + matrix_B_entropy
+            context.used_entropy -= used_entropy
+            if context.used_entropy < 0:
+                context.used_entropy = 0.0
+        else:
+            # If every attempt produced an all-zero product, raise an error to avoid
+            # silently emitting degenerate data.
+            raise ValueError(f"Failed to generate non-degenerate product after {max_attempts} attempts")
 
         # Record tool call with input data
         input_data = self._prepare_tool_call_input_data(matrix_a=matrix_A, matrix_b=matrix_B)
@@ -103,8 +124,11 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         """Split entropy between matrix A and matrix B generation (independent)."""
         sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
+        split_fraction = (
+            self.gen_constraints.split_fraction if self.gen_constraints.split_fraction is not None else 0.3
+        )
         matrix_A_sample_args, matrix_B_sample_args = sample_args.split(
-            count=2, min_fraction=0.3, concentration_scale=10.0
+            count=2, min_fraction=split_fraction, concentration_scale=10.0
         )
         return matrix_A_sample_args.entropy, matrix_B_sample_args.entropy
 

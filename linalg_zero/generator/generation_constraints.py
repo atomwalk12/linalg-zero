@@ -20,6 +20,7 @@ class GenerationConstraints:
     rows: int | None = None
     cols: int | None = None
     min_element_abs: int = 0
+    split_fraction: float | None = None
 
     def __post_init__(self) -> None:
         """Validate constraint combinations."""

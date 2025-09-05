@@ -105,7 +105,12 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     def _split_entropy(self, context: ProblemContext) -> tuple[float, float]:
         """Split entropy between matrix and vector generation (independent)."""
         sample_args = SampleArgs(num_modules=2, entropy=context.entropy)
-        matrix_sample_args, vector_sample_args = sample_args.split(count=2, min_fraction=0.3, concentration_scale=10.0)
+        split_fraction = (
+            self.gen_constraints.split_fraction if self.gen_constraints.split_fraction is not None else 0.3
+        )
+        matrix_sample_args, vector_sample_args = sample_args.split(
+            count=2, min_fraction=split_fraction, concentration_scale=10.0
+        )
         return matrix_sample_args.entropy, vector_sample_args.entropy
 
     def _determine_dimensions(self, context: ProblemContext) -> tuple[int, int]:

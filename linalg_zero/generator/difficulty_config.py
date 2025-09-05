@@ -41,7 +41,6 @@ class ProblemConfig:
     target_tool_calls: int
     matrix_size_range: tuple[int, int]
     allow_rationals: bool
-    center_biased_draw: bool
 
     def get_random_matrix_size(self) -> int:
         """Get a random matrix size within the allowed range."""
@@ -64,12 +63,7 @@ class ProblemConfig:
 #   - 2 tool calls: (2.8, 3.2)
 #   - 3 tool calls: (4.2, 4.8)
 
-PROBLEM_CONFIG = ProblemConfig(
-    target_tool_calls=1,
-    matrix_size_range=(2, 2),
-    allow_rationals=False,
-    center_biased_draw=True,
-)
+PROBLEM_CONFIG = ProblemConfig(target_tool_calls=1, matrix_size_range=(2, 2), allow_rationals=False)
 
 
 def determine_difficulty(problem_type: Task) -> DifficultyCategory:
