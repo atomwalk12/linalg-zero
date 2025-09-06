@@ -340,8 +340,8 @@ def get_lib() -> dict[str, Callable[..., Any]]:
     """Return the library of available functions."""
     return {
         # Matrix results
-        "multiply_matrices": multiply_matrices,
-        "solve_linear_system": solve_linear_system,
+        # "multiply_matrices": multiply_matrices,
+        # "solve_linear_system": solve_linear_system,
         "matrix_transpose": matrix_transpose,
         "matrix_cofactor": matrix_cofactor,
         # Scalar results
@@ -349,7 +349,7 @@ def get_lib() -> dict[str, Callable[..., Any]]:
         "frobenius_norm": frobenius_norm,
         "matrix_rank": matrix_rank,
         # Not used
-        # "matrix_trace": matrix_trace,
+        "matrix_trace": matrix_trace,
         # "matrix_inverse": matrix_inverse,
     }
 

@@ -9,7 +9,7 @@ import numpy as np
 from sympy.core.random import seed
 
 from datasets import Dataset, DatasetDict
-from linalg_zero.generator.models import Question
+from linalg_zero.generator.models import Question, Task
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.utils import get_logger
@@ -256,13 +256,30 @@ def _question_to_example(q: Question) -> dict[str, Any]:
             continue
         stepwise_truths.append({tool_name: result_value})
 
+    # Derive composition metadata from stepwise verification and problem_type
+    composition_type = "sequential" if len(q.stepwise) > 1 else "single"
+    dependency_edges: list[tuple[int, int]] = []
+    for idx, step in enumerate(q.stepwise):
+        verification = step.get("verification", {})
+        if isinstance(verification, dict):
+            dependent_on = verification.get("dependent_on")
+            if isinstance(dependent_on, dict):
+                for _, from_idx in dependent_on.items():
+                    if isinstance(from_idx, int):
+                        dependency_edges.append((from_idx, idx))
+
+    pt = q.problem_type
+    dependency_type = "fan_out" if pt == Task.THREE_TRANSPOSE_DETERMINANT_TRACE else "strict"
+
     return {
         "query": q.question,
         "ground_truth": q.golden.get("final_answer", q.answer),
         "stepwise_ground_truths": json.dumps(stepwise_truths),
-        # Extra columns for analysis/stratification
         "difficulty": getattr(q.difficulty, "name", str(q.difficulty)),
         "problem_type": getattr(q.problem_type, "value", str(q.problem_type)),
+        "composition_type": composition_type,
+        "composition_dependencies": dependency_type,
+        "dependency_edges": json.dumps(dependency_edges) if dependency_edges else None,
     }
 
 

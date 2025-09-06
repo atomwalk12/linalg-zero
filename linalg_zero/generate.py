@@ -48,9 +48,9 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
     # Easy: 3000, Medium: 2000, Hard: 1000 (total: 6000)
     dataset = generator.generate_exact_for_categories(
         requests={
-            DifficultyCategory.ONE_TOOL_CALL: 444,
-            DifficultyCategory.TWO_TOOL_CALLS: 444,
-            DifficultyCategory.THREE_TOOL_CALLS: 444,
+            DifficultyCategory.ONE_TOOL_CALL: 20,
+            DifficultyCategory.TWO_TOOL_CALLS: 20,
+            DifficultyCategory.THREE_TOOL_CALLS: 20,
         }
     )
     statistics = compute_stepwise_value_statistics(dataset)
@@ -80,7 +80,7 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--push_dataset", action="store_true", default=False)
+    parser.add_argument("--push_dataset", action="store_true", default=True)
     parser.add_argument(
         "--use_optimized_registry",
         action="store_true",

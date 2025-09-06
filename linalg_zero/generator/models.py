@@ -40,10 +40,15 @@ class Task(Enum):
     TWO_COFACTOR_RANK = "two_cofactor_rank"
     TWO_TRANSPOSE_FROBENIUS = "two_transpose_frobenius"
 
-    # Three tool call problems
-    THREE_TRANSPOSE_MATRIXMULT_DETERMINANT = "three_transpose_matrixmult_determinant"
+    # Cause value explosion due to matrix multiplications
     THREE_COFACTOR_MATRIXMULT_RANK = "three_cofactor_matrixmult_rank"
     THREE_SYSTEM_MATRIXMULT_FROBENIUS = "three_system_matrixmult_frobenius"
+    THREE_MATRIXVECTOR_SYSTEM_FROBENIUS = "three_matrixvector_system_frobenius"
+
+    # Stable output values
+    THREE_TRANSPOSE_COFACTOR_RANK = "three_transpose_cofactor_rank"
+    THREE_COFACTOR_TRANSPOSE_TRACE = "three_cofactor_transpose_trace"
+    THREE_TRANSPOSE_DETERMINANT_TRACE = "three_transpose_determinant_trace"
 
 
 class DifficultyCategory(Enum):

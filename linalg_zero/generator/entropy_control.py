@@ -58,7 +58,7 @@ class EntropyController:
             if is_valid_integer(value):
                 return Integer(value)
 
-        raise ValueError(f"Failed to generate integer with minimum absolute value after {max_attempts} attempts")
+        raise RuntimeError(f"Failed to generate integer with minimum absolute value after {max_attempts} attempts")
 
     def generate_rational(
         self,
@@ -88,7 +88,7 @@ class EntropyController:
             if min_value_abs is None or abs(rational) >= min_value_abs:
                 return rational
 
-        raise ValueError(
+        raise RuntimeError(
             f"Failed to generate rational number with minimum absolute value after {max_attempts} attempts"
         )
 

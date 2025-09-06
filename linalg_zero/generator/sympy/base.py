@@ -216,6 +216,7 @@ class SympyProblemGenerator(ABC):
             source_var_name = sources[f"input_{var_name}"]
 
             if source_var_name == "result":
+                # This hides the result of the previous component in the template
                 base_vars[var_name] = f"the result from step {gen_source + 1}"
                 base_vars["context_info"].append({
                     "source_index": gen_source,
@@ -225,6 +226,7 @@ class SympyProblemGenerator(ABC):
                     "template_var": var_name,
                 })
             elif source_var_name == "local":
+                # This shows the exact value from a previous component
                 base_vars[var_name] = value
                 base_vars["context_info"].append({
                     "source_index": gen_source,
@@ -234,6 +236,7 @@ class SympyProblemGenerator(ABC):
                     "template_var": var_name,
                 })
             else:
+                # This shows the exact value from a previous component
                 base_vars[var_name] = value
                 base_vars["context_info"].append({
                     "source_index": gen_source,

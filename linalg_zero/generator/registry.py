@@ -5,9 +5,8 @@ from typing import Any
 from linalg_zero.generator.composition.components import (
     DeterminantWrapperComponent,
     FrobeniusNormWrapperComponent,
-    LinearSystemSolverWrapperComponent,
     MatrixCofactorWrapperComponent,
-    MatrixMatrixMultiplicationWrapperComponent,
+    MatrixTraceWrapperComponent,
     RankWrapperComponent,
     TransposeWrapperComponent,
 )
@@ -33,6 +32,7 @@ from linalg_zero.generator.sympy.generators.matrix_matrix_generator import (
     MatrixMatrixMultiplicationGenerator,
 )
 from linalg_zero.generator.sympy.generators.matrix_rank_generator import MatrixRankGenerator
+from linalg_zero.generator.sympy.generators.matrix_trace_generator import MatrixTraceGenerator
 from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
     MatrixTransposeGenerator,
 )
@@ -165,6 +165,24 @@ def register_one_matrix_cofactor_factory(
     )
 
 
+def register_one_trace_factory(
+    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
+) -> None:
+    registry.register_factory(
+        Topic.LINEAR_ALGEBRA,
+        Task.ONE_TRACE,
+        create_sympy_factory(
+            generator_class=MatrixTraceGenerator,
+            topic=Topic.LINEAR_ALGEBRA,
+            problem_type=Task.ONE_TRACE,
+            difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
+            entropy=EntropyConstraints(entropy),
+            gen_constraints=_merge_gen_constraints({}, gen_constraints),
+        ),
+        difficulty=DifficultyCategory.ONE_TOOL_CALL,
+    )
+
+
 def _merge_gen_constraints(mandatory: dict[str, Any], optional: dict[str, Any] | None) -> GenerationConstraints:
     """Merge optional gen_constraints with mandatory ones, giving priority to mandatory."""
     if optional is None:
@@ -172,148 +190,6 @@ def _merge_gen_constraints(mandatory: dict[str, Any], optional: dict[str, Any] |
 
     merged = {**optional, **mandatory}  # mandatory overwrites optional
     return GenerationConstraints(**merged)
-
-
-def register_three_transpose_matrixmult_determinant(
-    registry: "FactoryRegistry",
-    entropy: dict[Task, tuple[float, float] | float],
-    gen_constraints: dict[Task, dict[str, Any]] | None = None,
-) -> None:
-    registry.register_composite_factory(
-        topic=Topic.LINEAR_ALGEBRA,
-        problem_type=Task.THREE_TRANSPOSE_MATRIXMULT_DETERMINANT,
-        components=[
-            TransposeWrapperComponent(
-                name=Task.ONE_TRANSPOSE,
-                constraints={"is_independent": True},
-                gen_constraints=_merge_gen_constraints(
-                    {"square": True}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
-            ),
-            MatrixMatrixMultiplicationWrapperComponent(
-                name=Task.ONE_MATRIX_MATRIX_MULTIPLICATION,
-                constraints={
-                    "is_independent": False,
-                    "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
-                    "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
-                },
-                gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_MATRIX_MATRIX_MULTIPLICATION) if gen_constraints else None
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_MATRIX_MATRIX_MULTIPLICATION]),
-            ),
-            DeterminantWrapperComponent(
-                name=Task.ONE_DETERMINANT,
-                constraints={
-                    "is_independent": False,
-                    "input_indices": {"input_matrix": 1},
-                    "sources": {"input_matrix": "result"},
-                },
-                gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_DETERMINANT]),
-            ),
-        ],
-        composition_strategy=SequentialComposition(),
-        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
-    )
-
-
-def register_three_system_matrixmult_frobenius(
-    registry: "FactoryRegistry",
-    entropy: dict[Task, tuple[float, float] | float],
-    gen_constraints: dict[Task, dict[str, Any]] | None = None,
-) -> None:
-    registry.register_composite_factory(
-        topic=Topic.LINEAR_ALGEBRA,
-        problem_type=Task.THREE_SYSTEM_MATRIXMULT_FROBENIUS,
-        components=[
-            LinearSystemSolverWrapperComponent(
-                name=Task.ONE_LINEAR_SYSTEM_SOLVER,
-                constraints={"is_independent": True},
-                gen_constraints=_merge_gen_constraints(
-                    {"square": True, "invertible": True},
-                    gen_constraints.get(Task.ONE_LINEAR_SYSTEM_SOLVER) if gen_constraints else None,
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_LINEAR_SYSTEM_SOLVER]),
-            ),
-            MatrixMatrixMultiplicationWrapperComponent(
-                name=Task.ONE_MATRIX_MATRIX_MULTIPLICATION,
-                constraints={
-                    "is_independent": False,
-                    "input_indices": {"input_matrix_A": 0},
-                    "sources": {"input_matrix_A": "result"},
-                },
-                gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_MATRIX_MATRIX_MULTIPLICATION) if gen_constraints else None
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_MATRIX_MATRIX_MULTIPLICATION]),
-            ),
-            FrobeniusNormWrapperComponent(
-                name=Task.ONE_FROBENIUS_NORM,
-                constraints={
-                    "is_independent": False,
-                    "input_indices": {"input_matrix": 1},
-                    "sources": {"input_matrix": "result"},
-                },
-                gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
-            ),
-        ],
-        composition_strategy=SequentialComposition(),
-        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
-    )
-
-
-def register_three_cofactor_matrixmult_rank(
-    registry: "FactoryRegistry",
-    entropy: dict[Task, tuple[float, float] | float],
-    gen_constraints: dict[Task, dict[str, Any]] | None = None,
-) -> None:
-    registry.register_composite_factory(
-        topic=Topic.LINEAR_ALGEBRA,
-        problem_type=Task.THREE_COFACTOR_MATRIXMULT_RANK,
-        components=[
-            MatrixCofactorWrapperComponent(
-                name=Task.ONE_COFACTOR,
-                constraints={"is_independent": True},
-                gen_constraints=_merge_gen_constraints(
-                    {"square": True}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
-            ),
-            MatrixMatrixMultiplicationWrapperComponent(
-                name=Task.ONE_MATRIX_MATRIX_MULTIPLICATION,
-                constraints={
-                    "is_independent": False,
-                    "input_indices": {"input_matrix_A": 0, "input_matrix_B": 0},
-                    "sources": {"input_matrix_A": "matrix", "input_matrix_B": "result"},
-                },
-                gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_MATRIX_MATRIX_MULTIPLICATION) if gen_constraints else None
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_MATRIX_MATRIX_MULTIPLICATION]),
-            ),
-            RankWrapperComponent(
-                name=Task.ONE_RANK,
-                constraints={
-                    "is_independent": False,
-                    "input_indices": {"input_matrix": 1},
-                    "sources": {"input_matrix": "result"},
-                },
-                gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
-                ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_RANK]),
-            ),
-        ],
-        composition_strategy=SequentialComposition(),
-        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
-    )
 
 
 def register_two_transpose_determinant(
@@ -459,6 +335,147 @@ def register_two_transpose_frobenius(
     )
 
 
+def register_three_transpose_cofactor_rank(
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
+) -> None:
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.THREE_TRANSPOSE_COFACTOR_RANK,
+        components=[
+            TransposeWrapperComponent(
+                name=Task.ONE_TRANSPOSE,
+                constraints={"is_independent": True},
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True, "size": 2}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
+            ),
+            MatrixCofactorWrapperComponent(
+                name=Task.ONE_COFACTOR,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
+            ),
+            RankWrapperComponent(
+                name=Task.ONE_RANK,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 1},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_RANK]),
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
+    )
+
+
+def register_three_cofactor_transpose_trace(
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
+) -> None:
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.THREE_COFACTOR_TRANSPOSE_TRACE,
+        components=[
+            MatrixCofactorWrapperComponent(
+                name=Task.ONE_COFACTOR,
+                constraints={"is_independent": True},
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True, "size": 2}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
+            ),
+            TransposeWrapperComponent(
+                name=Task.ONE_TRANSPOSE,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints((0, 0)),
+            ),
+            MatrixTraceWrapperComponent(
+                name=Task.ONE_TRACE,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 1},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints((0, 0)),
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
+    )
+
+
+def register_three_transpose_determinant_trace(
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
+) -> None:
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.THREE_TRANSPOSE_DETERMINANT_TRACE,
+        components=[
+            TransposeWrapperComponent(
+                name=Task.ONE_TRANSPOSE,
+                constraints={"is_independent": True},
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True, "size": 2}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
+            ),
+            DeterminantWrapperComponent(
+                name=Task.ONE_DETERMINANT,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_DETERMINANT]),
+            ),
+            MatrixTraceWrapperComponent(
+                name=Task.ONE_TRACE,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRACE]),
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
+    )
+
+
 class FactoryRegistry:
     """Registry for managing different question factories."""
 
@@ -561,12 +578,11 @@ def create_default_registry() -> FactoryRegistry:
     # ===================
     entropy = (1.2, 1.5)
     register_one_determinant_factory(registry, entropy=entropy)
-    register_one_matrix_matrix_multiplication_factory(registry, entropy=entropy)
-    register_one_linear_system_solver_factory(registry, entropy=entropy)
     register_one_frobenius_norm_factory(registry, entropy=entropy)
     register_one_matrix_rank_factory(registry, entropy=entropy)
     register_one_matrix_transpose_factory(registry, entropy=entropy)
     register_one_matrix_cofactor_factory(registry, entropy=entropy)
+    register_one_trace_factory(registry, entropy=entropy)
 
     # ===================
     # 2-STEP COMPOSITIONS
@@ -599,30 +615,29 @@ def create_default_registry() -> FactoryRegistry:
     # 3-STEP COMPOSITIONS
     # ===================
     entropy_ranges = {
-        Task.THREE_TRANSPOSE_MATRIXMULT_DETERMINANT: {
-            Task.ONE_TRANSPOSE: entropy,
-            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: (0.0, 0.0),
-            Task.ONE_DETERMINANT: (0.0, 0.0),
-        },
-        Task.THREE_COFACTOR_MATRIXMULT_RANK: {
-            Task.ONE_COFACTOR: entropy,
-            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: (0.0, 0.0),
+        Task.THREE_TRANSPOSE_COFACTOR_RANK: {
+            Task.ONE_TRANSPOSE: (0.3, 0.6),
+            Task.ONE_COFACTOR: (0.0, 0.0),
             Task.ONE_RANK: (0.0, 0.0),
         },
-        Task.THREE_SYSTEM_MATRIXMULT_FROBENIUS: {
-            Task.ONE_LINEAR_SYSTEM_SOLVER: entropy,
-            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: entropy,
-            Task.ONE_FROBENIUS_NORM: (0.0, 0.0),
+        Task.THREE_COFACTOR_TRANSPOSE_TRACE: {
+            Task.ONE_COFACTOR: (0.3, 0.6),
+            Task.ONE_TRANSPOSE: (0.0, 0.0),
+            Task.ONE_TRACE: (0.0, 0.0),
+        },
+        Task.THREE_TRANSPOSE_DETERMINANT_TRACE: {
+            Task.ONE_TRANSPOSE: (0.3, 0.6),
+            Task.ONE_DETERMINANT: (0.0, 0.0),
+            Task.ONE_TRACE: (0.0, 0.0),
         },
     }
-
-    register_three_transpose_matrixmult_determinant(
+    register_three_transpose_cofactor_rank(
         registry,
-        entropy=entropy_ranges[Task.THREE_TRANSPOSE_MATRIXMULT_DETERMINANT],
+        entropy=entropy_ranges[Task.THREE_TRANSPOSE_COFACTOR_RANK],
     )
-    register_three_cofactor_matrixmult_rank(registry, entropy=entropy_ranges[Task.THREE_COFACTOR_MATRIXMULT_RANK])
-    register_three_system_matrixmult_frobenius(
-        registry, entropy=entropy_ranges[Task.THREE_SYSTEM_MATRIXMULT_FROBENIUS]
+    register_three_cofactor_transpose_trace(registry, entropy=entropy_ranges[Task.THREE_COFACTOR_TRANSPOSE_TRACE])
+    register_three_transpose_determinant_trace(
+        registry, entropy=entropy_ranges[Task.THREE_TRANSPOSE_DETERMINANT_TRACE]
     )
 
     return registry
@@ -633,12 +648,11 @@ def get_single_step_functions() -> dict[
 ]:
     return {
         Task.ONE_DETERMINANT: register_one_determinant_factory,
-        Task.ONE_MATRIX_MATRIX_MULTIPLICATION: register_one_matrix_matrix_multiplication_factory,
-        Task.ONE_LINEAR_SYSTEM_SOLVER: register_one_linear_system_solver_factory,
         Task.ONE_FROBENIUS_NORM: register_one_frobenius_norm_factory,
         Task.ONE_RANK: register_one_matrix_rank_factory,
         Task.ONE_TRANSPOSE: register_one_matrix_transpose_factory,
         Task.ONE_COFACTOR: register_one_matrix_cofactor_factory,
+        Task.ONE_TRACE: register_one_trace_factory,
     }
 
 
@@ -650,9 +664,9 @@ def get_multi_step_functions() -> dict[
         Task.TWO_COFACTOR_FROBENIUS: register_two_cofactor_frobenius,
         Task.TWO_COFACTOR_RANK: register_two_cofactor_rank,
         Task.TWO_TRANSPOSE_FROBENIUS: register_two_transpose_frobenius,
-        Task.THREE_TRANSPOSE_MATRIXMULT_DETERMINANT: register_three_transpose_matrixmult_determinant,
-        Task.THREE_COFACTOR_MATRIXMULT_RANK: register_three_cofactor_matrixmult_rank,
-        Task.THREE_SYSTEM_MATRIXMULT_FROBENIUS: register_three_system_matrixmult_frobenius,
+        Task.THREE_TRANSPOSE_COFACTOR_RANK: register_three_transpose_cofactor_rank,
+        Task.THREE_COFACTOR_TRANSPOSE_TRACE: register_three_cofactor_transpose_trace,
+        Task.THREE_TRANSPOSE_DETERMINANT_TRACE: register_three_transpose_determinant_trace,
     }
 
 
