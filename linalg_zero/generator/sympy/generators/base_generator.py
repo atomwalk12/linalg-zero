@@ -32,48 +32,28 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
             row = []
             for _ in range(cols):
                 if self.config.allow_rationals and random.random() < 0.3:
-                    # 30% chance of rational numbers
-                    element = self.entropy_controller.generate_rational(entropy, min_value_abs=min_abs)
+                    element = self.entropy_controller.generate_rational(
+                        entropy, min_value_abs=min_abs, max_attempts=self.max_attempts
+                    )
                     element = Rational(element)
                 else:
-                    number = self.entropy_controller.generate_integer(entropy, min_abs=min_abs)
+                    number = self.entropy_controller.generate_integer(
+                        entropy, min_abs=min_abs, max_attempts=self.max_attempts
+                    )
 
-                    # Avoid too many zeros to keep problems interesting
-                    if number == 0 and random.random() < 0.7:
-                        number = random.choice([1, -1])
                     element = Integer(number)
+
+                if abs(element) < min_abs:
+                    raise ValueError("Matrix contains elements less than the minimum absolute value")
 
                 row.append(element)
             matrix_elements.append(row)
 
         return Matrix(matrix_elements)
 
-    def _generate_vector(self, size: int, entropy: float) -> Matrix:
-        """Generate a vector consisting of integers or rationals."""
-        vector_elements = []
-        min_abs = self.gen_constraints.min_element_abs
-
-        for i in range(size):
-            if self.config.allow_rationals and random.random() < 0.2:
-                # 20% chance of rational numbers for vectors
-                element = self.entropy_controller.generate_rational(entropy, min_value_abs=min_abs)
-                element = Rational(element)
-            else:
-                number = self.entropy_controller.generate_integer(entropy, min_abs=min_abs)
-                # Ensure first element is non-zero to avoid zero vectors
-                if i == 0 and number == 0:
-                    number = random.choice([1, -1])
-                element = Integer(number)
-
-            vector_elements.append(element)
-
-        return Matrix(vector_elements)
-
     def _generate_invertible_matrix(self, size: int, entropy: float) -> Matrix:
         """Generate an invertible matrix with retry logic."""
-        max_attempts = 1000
-
-        for _ in range(max_attempts):
+        for _ in range(self.max_attempts):
             matrix = self._generate_matrix(size, size, entropy)
 
             try:
@@ -83,7 +63,7 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
             except Exception:  # noqa: S112
                 continue
 
-        raise ValueError(f"Failed to generate invertible matrix after {max_attempts} attempts")
+        raise ValueError(f"Failed to generate invertible matrix after {self.max_attempts} attempts")
 
     def _get_matrix_with_constraints(
         self,
@@ -126,5 +106,6 @@ class MatrixVectorBaseGenerator(SympyProblemGenerator):
         """
         vector_entropy = context.allocate_entropy(entropy=entropy)
 
-        vector = self._generate_vector(size, vector_entropy)
+        # Generate as column vector (size x 1 matrix)
+        vector = self._generate_matrix(size, 1, vector_entropy)
         return vector

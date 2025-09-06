@@ -44,19 +44,13 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
         matrix_A_entropy, matrix_B_entropy = self._split_entropy(context)
         rows, inner_dim, cols = self._determine_dimensions(context)
 
-        max_attempts = 200
-
-        for _ in range(max_attempts):
+        for _ in range(self.max_attempts):
             matrix_A = self._generate_matrix_A(rows, inner_dim, matrix_A_entropy, context)
             matrix_B = self._generate_matrix_B(inner_dim, cols, matrix_B_entropy, context)
             sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_a=matrix_A, matrix_b=matrix_B)
 
-            # Option 1: Accept if not an all-zero product
-            # if not all(value == 0 for value in sympy_sol):
-            #     break
-
-            # Option 2: Accept if no values are zero
-            if not any(value == 0 for value in sympy_sol):
+            # Accept if the product is not an all-zero matrix; allow zeros otherwise
+            if not all(value == 0 for value in sympy_sol):
                 break
 
             # Refund the entropy consumed by this attempt to avoid exhausting the budget
@@ -67,7 +61,7 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
         else:
             # If every attempt produced an all-zero product, raise an error to avoid
             # silently emitting degenerate data.
-            raise ValueError(f"Failed to generate non-degenerate product after {max_attempts} attempts")
+            raise ValueError(f"Failed to generate non-degenerate product after {self.max_attempts} attempts")
 
         # Record tool call with input data
         input_data = self._prepare_tool_call_input_data(matrix_a=matrix_A, matrix_b=matrix_B)
@@ -148,7 +142,7 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
     ) -> Matrix:
         # Use constraint-based generation with specific dimensions
         # Temporarily set constraints for this specific call
-        mandatory = GenerationConstraints(rows=rows, cols=cols)
+        mandatory = GenerationConstraints(rows=rows, cols=cols, min_element_abs=1)
 
         matrix_A = self._get_matrix_with_constraints(context, added_constraints=mandatory, entropy=matrix_entropy)
 
@@ -161,7 +155,7 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
         matrix_entropy: float,
         context: ProblemContext,
     ) -> Matrix:
-        mandatory = GenerationConstraints(rows=rows, cols=cols)
+        mandatory = GenerationConstraints(rows=rows, cols=cols, min_element_abs=1)
 
         matrix_B = self._get_matrix_with_constraints(context, added_constraints=mandatory, entropy=matrix_entropy)
 
@@ -188,6 +182,48 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGen
         self.input_matrix_B = input_matrix_B
         self.input_matrix_A_index = input_matrix_A_index
         self.input_matrix_B_index = input_matrix_B_index
+
+    @override
+    def generate_mathematical_content(self, context: ProblemContext) -> ProblemTemplate:
+        """Generate content for dependent case without retry loop.
+
+        If any input matrix is provided by an upstream component, accept the
+        product as-is (including the all-zero case). Only matrices we generate
+        locally are constrained to have non-zero entries via min_element_abs.
+        """
+
+        matrix_A_entropy, matrix_B_entropy = self._split_entropy(context)
+        rows, inner_dim, cols = self._determine_dimensions(context)
+
+        matrix_A = self._generate_matrix_A(rows, inner_dim, matrix_A_entropy, context)
+        matrix_B = self._generate_matrix_B(inner_dim, cols, matrix_B_entropy, context)
+
+        sympy_sol, lib_result = self._multiply_matrices_sympy(matrix_a=matrix_A, matrix_b=matrix_B)
+
+        # Record tool call with input data
+        input_data = self._prepare_tool_call_input_data(matrix_a=matrix_A, matrix_b=matrix_B)
+        context.record_tool_call(multiply_matrices.__name__, lib_result, input_data, is_final=True)
+
+        problem_expression = matrix_A * matrix_B
+
+        context_info = {
+            "matrix_dimensions": (rows, inner_dim, cols),
+            "problem_type": self.problem_type,
+            "matrix_A": matrix_A,
+            "matrix_B": matrix_B,
+        }
+
+        return ProblemTemplate(
+            expression=problem_expression,
+            variables={"matrix_A": matrix_A, "matrix_B": matrix_B},
+            sympy_solution=sympy_sol,
+            lib_result=lib_result,
+            context_info={**context_info},
+            difficulty_markers=self.build_difficulty_markers(
+                context, matrix_size=(matrix_A.rows, matrix_A.cols), matrix_size_B=(matrix_B.rows, matrix_B.cols)
+            ),
+            difficulty=self.difficulty_level,
+        )
 
     @override
     def get_template_variables(self, template: ProblemTemplate) -> dict[str, Any]:
@@ -243,7 +279,7 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGen
             return self.input_matrix_B
         else:
             # Generate matrix_B using the parent class logic
-            mandatory = GenerationConstraints(rows=rows, cols=cols)
+            mandatory = GenerationConstraints(rows=rows, cols=cols, min_element_abs=1)
             return self._get_matrix_with_constraints(context, added_constraints=mandatory, entropy=matrix_entropy)
 
     def _generate_matrix_A(

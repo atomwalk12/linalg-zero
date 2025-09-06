@@ -96,6 +96,7 @@ class SympyProblemGenerator(ABC):
         self.template_engine = template_engine
         self.formatter = MathFormatter()
         self.is_independent = is_independent
+        self.max_attempts = 4000
 
     @property
     def precision(self) -> Precision:

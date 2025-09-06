@@ -2,6 +2,7 @@ import ast
 import json
 import random
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -14,6 +15,41 @@ from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
+
+
+def load_entropy_settings_from_analysis(results_path: str) -> dict[str, Any]:
+    """
+    Load entropy analysis results from JSON file.
+    """
+    results_file = Path(results_path)
+
+    if not results_file.exists():
+        raise FileNotFoundError(
+            f"Entropy analysis results not found at {results_file}. "
+            "Run the entropy analysis first using linalg_zero.generator.analysis.analyse"
+        )
+
+    with results_file.open("r", encoding="utf-8") as f:
+        settings = json.load(f)
+
+    print_entropy_settings(settings)
+
+    return settings
+
+
+def print_entropy_settings(settings: dict[str, Any]) -> None:
+    """Print the loaded entropy settings in a readable format."""
+
+    logger.info("=" * 60)
+    logger.info("RECOMMENDED ENTROPY SETTINGS")
+    logger.info("=" * 60)
+
+    for problem_type, config in settings.items():
+        combination = config["combination"]
+        score = config["score"]
+        logger.info(f"{problem_type}: {combination} (score: {score:.2f})")
+
+    logger.info("=" * 60)
 
 
 def _verify_step_result(step: dict[str, Any], lib: dict[str, Any]) -> None:

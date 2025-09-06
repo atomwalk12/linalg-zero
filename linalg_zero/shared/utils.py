@@ -15,6 +15,18 @@ def get_config_dir() -> str:
     return str(script_dir / "config")
 
 
+def get_log_file_path() -> str:
+    """
+    Finds and returns the file path of the first FileHandler found in the logger's handlers.
+    Raises ValueError if no FileHandler is found.
+    """
+    logger = logging.getLogger()  # Get root logger
+    for handler in logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            return handler.baseFilename
+    raise ValueError("No FileHandler found in the logger's handlers")
+
+
 def setup_logging(
     level: int = logging.INFO, include_timestamp: bool = False, file_suffix: str = "linalg_zero.log"
 ) -> None:  # pragma: no cover

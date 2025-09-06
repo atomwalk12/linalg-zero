@@ -36,6 +36,7 @@ from linalg_zero.generator.sympy.generators.matrix_rank_generator import MatrixR
 from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
     MatrixTransposeGenerator,
 )
+from linalg_zero.generator.utils import load_entropy_settings_from_analysis
 
 
 def register_one_determinant_factory(
@@ -558,33 +559,34 @@ def create_default_registry() -> FactoryRegistry:
     # ===================
     # 1-STEP COMPOSITIONS
     # ===================
-    register_one_determinant_factory(registry, entropy=(0.8, 0.8))
-    register_one_matrix_matrix_multiplication_factory(registry, entropy=(0.8, 0.8))
-    register_one_linear_system_solver_factory(registry, entropy=(0.8, 0.8))
-    register_one_frobenius_norm_factory(registry, entropy=(0.8, 0.8))
-    register_one_matrix_rank_factory(registry, entropy=(0.8, 0.8))
-    register_one_matrix_transpose_factory(registry, entropy=(0.8, 0.8))
-    register_one_matrix_cofactor_factory(registry, entropy=(0.8, 0.8))
+    entropy = (1.2, 1.5)
+    register_one_determinant_factory(registry, entropy=entropy)
+    register_one_matrix_matrix_multiplication_factory(registry, entropy=entropy)
+    register_one_linear_system_solver_factory(registry, entropy=entropy)
+    register_one_frobenius_norm_factory(registry, entropy=entropy)
+    register_one_matrix_rank_factory(registry, entropy=entropy)
+    register_one_matrix_transpose_factory(registry, entropy=entropy)
+    register_one_matrix_cofactor_factory(registry, entropy=entropy)
 
     # ===================
     # 2-STEP COMPOSITIONS
     # ===================
     entropy_ranges: dict[Task, dict[Task, tuple[float, float] | float]] = {
         Task.TWO_TRANSPOSE_DETERMINANT: {
-            Task.ONE_TRANSPOSE: (0.8, 0.8),
-            Task.ONE_DETERMINANT: (0.8, 0.8),
+            Task.ONE_TRANSPOSE: entropy,
+            Task.ONE_DETERMINANT: (0.0, 0.0),
         },
         Task.TWO_COFACTOR_FROBENIUS: {
-            Task.ONE_COFACTOR: (0.8, 0.8),
-            Task.ONE_FROBENIUS_NORM: (0.8, 0.8),
+            Task.ONE_COFACTOR: entropy,
+            Task.ONE_FROBENIUS_NORM: (0.0, 0.0),
         },
         Task.TWO_COFACTOR_RANK: {
-            Task.ONE_COFACTOR: (0.8, 0.8),
-            Task.ONE_RANK: (0.8, 0.8),
+            Task.ONE_COFACTOR: entropy,
+            Task.ONE_RANK: (0.0, 0.0),
         },
         Task.TWO_TRANSPOSE_FROBENIUS: {
-            Task.ONE_TRANSPOSE: (0.8, 0.8),
-            Task.ONE_FROBENIUS_NORM: (0.8, 0.8),
+            Task.ONE_TRANSPOSE: entropy,
+            Task.ONE_FROBENIUS_NORM: (0.0, 0.0),
         },
     }
 
@@ -598,19 +600,19 @@ def create_default_registry() -> FactoryRegistry:
     # ===================
     entropy_ranges = {
         Task.THREE_TRANSPOSE_MATRIXMULT_DETERMINANT: {
-            Task.ONE_TRANSPOSE: (0.8, 0.8),
-            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: (0.8, 0.8),
-            Task.ONE_DETERMINANT: (0.8, 0.8),
+            Task.ONE_TRANSPOSE: entropy,
+            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: (0.0, 0.0),
+            Task.ONE_DETERMINANT: (0.0, 0.0),
         },
         Task.THREE_COFACTOR_MATRIXMULT_RANK: {
-            Task.ONE_COFACTOR: (0.8, 0.8),
-            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: (0.8, 0.8),
-            Task.ONE_RANK: (0.8, 0.8),
+            Task.ONE_COFACTOR: entropy,
+            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: (0.0, 0.0),
+            Task.ONE_RANK: (0.0, 0.0),
         },
         Task.THREE_SYSTEM_MATRIXMULT_FROBENIUS: {
-            Task.ONE_LINEAR_SYSTEM_SOLVER: (0.8, 0.8),
-            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: (0.8, 0.8),
-            Task.ONE_FROBENIUS_NORM: (0.8, 0.8),
+            Task.ONE_LINEAR_SYSTEM_SOLVER: entropy,
+            Task.ONE_MATRIX_MATRIX_MULTIPLICATION: entropy,
+            Task.ONE_FROBENIUS_NORM: (0.0, 0.0),
         },
     }
 
@@ -622,5 +624,124 @@ def create_default_registry() -> FactoryRegistry:
     register_three_system_matrixmult_frobenius(
         registry, entropy=entropy_ranges[Task.THREE_SYSTEM_MATRIXMULT_FROBENIUS]
     )
+
+    return registry
+
+
+def get_single_step_functions() -> dict[
+    Task, Callable[[FactoryRegistry, tuple[float, float] | float, dict[str, Any]], None]
+]:
+    return {
+        Task.ONE_DETERMINANT: register_one_determinant_factory,
+        Task.ONE_MATRIX_MATRIX_MULTIPLICATION: register_one_matrix_matrix_multiplication_factory,
+        Task.ONE_LINEAR_SYSTEM_SOLVER: register_one_linear_system_solver_factory,
+        Task.ONE_FROBENIUS_NORM: register_one_frobenius_norm_factory,
+        Task.ONE_RANK: register_one_matrix_rank_factory,
+        Task.ONE_TRANSPOSE: register_one_matrix_transpose_factory,
+        Task.ONE_COFACTOR: register_one_matrix_cofactor_factory,
+    }
+
+
+def get_multi_step_functions() -> dict[
+    Task, Callable[[FactoryRegistry, dict[Task, tuple[float, float] | float], dict[Task, dict[str, Any]]], None]
+]:
+    return {
+        Task.TWO_TRANSPOSE_DETERMINANT: register_two_transpose_determinant,
+        Task.TWO_COFACTOR_FROBENIUS: register_two_cofactor_frobenius,
+        Task.TWO_COFACTOR_RANK: register_two_cofactor_rank,
+        Task.TWO_TRANSPOSE_FROBENIUS: register_two_transpose_frobenius,
+        Task.THREE_TRANSPOSE_MATRIXMULT_DETERMINANT: register_three_transpose_matrixmult_determinant,
+        Task.THREE_COFACTOR_MATRIXMULT_RANK: register_three_cofactor_matrixmult_rank,
+        Task.THREE_SYSTEM_MATRIXMULT_FROBENIUS: register_three_system_matrixmult_frobenius,
+    }
+
+
+def register_problem_type(
+    registry: FactoryRegistry,
+    problem_type: Task,
+    entropy_ranges: dict[Task, float | tuple[float, float]],
+    jitter: float,
+    min_value_abs: float,
+) -> None:
+    # Get the function mappings
+    single_step_functions = get_single_step_functions()
+    multi_step_functions = get_multi_step_functions()
+
+    if problem_type in single_step_functions:
+        # Single-step factories take EntropyConstraints
+        # Extract the entropy value (single-step has one component)
+        raw_entropy_value = next(iter(entropy_ranges.values()))
+        if isinstance(raw_entropy_value, tuple):
+            entropy_value = raw_entropy_value
+        else:
+            # Convert fixed value to a small range below the fixed value
+            lo = max(0.0, float(raw_entropy_value) - jitter)
+            hi = float(raw_entropy_value)
+            entropy_value = (lo, hi)
+
+        single_step_functions[problem_type](registry, entropy_value, {"min_element_abs": min_value_abs})
+    elif problem_type in multi_step_functions:
+        # Multi-step factories take entropy_ranges directly
+        assert isinstance(entropy_ranges, dict)  # noqa: S101
+        # Convert fixed values to small ranges per component
+        converted: dict[Task, tuple[float, float] | float] = {}
+        for comp, val in entropy_ranges.items():
+            if isinstance(val, tuple):
+                converted[comp] = val
+            else:
+                lo = max(0.0, float(val) - jitter)
+                hi = float(val)
+                converted[comp] = (lo, hi)
+
+        multi_step_functions[problem_type](
+            registry,
+            converted,
+            {problem_type: {"min_element_abs": min_value_abs}},
+        )
+    else:
+        raise ValueError(f"Unknown problem type: {problem_type}. Not found in single-step or multi-step functions.")
+
+
+def create_optimized_registry(
+    filename: str,
+) -> FactoryRegistry:
+    """
+    Create a registry with entropy values optimized from analysis results.
+    Uses metadata from the JSON file to automatically reconstruct the registry configuration.
+    """
+    # Load the optimized entropy settings
+    entropy_settings = load_entropy_settings_from_analysis(filename)
+
+    registry = FactoryRegistry()
+
+    # Register factories with optimized entropy values
+    for problem_type_str, config in entropy_settings.items():
+        metadata = config["metadata"]
+        combination = config["combination"]
+
+        entropy_jitter = metadata["entropy_jitter"]
+        min_element_abs = metadata["min_element_abs"]
+        task = Task[metadata["task_enum"]]
+
+        if metadata["is_single_step"]:
+            # Single-step: use the task itself as the key
+            entropy_ranges = {task: combination[0]}
+        else:
+            # Multi-step: map components to combination values
+            components_names = metadata["components"]
+            if len(combination) != len(components_names):
+                raise ValueError(
+                    f"Mismatch in component count for {problem_type_str}: expected {len(components_names)}, got {len(combination)}"
+                )
+
+            entropy_ranges = {}
+            for component_name, entropy_value in zip(components_names, combination, strict=True):
+                try:
+                    component_task = Task[component_name]
+                except KeyError:
+                    raise ValueError(f"Unknown component task enum: {component_name}") from None
+                entropy_ranges[component_task] = entropy_value
+
+        register_problem_type(registry, task, entropy_ranges, entropy_jitter, min_element_abs)
 
     return registry

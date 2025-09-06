@@ -5,7 +5,7 @@ import random
 from dataclasses import dataclass
 
 import numpy as np
-import sympy
+from sympy import Integer, Rational, factorint, gcd
 
 
 class EntropyController:
@@ -17,19 +17,23 @@ class EntropyController:
 
     def _coprime_density(self, value: int) -> float:
         """Returns asymptotic density of integers coprime to `value`."""
-        factors = sympy.factorint(value)
+        factors = factorint(value)
         density = 1.0
         for prime in factors:
             density *= 1 - 1 / prime
         return density
 
     def generate_integer(
-        self, entropy: float, signed: bool = True, min_abs: int = 0, coprime_to: int = 1
-    ) -> sympy.Integer:
+        self, entropy: float, signed: bool = True, min_abs: int = 0, coprime_to: int = 1, max_attempts: int = 2000
+    ) -> Integer:
         """
         Generate random integer with entropy-controlled size. Generates integers
         from a range of size approximately 10^entropy.
         """
+
+        def is_valid_integer(value: int) -> bool:
+            return abs(value) >= min_abs and gcd(value, coprime_to) == 1
+
         if not isinstance(min_abs, int) or isinstance(min_abs, bool):
             raise TypeError(f"min_abs must be an integer, got {type(min_abs).__name__}")
         coprime_to = abs(coprime_to)
@@ -48,19 +52,21 @@ class EntropyController:
             max_ = math.ceil(max_)
             range_ = [min_abs, max_]
 
-        while True:
+        value = None
+        for _ in range(max_attempts):
             value = random.randint(*range_)
-            if abs(value) >= min_abs and sympy.gcd(value, coprime_to) == 1:
-                break
+            if is_valid_integer(value):
+                return Integer(value)
 
-        return sympy.Integer(value)
+        raise ValueError(f"Failed to generate integer with minimum absolute value after {max_attempts} attempts")
 
     def generate_rational(
         self,
         entropy: float,
         min_value_abs: int | float,
         signed: bool = True,
-    ) -> sympy.Rational:
+        max_attempts: int = 2000,
+    ) -> Rational:
         """Generate a non-integer rational following mathematics_dataset approach.
 
         If min_value_abs is provided, rejection-sample until |value| >= min_value_abs.
@@ -70,17 +76,21 @@ class EntropyController:
         if min_value_abs < 0:
             raise ValueError("min_value_abs must be >= 0")
 
-        while True:
+        for _ in range(max_attempts):
             numer_entropy = random.uniform(0, entropy)
             denom_entropy = entropy - numer_entropy
-            numer = self.generate_integer(numer_entropy, signed, min_abs=1)
-            denom = self.generate_integer(denom_entropy, False, min_abs=2, coprime_to=numer)
-            rational = sympy.Rational(numer, denom)
-            if not isinstance(rational, sympy.Rational):
+            numer = self.generate_integer(numer_entropy, signed, min_abs=1, max_attempts=max_attempts)
+            denom = self.generate_integer(denom_entropy, False, min_abs=2, coprime_to=numer, max_attempts=max_attempts)
+            rational = Rational(numer, denom)
+            if not isinstance(rational, Rational):
                 raise TypeError(f"This can never happen: {rational}")
 
             if min_value_abs is None or abs(rational) >= min_value_abs:
                 return rational
+
+        raise ValueError(
+            f"Failed to generate rational number with minimum absolute value after {max_attempts} attempts"
+        )
 
 
 @dataclass
