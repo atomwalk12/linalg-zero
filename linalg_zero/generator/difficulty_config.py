@@ -64,8 +64,8 @@ class ProblemConfig:
 #   - 3 tool calls: (4.2, 4.8)
 
 EASY_PROBLEM_CONFIG = ProblemConfig(target_tool_calls=1, matrix_size_range=(2, 3), allow_rationals=False)
-MEDIUM_PROBLEM_CONFIG = ProblemConfig(target_tool_calls=2, matrix_size_range=(2, 3), allow_rationals=False)
-HARD_PROBLEM_CONFIG = ProblemConfig(target_tool_calls=3, matrix_size_range=(2, 2), allow_rationals=False)
+MEDIUM_PROBLEM_CONFIG = ProblemConfig(target_tool_calls=1, matrix_size_range=(2, 3), allow_rationals=False)
+HARD_PROBLEM_CONFIG = ProblemConfig(target_tool_calls=1, matrix_size_range=(2, 2), allow_rationals=False)
 
 
 def determine_difficulty(problem_type: Task) -> DifficultyCategory:

@@ -3,6 +3,7 @@ import json
 import pytest
 
 from linalg_zero.generator.difficulty_config import get_problem_config
+from linalg_zero.generator.entropy_control import EntropyConstraints
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.generators.determinant_generator import (
     DeterminantGenerator,
@@ -19,12 +20,14 @@ class TestDeterminantGenerator:
         from linalg_zero.generator.generation_constraints import GenerationConstraints
         from linalg_zero.generator.sympy.template_engine import TemplateEngine
 
+        entropy_constraints = EntropyConstraints(entropy=1.0)
+
         return DeterminantGenerator(
             gen_constraints=GenerationConstraints(),
             template_engine=TemplateEngine(),
             local_index=0,
             constraints={},
-            entropy=self.config.sample_entropy(),
+            entropy=entropy_constraints.sample_entropy(),
             difficulty_level=difficulty,
             problem_type=Task.ONE_DETERMINANT,
             topic=Topic.LINEAR_ALGEBRA,

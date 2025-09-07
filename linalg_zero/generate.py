@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 
 from linalg_zero.generator.analysis.utils import (
     compute_stepwise_value_statistics,
@@ -23,10 +24,11 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
     logger = get_logger(__name__)
 
     logger.info("Linear Algebra Dataset Generator")
+    config_path = f"{Path(__file__).parent}/generator/config/gen_properties.json"
 
     # Create registry (either default or optimized)
     if use_optimized_registry:
-        registry = create_optimized_registry(filename="results/entropy_analysis/top_entropy_choices.json")
+        registry = create_optimized_registry(config_path=config_path)
         logger.info("Using optimized entropy settings from analysis results")
     else:
         registry = create_default_registry()
@@ -53,7 +55,6 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
             DifficultyCategory.TWO_TOOL_CALLS: 1000,
             DifficultyCategory.THREE_TOOL_CALLS: 1200,
         }
-        # Alternative: 1.5k problems for each difficulty category
     )
     statistics = compute_stepwise_value_statistics(dataset)
     print_dataset(dataset)
@@ -69,7 +70,7 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
             seed=argv.seed or 42,
             stratify_by="difficulty",
         )
-        push_to_hub(splits, "atomwalk12/linalg-zero-dataset", private=False)
+        push_to_hub(splits, "atomwalk12/linalg-zero-dataset", private=False, config_path=config_path)
 
     # --------------------------------------------------
     # This is an example on generating other topic types

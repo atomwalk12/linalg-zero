@@ -17,11 +17,11 @@ from linalg_zero.shared.utils import get_logger
 logger = get_logger(__name__)
 
 
-def load_entropy_settings_from_analysis(results_path: str) -> dict[str, Any]:
+def load_entropy_settings(path: str) -> dict[str, Any]:
     """
     Load entropy analysis results from JSON file.
     """
-    results_file = Path(results_path)
+    results_file = Path(path)
 
     if not results_file.exists():
         raise FileNotFoundError(
@@ -31,8 +31,6 @@ def load_entropy_settings_from_analysis(results_path: str) -> dict[str, Any]:
 
     with results_file.open("r", encoding="utf-8") as f:
         settings = json.load(f)
-
-    print_entropy_settings(settings)
 
     return settings
 

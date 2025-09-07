@@ -32,7 +32,7 @@ from linalg_zero.generator.sympy.generators.matrix_trace_generator import Matrix
 from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
     MatrixTransposeGenerator,
 )
-from linalg_zero.generator.utils import load_entropy_settings_from_analysis
+from linalg_zero.generator.utils import load_entropy_settings, print_entropy_settings
 
 
 def register_one_determinant_factory(
@@ -677,21 +677,20 @@ def register_problem_type(
 
 
 def create_optimized_registry(
-    filename: str,
+    config_path: str,
 ) -> FactoryRegistry:
     """
     Create a registry with entropy values optimized from analysis results.
     Uses metadata from the JSON file to automatically reconstruct the registry configuration.
     """
-    # Load the optimized entropy settings
-    entropy_settings = load_entropy_settings_from_analysis(filename)
-
+    config = load_entropy_settings(path=config_path)
+    print_entropy_settings(config)
     registry = FactoryRegistry()
 
     # Register factories with optimized entropy values
-    for problem_type_str, config in entropy_settings.items():
-        metadata = config["metadata"]
-        combination = config["combination"]
+    for problem_type_str, settings in config.items():
+        metadata = settings["metadata"]
+        combination = settings["combination"]
 
         entropy_jitter = metadata["entropy_jitter"]
         min_element_abs = metadata["min_element_abs"]
@@ -710,10 +709,7 @@ def create_optimized_registry(
 
             entropy_ranges = {}
             for component_name, entropy_value in zip(components_names, combination, strict=True):
-                try:
-                    component_task = Task[component_name]
-                except KeyError:
-                    raise ValueError(f"Unknown component task enum: {component_name}") from None
+                component_task = Task[component_name]
                 entropy_ranges[component_task] = entropy_value
 
         register_problem_type(registry, task, entropy_ranges, entropy_jitter, min_element_abs)

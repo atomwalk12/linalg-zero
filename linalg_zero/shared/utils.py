@@ -4,7 +4,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from huggingface_hub import HfApi
+
 from datasets.dataset_dict import DatasetDict
+
+logger = logging.getLogger(__name__)
 
 LLAMA_CPP_DIR = Path(__file__).parent / "distillation" / "llama-cpp" / "models"
 
@@ -79,15 +83,32 @@ def get_function_schema(summary_only: bool = False) -> str:
     return json.dumps(extracted_functions, indent=2)
 
 
-def push_to_hub(dataset: DatasetDict | dict, hub_dataset_name: str, private: bool = False) -> None:
-    """Push the dataset to Hugging Face Hub."""
+def push_to_hub(
+    dataset: DatasetDict | dict, hub_dataset_name: str, private: bool = False, config_path: str | None = None
+) -> None:
+    """Push the dataset to Hugging Face Hub, optionally including entropy settings."""
 
     if isinstance(dataset, dict):
         dataset = DatasetDict(dataset)
 
     try:
         dataset.push_to_hub(hub_dataset_name, private=private)
-        print(f"Successfully pushed dataset to: https://huggingface.co/datasets/{hub_dataset_name}")
-    except Exception as e:
-        print(f"Failed to push dataset to Hugging Face Hub: {e}")
+        logger.info(f"Successfully pushed dataset to: https://huggingface.co/datasets/{hub_dataset_name}")
+
+        # Upload entropy settings as an additional file if it exists
+        if config_path and Path(config_path).exists():
+            api = HfApi()
+            api.upload_file(
+                path_or_fileobj=config_path,
+                path_in_repo="entropy_settings.json",
+                repo_id=hub_dataset_name,
+                repo_type="dataset",
+            )
+            logger.info(
+                f"Successfully uploaded entropy settings to: https://huggingface.co/datasets/{hub_dataset_name}"
+            )
+        elif config_path:
+            logger.warning(f"Warning: Entropy settings file not found at {config_path}")
+    except Exception:
+        logger.exception("Failed to push dataset to Hugging Face Hub.")
         raise
