@@ -88,7 +88,7 @@ class SympyProblemGenerator(ABC):
         self.problem_type = problem_type
         self.topic = topic
         self.local_index = local_index
-        self.config = get_problem_config()
+        self.config = get_problem_config(difficulty_level)
         self.lib = get_lib()
         self.entropy = entropy
         self.sources = constraints.get("sources", {})

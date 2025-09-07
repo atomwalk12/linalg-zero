@@ -48,10 +48,12 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
     # Easy: 3000, Medium: 2000, Hard: 1000 (total: 6000)
     dataset = generator.generate_exact_for_categories(
         requests={
-            DifficultyCategory.ONE_TOOL_CALL: 20,
-            DifficultyCategory.TWO_TOOL_CALLS: 20,
-            DifficultyCategory.THREE_TOOL_CALLS: 20,
+            # Total: 12.4k problems
+            DifficultyCategory.ONE_TOOL_CALL: 800,
+            DifficultyCategory.TWO_TOOL_CALLS: 1000,
+            DifficultyCategory.THREE_TOOL_CALLS: 1200,
         }
+        # Alternative: 1.5k problems for each difficulty category
     )
     statistics = compute_stepwise_value_statistics(dataset)
     print_dataset(dataset)

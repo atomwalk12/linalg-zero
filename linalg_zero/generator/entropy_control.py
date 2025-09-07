@@ -114,7 +114,7 @@ class EntropyConstraints:
         if isinstance(self.entropy, float):
             return self.entropy
         elif isinstance(self.entropy, tuple):
-            return self.sample_entropy_from_range(self.entropy, self.center_biased_draw)
+            return self.sample_entropy_from_range(self.entropy)
         raise ValueError("No entropy to sample")
 
     def create_sample_args_for_composition(self, num_components: int) -> SampleArgs:
@@ -122,13 +122,13 @@ class EntropyConstraints:
         entropy = self.sample_entropy()
         return SampleArgs(num_modules=num_components, entropy=entropy)
 
-    def sample_entropy_from_range(self, entropy_range: tuple[float, float], center_biased_draw: bool = False) -> float:
+    def sample_entropy_from_range(self, entropy_range: tuple[float, float]) -> float:
         """Sample an entropy value from a range with a center bias."""
         if not self.center_biased_draw:
             return random.uniform(entropy_range[0], entropy_range[1])
 
         low, high = entropy_range
-        if not center_biased_draw:
+        if not self.center_biased_draw:
             return random.uniform(low, high)
         if low == high:
             return low

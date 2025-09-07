@@ -26,11 +26,7 @@ from linalg_zero.generator.sympy.base import (
 )
 from linalg_zero.generator.sympy.generators.determinant_generator import DeterminantGenerator
 from linalg_zero.generator.sympy.generators.frobenius_norm_generator import FrobeniusNormGenerator
-from linalg_zero.generator.sympy.generators.linear_system_generator import LinearSystemGenerator
 from linalg_zero.generator.sympy.generators.matrix_cofactor_generator import MatrixCofactorGenerator
-from linalg_zero.generator.sympy.generators.matrix_matrix_generator import (
-    MatrixMatrixMultiplicationGenerator,
-)
 from linalg_zero.generator.sympy.generators.matrix_rank_generator import MatrixRankGenerator
 from linalg_zero.generator.sympy.generators.matrix_trace_generator import MatrixTraceGenerator
 from linalg_zero.generator.sympy.generators.matrix_transpose_generator import (
@@ -50,44 +46,8 @@ def register_one_determinant_factory(
             topic=Topic.LINEAR_ALGEBRA,
             problem_type=Task.ONE_DETERMINANT,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
-            gen_constraints=_merge_gen_constraints({}, gen_constraints),
+            gen_constraints=_merge_gen_constraints({"square": True}, gen_constraints),
             entropy=EntropyConstraints(entropy),
-        ),
-        difficulty=DifficultyCategory.ONE_TOOL_CALL,
-    )
-
-
-def register_one_matrix_matrix_multiplication_factory(
-    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
-) -> None:
-    registry.register_factory(
-        Topic.LINEAR_ALGEBRA,
-        Task.ONE_MATRIX_MATRIX_MULTIPLICATION,
-        create_sympy_factory(
-            generator_class=MatrixMatrixMultiplicationGenerator,
-            topic=Topic.LINEAR_ALGEBRA,
-            problem_type=Task.ONE_MATRIX_MATRIX_MULTIPLICATION,
-            difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
-            entropy=EntropyConstraints(entropy),
-            gen_constraints=_merge_gen_constraints({}, gen_constraints),
-        ),
-        difficulty=DifficultyCategory.ONE_TOOL_CALL,
-    )
-
-
-def register_one_linear_system_solver_factory(
-    registry: "FactoryRegistry", entropy: tuple[float, float] | float, gen_constraints: dict[str, Any] | None = None
-) -> None:
-    registry.register_factory(
-        Topic.LINEAR_ALGEBRA,
-        Task.ONE_LINEAR_SYSTEM_SOLVER,
-        create_sympy_factory(
-            generator_class=LinearSystemGenerator,
-            topic=Topic.LINEAR_ALGEBRA,
-            problem_type=Task.ONE_LINEAR_SYSTEM_SOLVER,
-            difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
-            entropy=EntropyConstraints(entropy),
-            gen_constraints=_merge_gen_constraints({}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
@@ -105,7 +65,7 @@ def register_one_frobenius_norm_factory(
             problem_type=Task.ONE_FROBENIUS_NORM,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
-            gen_constraints=_merge_gen_constraints({}, gen_constraints),
+            gen_constraints=_merge_gen_constraints({"square": True}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
@@ -123,7 +83,7 @@ def register_one_matrix_rank_factory(
             problem_type=Task.ONE_RANK,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
-            gen_constraints=_merge_gen_constraints({}, gen_constraints),
+            gen_constraints=_merge_gen_constraints({"square": True}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
@@ -141,7 +101,7 @@ def register_one_matrix_transpose_factory(
             problem_type=Task.ONE_TRANSPOSE,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
-            gen_constraints=_merge_gen_constraints({}, gen_constraints),
+            gen_constraints=_merge_gen_constraints({"square": True}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
@@ -159,7 +119,7 @@ def register_one_matrix_cofactor_factory(
             problem_type=Task.ONE_COFACTOR,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
-            gen_constraints=_merge_gen_constraints({}, gen_constraints),
+            gen_constraints=_merge_gen_constraints({"square": True}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
@@ -177,7 +137,7 @@ def register_one_trace_factory(
             problem_type=Task.ONE_TRACE,
             difficulty_level=DifficultyCategory.ONE_TOOL_CALL,
             entropy=EntropyConstraints(entropy),
-            gen_constraints=_merge_gen_constraints({}, gen_constraints),
+            gen_constraints=_merge_gen_constraints({"square": True}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
     )
@@ -217,7 +177,7 @@ def register_two_transpose_determinant(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_DETERMINANT]),
             ),
@@ -253,7 +213,7 @@ def register_two_cofactor_frobenius(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
             ),
@@ -289,7 +249,7 @@ def register_two_cofactor_rank(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_RANK]),
             ),
@@ -313,7 +273,7 @@ def register_two_transpose_frobenius(
                 name=Task.ONE_TRANSPOSE,
                 constraints={"is_independent": True},
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
             ),
@@ -325,7 +285,7 @@ def register_two_transpose_frobenius(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
             ),
@@ -348,7 +308,7 @@ def register_three_transpose_cofactor_rank(
                 name=Task.ONE_TRANSPOSE,
                 constraints={"is_independent": True},
                 gen_constraints=_merge_gen_constraints(
-                    {"square": True, "size": 2}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
             ),
@@ -372,7 +332,7 @@ def register_three_transpose_cofactor_rank(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_RANK]),
             ),
@@ -395,7 +355,7 @@ def register_three_cofactor_transpose_trace(
                 name=Task.ONE_COFACTOR,
                 constraints={"is_independent": True},
                 gen_constraints=_merge_gen_constraints(
-                    {"square": True, "size": 2}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
             ),
@@ -407,7 +367,7 @@ def register_three_cofactor_transpose_trace(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints((0, 0)),
             ),
@@ -419,7 +379,7 @@ def register_three_cofactor_transpose_trace(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints((0, 0)),
             ),
@@ -442,7 +402,7 @@ def register_three_transpose_determinant_trace(
                 name=Task.ONE_TRANSPOSE,
                 constraints={"is_independent": True},
                 gen_constraints=_merge_gen_constraints(
-                    {"square": True, "size": 2}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
             ),
@@ -454,7 +414,7 @@ def register_three_transpose_determinant_trace(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_DETERMINANT]),
             ),
@@ -466,7 +426,7 @@ def register_three_transpose_determinant_trace(
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRACE]),
             ),
