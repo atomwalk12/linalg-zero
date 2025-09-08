@@ -1,0 +1,1100 @@
+
+================================================================================
+TEMPLATE INSPECTION REPORT
+================================================================================
+
+
+--- linear_algebra_one_determinant_1 ---
+Total templates: 3
+
+  Template 1/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Calculate the determinant of matrix A, where A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Calculate the determinant of matrix A, where A = [[-13, 10], [-5, -6]].
+    Answer: 128
+    Is Independent: True
+
+  Template 2/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Given matrix A = {matrix}, find det(A).
+    Required Variables: ['matrix']
+    Generated Question: Given matrix A = [[-4, 9], [11, -9]], find det(A).
+    Answer: -63
+    Is Independent: True
+
+  Template 3/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: For A = {matrix}, compute det(A).
+    Required Variables: ['matrix']
+    Generated Question: For A = [[3, 4, 9], [-10, -8, -1], [-6, -4, -13]], compute det(A).
+    Answer: -268
+    Is Independent: True
+
+
+--- linear_algebra_one_frobenius_norm_1 ---
+Total templates: 3
+
+  Template 1/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Find the Frobenius norm of matrix A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Calculate the Frobenius norm of matrix A = [[-9, -1], [-2, -2]].
+    Answer: 9.49
+    Is Independent: True
+
+  Template 2/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Given matrix A = {matrix}, find ||A||_F.
+    Required Variables: ['matrix']
+    Generated Question: Given matrix A = [[0, -5], [5, 2]], find ||A||_F.
+    Answer: 7.35
+    Is Independent: True
+
+  Template 3/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: What is ||A||_F for A = {matrix}?
+    Required Variables: ['matrix']
+    Generated Question: What is ||A||_F for A = [[7, 8, -6], [-4, 3, -2], [0, -9, -2]]?
+    Answer: 16.22
+    Is Independent: True
+
+
+--- linear_algebra_one_matrix_rank_1 ---
+Total templates: 3
+
+  Template 1/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Find the rank of matrix A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Calculate the rank of matrix A = [[-10, -2], [-3, -3]].
+    Answer: 2
+    Is Independent: True
+
+  Template 2/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: What is the rank of matrix A = {matrix}?
+    Required Variables: ['matrix']
+    Generated Question: What is the rank of matrix A = [[-1, -6], [4, 1]]?
+    Answer: 2
+    Is Independent: True
+
+  Template 3/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Find rank(A) for A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Find rank(A) for A = [[6, 7, -7], [-5, 2, -3], [-1, -10, -3]].
+    Answer: 3
+    Is Independent: True
+
+
+--- linear_algebra_one_matrix_transpose_1 ---
+Total templates: 3
+
+  Template 1/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Find the transpose of matrix A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Calculate the transpose of matrix A = [[-10, -2], [-3, -3]].
+    Answer: [[-10, -3], [-2, -3]]
+    Is Independent: True
+
+  Template 2/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Find A^T for A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Find A^T for A = [[-1, -6], [4, 1]].
+    Answer: [[-1, 4], [-6, 1]]
+    Is Independent: True
+
+  Template 3/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: What is the transpose of A = {matrix}?
+    Required Variables: ['matrix']
+    Generated Question: What is the transpose of A = [[6, 7, -7], [-5, 2, -3], [-1, -10, -3]]?
+    Answer: [[6, -5, -1], [7, 2, -10], [-7, -3, -3]]
+    Is Independent: True
+
+
+--- linear_algebra_one_matrix_cofactor_1 ---
+Total templates: 3
+
+  Template 1/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Calculate the cofactor matrix of A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Calculate the cofactor matrix of A = [[-14, 9], [-6, -7]].
+    Answer: [[-7, 6], [-9, -14]]
+    Is Independent: True
+
+  Template 2/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Find the cofactor matrix for A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Find the cofactor matrix for A = [[-5, 8], [10, -10]].
+    Answer: [[-10, -10], [-8, -5]]
+    Is Independent: True
+
+  Template 3/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: What is the matrix of cofactors for A = {matrix}?
+    Required Variables: ['matrix']
+    Generated Question: What is the matrix of cofactors for A = [[2, 3, 8], [13, -11, -9], [-2, -7, -5]]?
+    Answer: [[-8, 83, -113], [-41, 6, 8], [61, 122, -61]]
+    Is Independent: True
+
+
+--- linear_algebra_one_matrix_trace_1 ---
+Total templates: 3
+
+  Template 1/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Calculate the trace of matrix A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Calculate the trace of matrix A = [[-13, 10], [-5, -6]].
+    Answer: -19
+    Is Independent: True
+
+  Template 2/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: Find tr(A) for A = {matrix}.
+    Required Variables: ['matrix']
+    Generated Question: Find tr(A) for A = [[-4, 9], [11, -9]].
+    Answer: -13
+    Is Independent: True
+
+  Template 3/3:
+    Type: TEMPLATE-BASED PROBLEM
+    Template String: What is the trace of A = {matrix}?
+    Required Variables: ['matrix']
+    Generated Question: What is the trace of A = [[3, 4, 9], [-10, -8, -1], [-6, -4, -13]]?
+    Answer: -18
+    Is Independent: True
+
+
+--- linear_algebra_two_transpose_determinant_2 ---
+Total templates: 9
+
+  Template 1/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: evaluate the transpose of matrix A = [[9, -11], [7, 9]].
+Step 2: find the determinant of matrix A, where A = the result from step 1.
+    Answer: {"tool_1": [[9, 7], [-11, 9]], "tool_2": 158}
+    Is Independent: False
+
+  Template 2/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[-2, 8, 9], [12, -10, 1], [6, 2, 6]].
+Step 2: given matrix A = the result from step 1, find det(A).
+    Answer: {"tool_1": [[-2, 12, 6], [8, -10, 2], [9, 1, 6]], "tool_2": 352}
+    Is Independent: False
+
+  Template 3/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: calculate the transpose of matrix A = [[0, -5], [-3, -12]].
+Step 2: for A = the result from step 1, compute det(A).
+    Answer: {"tool_1": [[0, -3], [-5, -12]], "tool_2": -15}
+    Is Independent: False
+
+  Template 4/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[-12, -10, 3], [-12, -9, -3], [-9, -3, 11]].
+Step 2: evaluate the determinant of matrix A, where A = the result from step 1.
+    Answer: {"tool_1": [[-12, -12, -9], [-10, -9, -3], [3, -3, 11]], "tool_2": -429}
+    Is Independent: False
+
+  Template 5/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[7, -5], [9, 8]].
+Step 2: given matrix A = the result from step 1, find det(A).
+    Answer: {"tool_1": [[7, 9], [-5, 8]], "tool_2": 101}
+    Is Independent: False
+
+  Template 6/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[-3, 5, 1], [1, 8, -10], [2, 10, -11]].
+Step 2: for A = the result from step 1, compute det(A).
+    Answer: {"tool_1": [[-3, 1, 2], [5, 8, 10], [1, -10, -11]], "tool_2": -87}
+    Is Independent: False
+
+  Template 7/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[7, -3, 4], [-4, -5, -6], [6, -2, -3]]?
+Step 2: evaluate the determinant of matrix A, where A = the result from step 1.
+    Answer: {"tool_1": [[7, -4, 6], [-3, -5, -2], [4, -6, -3]], "tool_2": 317}
+    Is Independent: False
+
+  Template 8/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[10, -10], [-3, -7]]?
+Step 2: given matrix A = the result from step 1, find det(A).
+    Answer: {"tool_1": [[10, -3], [-10, -7]], "tool_2": -100}
+    Is Independent: False
+
+  Template 9/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-1, -9, 6], [-1, -4, 10], [6, -9, -7]]?
+Step 2: for A = the result from step 1, compute det(A).
+    Answer: {"tool_1": [[-1, -1, 6], [-9, -4, -9], [6, 10, -7]], "tool_2": -397}
+    Is Independent: False
+
+
+--- linear_algebra_two_cofactor_frobenius_2 ---
+Total templates: 9
+
+  Template 1/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: evaluate the cofactor matrix of A = [[9, -11], [7, 9]].
+Step 2: find the Frobenius norm of matrix A = the result from step 1.
+    Answer: {"tool_1": [[9, -7], [11, 9]], "tool_2": 18.22}
+    Is Independent: False
+
+  Template 2/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix of A = [[-2, 8, 9], [12, -10, 1], [6, 2, 6]].
+Step 2: given matrix A = the result from step 1, find ||A||_F.
+    Answer: {"tool_1": [[-62, -66, 84], [-30, -66, 52], [98, 110, -76]], "tool_2": 225.16}
+    Is Independent: False
+
+  Template 3/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: calculate the cofactor matrix of A = [[0, -5], [-3, -12]].
+Step 2: what is ||A||_F for A = the result from step 1?
+    Answer: {"tool_1": [[-12, 3], [5, 0]], "tool_2": 13.34}
+    Is Independent: False
+
+  Template 4/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[-12, -10, 3], [-12, -9, -3], [-9, -3, 11]].
+Step 2: evaluate the Frobenius norm of matrix A = the result from step 1.
+    Answer: {"tool_1": [[-108, 159, -45], [101, -105, 54], [57, -72, -12]], "tool_2": 267.75}
+    Is Independent: False
+
+  Template 5/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[7, -5], [9, 8]].
+Step 2: given matrix A = the result from step 1, find ||A||_F.
+    Answer: {"tool_1": [[8, -9], [5, 7]], "tool_2": 14.8}
+    Is Independent: False
+
+  Template 6/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[-3, 5, 1], [1, 8, -10], [2, 10, -11]].
+Step 2: what is ||A||_F for A = the result from step 1?
+    Answer: {"tool_1": [[12, -9, -6], [65, 31, 40], [-58, -29, -29]], "tool_2": 109.97}
+    Is Independent: False
+
+  Template 7/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[7, -3, 4], [-4, -5, -6], [6, -2, -3]]?
+Step 2: evaluate the Frobenius norm of matrix A = the result from step 1.
+    Answer: {"tool_1": [[3, -48, 38], [-17, -45, -4], [38, 26, -47]], "tool_2": 102.06}
+    Is Independent: False
+
+  Template 8/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[10, -10], [-3, -7]]?
+Step 2: given matrix A = the result from step 1, find ||A||_F.
+    Answer: {"tool_1": [[-7, 3], [10, 10]], "tool_2": 16.06}
+    Is Independent: False
+
+  Template 9/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[-1, -9, 6], [-1, -4, 10], [6, -9, -7]]?
+Step 2: what is ||A||_F for A = the result from step 1?
+    Answer: {"tool_1": [[118, 53, 33], [-117, -29, -63], [-66, 4, -5]], "tool_2": 201.79}
+    Is Independent: False
+
+
+--- linear_algebra_two_cofactor_rank_2 ---
+Total templates: 9
+
+  Template 1/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: evaluate the cofactor matrix of A = [[9, -11], [7, 9]].
+Step 2: find the rank of matrix A = the result from step 1.
+    Answer: {"tool_1": [[9, -7], [11, 9]], "tool_2": 2}
+    Is Independent: False
+
+  Template 2/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix of A = [[-2, 8, 9], [12, -10, 1], [6, 2, 6]].
+Step 2: what is the rank of matrix A = the result from step 1?
+    Answer: {"tool_1": [[-62, -66, 84], [-30, -66, 52], [98, 110, -76]], "tool_2": 3}
+    Is Independent: False
+
+  Template 3/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: calculate the cofactor matrix of A = [[0, -5], [-3, -12]].
+Step 2: find rank(A) for A = the result from step 1.
+    Answer: {"tool_1": [[-12, 3], [5, 0]], "tool_2": 2}
+    Is Independent: False
+
+  Template 4/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[-12, -10, 3], [-12, -9, -3], [-9, -3, 11]].
+Step 2: evaluate the rank of matrix A = the result from step 1.
+    Answer: {"tool_1": [[-108, 159, -45], [101, -105, 54], [57, -72, -12]], "tool_2": 3}
+    Is Independent: False
+
+  Template 5/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[7, -5], [9, 8]].
+Step 2: what is the rank of matrix A = the result from step 1?
+    Answer: {"tool_1": [[8, -9], [5, 7]], "tool_2": 2}
+    Is Independent: False
+
+  Template 6/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[-3, 5, 1], [1, 8, -10], [2, 10, -11]].
+Step 2: find rank(A) for A = the result from step 1.
+    Answer: {"tool_1": [[12, -9, -6], [65, 31, 40], [-58, -29, -29]], "tool_2": 3}
+    Is Independent: False
+
+  Template 7/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[7, -3, 4], [-4, -5, -6], [6, -2, -3]]?
+Step 2: evaluate the rank of matrix A = the result from step 1.
+    Answer: {"tool_1": [[3, -48, 38], [-17, -45, -4], [38, 26, -47]], "tool_2": 3}
+    Is Independent: False
+
+  Template 8/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[10, -10], [-3, -7]]?
+Step 2: what is the rank of matrix A = the result from step 1?
+    Answer: {"tool_1": [[-7, 3], [10, 10]], "tool_2": 2}
+    Is Independent: False
+
+  Template 9/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[-1, -9, 6], [-1, -4, 10], [6, -9, -7]]?
+Step 2: find rank(A) for A = the result from step 1.
+    Answer: {"tool_1": [[118, 53, 33], [-117, -29, -63], [-66, 4, -5]], "tool_2": 3}
+    Is Independent: False
+
+
+--- linear_algebra_two_transpose_frobenius_2 ---
+Total templates: 9
+
+  Template 1/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: evaluate the transpose of matrix A = [[9, -11], [7, 9]].
+Step 2: find the Frobenius norm of matrix A = the result from step 1.
+    Answer: {"tool_1": [[9, 7], [-11, 9]], "tool_2": 18.22}
+    Is Independent: False
+
+  Template 2/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[-2, 8, 9], [12, -10, 1], [6, 2, 6]].
+Step 2: given matrix A = the result from step 1, find ||A||_F.
+    Answer: {"tool_1": [[-2, 12, 6], [8, -10, 2], [9, 1, 6]], "tool_2": 21.68}
+    Is Independent: False
+
+  Template 3/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: calculate the transpose of matrix A = [[0, -5], [-3, -12]].
+Step 2: what is ||A||_F for A = the result from step 1?
+    Answer: {"tool_1": [[0, -3], [-5, -12]], "tool_2": 13.34}
+    Is Independent: False
+
+  Template 4/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[-12, -10, 3], [-12, -9, -3], [-9, -3, 11]].
+Step 2: evaluate the Frobenius norm of matrix A = the result from step 1.
+    Answer: {"tool_1": [[-12, -12, -9], [-10, -9, -3], [3, -3, 11]], "tool_2": 26.42}
+    Is Independent: False
+
+  Template 5/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[7, -5], [9, 8]].
+Step 2: given matrix A = the result from step 1, find ||A||_F.
+    Answer: {"tool_1": [[7, 9], [-5, 8]], "tool_2": 14.8}
+    Is Independent: False
+
+  Template 6/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[-3, 5, 1], [1, 8, -10], [2, 10, -11]].
+Step 2: what is ||A||_F for A = the result from step 1?
+    Answer: {"tool_1": [[-3, 1, 2], [5, 8, 10], [1, -10, -11]], "tool_2": 20.62}
+    Is Independent: False
+
+  Template 7/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[7, -3, 4], [-4, -5, -6], [6, -2, -3]]?
+Step 2: evaluate the Frobenius norm of matrix A = the result from step 1.
+    Answer: {"tool_1": [[7, -4, 6], [-3, -5, -2], [4, -6, -3]], "tool_2": 14.14}
+    Is Independent: False
+
+  Template 8/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[10, -10], [-3, -7]]?
+Step 2: given matrix A = the result from step 1, find ||A||_F.
+    Answer: {"tool_1": [[10, -3], [-10, -7]], "tool_2": 16.06}
+    Is Independent: False
+
+  Template 9/9:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-1, -9, 6], [-1, -4, 10], [6, -9, -7]]?
+Step 2: what is ||A||_F for A = the result from step 1?
+    Answer: {"tool_1": [[-1, -1, 6], [-9, -4, -9], [6, 10, -7]], "tool_2": 20.02}
+    Is Independent: False
+
+
+--- linear_algebra_three_transpose_cofactor_rank_3 ---
+Total templates: 27
+
+  Template 1/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[2, 1], [-2, -2]].
+Step 2: calculate the cofactor matrix of A = the result from step 1.
+Step 3: calculate the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[2, -2], [1, -2]], "tool_2": [[-2, -1], [2, 2]], "tool_3": 2}
+    Is Independent: False
+
+  Template 2/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[1, 2], [1, 2]].
+Step 2: evaluate the cofactor matrix of A = the result from step 1.
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[1, 1], [2, 2]], "tool_2": [[2, -2], [-1, 1]], "tool_3": 1}
+    Is Independent: False
+
+  Template 3/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[-2, -1], [-2, 2]].
+Step 2: find the cofactor matrix of A = the result from step 1.
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[-2, -2], [-1, 2]], "tool_2": [[2, 1], [2, -2]], "tool_3": 2}
+    Is Independent: False
+
+  Template 4/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: compute the transpose of matrix A = [[-2, -2], [0, -2]].
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: evaluate the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[-2, 0], [-2, -2]], "tool_2": [[-2, 2], [0, -2]], "tool_3": 2}
+    Is Independent: False
+
+  Template 5/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[2, 2], [-2, -2]].
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[2, -2], [2, -2]], "tool_2": [[-2, -2], [2, 2]], "tool_3": 1}
+    Is Independent: False
+
+  Template 6/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[1, 2], [-2, 1]].
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[1, -2], [2, 1]], "tool_2": [[1, -2], [2, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 7/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: determine the transpose of matrix A = [[1, -1], [-1, -2]].
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: calculate the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[1, -1], [-1, -2]], "tool_2": [[-2, 1], [1, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 8/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[-2, 0], [-1, 1]].
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[-2, -1], [0, 1]], "tool_2": [[1, 0], [1, -2]], "tool_3": 2}
+    Is Independent: False
+
+  Template 9/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: evaluate the transpose of matrix A = [[-2, 2], [0, -1]].
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[-2, 0], [2, -1]], "tool_2": [[-1, -2], [0, -2]], "tool_3": 2}
+    Is Independent: False
+
+  Template 10/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, 2], [1, 2]].
+Step 2: compute the cofactor matrix of A = the result from step 1.
+Step 3: evaluate the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[1, 1], [2, 2]], "tool_2": [[2, -2], [-1, 1]], "tool_3": 1}
+    Is Independent: False
+
+  Template 11/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[-1, 1], [-1, 0]].
+Step 2: find the cofactor matrix of A = the result from step 1.
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[-1, -1], [1, 0]], "tool_2": [[0, -1], [1, -1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 12/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, -2], [-2, -1]].
+Step 2: calculate the cofactor matrix of A = the result from step 1.
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[1, -2], [-2, -1]], "tool_2": [[-1, 2], [2, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 13/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, 0], [2, 1]].
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: find the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[1, 2], [0, 1]], "tool_2": [[1, 0], [-2, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 14/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[0, -2], [0, 1]].
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[0, 0], [-2, 1]], "tool_2": [[1, 2], [0, 0]], "tool_3": 1}
+    Is Independent: False
+
+  Template 15/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[-1, -2], [0, 2]].
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[-1, 0], [-2, 2]], "tool_2": [[2, 2], [0, -1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 16/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[0, 1], [1, -2]].
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: evaluate the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[0, 1], [1, -2]], "tool_2": [[-2, -1], [-1, 0]], "tool_3": 2}
+    Is Independent: False
+
+  Template 17/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, 1], [0, 0]].
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[1, 0], [1, 0]], "tool_2": [[0, -1], [0, 1]], "tool_3": 1}
+    Is Independent: False
+
+  Template 18/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, 1], [1, 2]].
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[1, 1], [1, 2]], "tool_2": [[2, -1], [-1, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 19/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-2, -2], [-1, -1]]?
+Step 2: find the cofactor matrix of A = the result from step 1.
+Step 3: calculate the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[-2, -1], [-2, -1]], "tool_2": [[-1, 2], [1, -2]], "tool_3": 1}
+    Is Independent: False
+
+  Template 20/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[1, 0], [0, -2]]?
+Step 2: determine the cofactor matrix of A = the result from step 1.
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[1, 0], [0, -2]], "tool_2": [[-2, 0], [0, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 21/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-1, 2], [-1, -1]]?
+Step 2: compute the cofactor matrix of A = the result from step 1.
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[-1, -1], [2, -1]], "tool_2": [[-1, -2], [1, -1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 22/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-2, -2], [-1, 0]]?
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: evaluate the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[-2, -1], [-2, 0]], "tool_2": [[0, 2], [1, -2]], "tool_3": 2}
+    Is Independent: False
+
+  Template 23/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-1, -1], [-2, 1]]?
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[-1, -2], [-1, 1]], "tool_2": [[1, 1], [2, -1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 24/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[2, 0], [1, -1]]?
+Step 2: find the cofactor matrix for A = the result from step 1.
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[2, 1], [0, -1]], "tool_2": [[-1, 0], [-1, 2]], "tool_3": 2}
+    Is Independent: False
+
+  Template 25/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[1, -1], [1, 2]]?
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: compute the rank of matrix A = the result from step 2.
+    Answer: {"tool_1": [[1, 1], [-1, 2]], "tool_2": [[2, 1], [-1, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 26/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[1, 2], [0, -1]]?
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: what is the rank of matrix A = the result from step 2?
+    Answer: {"tool_1": [[1, 0], [2, -1]], "tool_2": [[-1, -2], [0, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 27/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[1, 2], [0, -1]]?
+Step 2: what is the matrix of cofactors for A = the result from step 1?
+Step 3: find rank(A) for A = the result from step 2.
+    Answer: {"tool_1": [[1, 0], [2, -1]], "tool_2": [[-1, -2], [0, 1]], "tool_3": 2}
+    Is Independent: False
+
+
+--- linear_algebra_three_cofactor_transpose_trace_3 ---
+Total templates: 27
+
+  Template 1/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix of A = [[2, 1], [-2, -2]].
+Step 2: calculate the transpose of matrix A = the result from step 1.
+Step 3: calculate the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[-2, 2], [-1, 2]], "tool_2": [[-2, -1], [2, 2]], "tool_3": 0}
+    Is Independent: False
+
+  Template 2/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix of A = [[1, 2], [1, 2]].
+Step 2: evaluate the transpose of matrix A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[2, -1], [-2, 1]], "tool_2": [[2, -2], [-1, 1]], "tool_3": 3}
+    Is Independent: False
+
+  Template 3/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix of A = [[-2, -1], [-2, 2]].
+Step 2: find the transpose of matrix A = the result from step 1.
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[2, 2], [1, -2]], "tool_2": [[2, 1], [2, -2]], "tool_3": 0}
+    Is Independent: False
+
+  Template 4/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: compute the cofactor matrix of A = [[-2, -2], [0, -2]].
+Step 2: find A^T for A = the result from step 1.
+Step 3: evaluate the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[-2, 0], [2, -2]], "tool_2": [[-2, 2], [0, -2]], "tool_3": -4}
+    Is Independent: False
+
+  Template 5/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix of A = [[2, 2], [-2, -2]].
+Step 2: find A^T for A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[-2, 2], [-2, 2]], "tool_2": [[-2, -2], [2, 2]], "tool_3": 0}
+    Is Independent: False
+
+  Template 6/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix of A = [[1, 2], [-2, 1]].
+Step 2: find A^T for A = the result from step 1.
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[1, 2], [-2, 1]], "tool_2": [[1, -2], [2, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 7/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: determine the cofactor matrix of A = [[1, -1], [-1, -2]].
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: calculate the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[-2, 1], [1, 1]], "tool_2": [[-2, 1], [1, 1]], "tool_3": -1}
+    Is Independent: False
+
+  Template 8/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix of A = [[-2, 0], [-1, 1]].
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[1, 1], [0, -2]], "tool_2": [[1, 0], [1, -2]], "tool_3": -1}
+    Is Independent: False
+
+  Template 9/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: evaluate the cofactor matrix of A = [[-2, 2], [0, -1]].
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[-1, 0], [-2, -2]], "tool_2": [[-1, -2], [0, -2]], "tool_3": -3}
+    Is Independent: False
+
+  Template 10/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[1, 2], [1, 2]].
+Step 2: compute the transpose of matrix A = the result from step 1.
+Step 3: evaluate the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[2, -1], [-2, 1]], "tool_2": [[2, -2], [-1, 1]], "tool_3": 3}
+    Is Independent: False
+
+  Template 11/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[-1, 1], [-1, 0]].
+Step 2: find the transpose of matrix A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[0, 1], [-1, -1]], "tool_2": [[0, -1], [1, -1]], "tool_3": -1}
+    Is Independent: False
+
+  Template 12/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[1, -2], [-2, -1]].
+Step 2: calculate the transpose of matrix A = the result from step 1.
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[-1, 2], [2, 1]], "tool_2": [[-1, 2], [2, 1]], "tool_3": 0}
+    Is Independent: False
+
+  Template 13/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[1, 0], [2, 1]].
+Step 2: find A^T for A = the result from step 1.
+Step 3: find the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[1, -2], [0, 1]], "tool_2": [[1, 0], [-2, 1]], "tool_3": 2}
+    Is Independent: False
+
+  Template 14/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[0, -2], [0, 1]].
+Step 2: find A^T for A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[1, 0], [2, 0]], "tool_2": [[1, 2], [0, 0]], "tool_3": 1}
+    Is Independent: False
+
+  Template 15/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[-1, -2], [0, 2]].
+Step 2: find A^T for A = the result from step 1.
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[2, 0], [2, -1]], "tool_2": [[2, 2], [0, -1]], "tool_3": 1}
+    Is Independent: False
+
+  Template 16/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[0, 1], [1, -2]].
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: evaluate the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[-2, -1], [-1, 0]], "tool_2": [[-2, -1], [-1, 0]], "tool_3": -2}
+    Is Independent: False
+
+  Template 17/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[1, 1], [0, 0]].
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[0, 0], [-1, 1]], "tool_2": [[0, -1], [0, 1]], "tool_3": 1}
+    Is Independent: False
+
+  Template 18/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the cofactor matrix for A = [[1, 1], [1, 2]].
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[2, -1], [-1, 1]], "tool_2": [[2, -1], [-1, 1]], "tool_3": 3}
+    Is Independent: False
+
+  Template 19/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[-2, -2], [-1, -1]]?
+Step 2: find the transpose of matrix A = the result from step 1.
+Step 3: calculate the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[-1, 1], [2, -2]], "tool_2": [[-1, 2], [1, -2]], "tool_3": -3}
+    Is Independent: False
+
+  Template 20/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[1, 0], [0, -2]]?
+Step 2: determine the transpose of matrix A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[-2, 0], [0, 1]], "tool_2": [[-2, 0], [0, 1]], "tool_3": -1}
+    Is Independent: False
+
+  Template 21/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[-1, 2], [-1, -1]]?
+Step 2: compute the transpose of matrix A = the result from step 1.
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[-1, 1], [-2, -1]], "tool_2": [[-1, -2], [1, -1]], "tool_3": -2}
+    Is Independent: False
+
+  Template 22/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[-2, -2], [-1, 0]]?
+Step 2: find A^T for A = the result from step 1.
+Step 3: evaluate the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[0, 1], [2, -2]], "tool_2": [[0, 2], [1, -2]], "tool_3": -2}
+    Is Independent: False
+
+  Template 23/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[-1, -1], [-2, 1]]?
+Step 2: find A^T for A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[1, 2], [1, -1]], "tool_2": [[1, 1], [2, -1]], "tool_3": 0}
+    Is Independent: False
+
+  Template 24/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[2, 0], [1, -1]]?
+Step 2: find A^T for A = the result from step 1.
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[-1, -1], [0, 2]], "tool_2": [[-1, 0], [-1, 2]], "tool_3": 1}
+    Is Independent: False
+
+  Template 25/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[1, -1], [1, 2]]?
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: compute the trace of matrix A = the result from step 2.
+    Answer: {"tool_1": [[2, -1], [1, 1]], "tool_2": [[2, 1], [-1, 1]], "tool_3": 3}
+    Is Independent: False
+
+  Template 26/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[1, 2], [0, -1]]?
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: find tr(A) for A = the result from step 2.
+    Answer: {"tool_1": [[-1, 0], [-2, 1]], "tool_2": [[-1, -2], [0, 1]], "tool_3": 0}
+    Is Independent: False
+
+  Template 27/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the matrix of cofactors for A = [[1, 2], [0, -1]]?
+Step 2: what is the transpose of A = the result from step 1?
+Step 3: what is the trace of A = the result from step 2?
+    Answer: {"tool_1": [[-1, 0], [-2, 1]], "tool_2": [[-1, -2], [0, 1]], "tool_3": 0}
+    Is Independent: False
+
+
+--- linear_algebra_three_transpose_determinant_trace_3 ---
+Total templates: 27
+
+  Template 1/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[2, 1], [-2, -2]].
+Step 2: calculate the determinant of matrix A, where A = the result from step 1.
+Step 3: calculate the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[2, -2], [1, -2]], "tool_2": -2, "tool_3": 0}
+    Is Independent: False
+
+  Template 2/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[1, 2], [1, 2]].
+Step 2: evaluate the determinant of matrix A, where A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[1, 1], [2, 2]], "tool_2": 0, "tool_3": 3}
+    Is Independent: False
+
+  Template 3/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[-2, -1], [-2, 2]].
+Step 2: find the determinant of matrix A, where A = the result from step 1.
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[-2, -2], [-1, 2]], "tool_2": -6, "tool_3": 0}
+    Is Independent: False
+
+  Template 4/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: compute the transpose of matrix A = [[-2, -2], [0, -2]].
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: evaluate the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[-2, 0], [-2, -2]], "tool_2": 4, "tool_3": -4}
+    Is Independent: False
+
+  Template 5/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[2, 2], [-2, -2]].
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[2, -2], [2, -2]], "tool_2": 0, "tool_3": 0}
+    Is Independent: False
+
+  Template 6/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[1, 2], [-2, 1]].
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[1, -2], [2, 1]], "tool_2": 5, "tool_3": 2}
+    Is Independent: False
+
+  Template 7/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: determine the transpose of matrix A = [[1, -1], [-1, -2]].
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: calculate the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[1, -1], [-1, -2]], "tool_2": -3, "tool_3": -1}
+    Is Independent: False
+
+  Template 8/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find the transpose of matrix A = [[-2, 0], [-1, 1]].
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[-2, -1], [0, 1]], "tool_2": -2, "tool_3": -1}
+    Is Independent: False
+
+  Template 9/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: evaluate the transpose of matrix A = [[-2, 2], [0, -1]].
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[-2, 0], [2, -1]], "tool_2": 2, "tool_3": -3}
+    Is Independent: False
+
+  Template 10/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, 2], [1, 2]].
+Step 2: compute the determinant of matrix A, where A = the result from step 1.
+Step 3: evaluate the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[1, 1], [2, 2]], "tool_2": 0, "tool_3": 3}
+    Is Independent: False
+
+  Template 11/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[-1, 1], [-1, 0]].
+Step 2: find the determinant of matrix A, where A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[-1, -1], [1, 0]], "tool_2": 1, "tool_3": -1}
+    Is Independent: False
+
+  Template 12/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, -2], [-2, -1]].
+Step 2: calculate the determinant of matrix A, where A = the result from step 1.
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[1, -2], [-2, -1]], "tool_2": -5, "tool_3": 0}
+    Is Independent: False
+
+  Template 13/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, 0], [2, 1]].
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: find the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[1, 2], [0, 1]], "tool_2": 1, "tool_3": 2}
+    Is Independent: False
+
+  Template 14/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[0, -2], [0, 1]].
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[0, 0], [-2, 1]], "tool_2": 0, "tool_3": 1}
+    Is Independent: False
+
+  Template 15/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[-1, -2], [0, 2]].
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[-1, 0], [-2, 2]], "tool_2": -2, "tool_3": 1}
+    Is Independent: False
+
+  Template 16/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[0, 1], [1, -2]].
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: evaluate the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[0, 1], [1, -2]], "tool_2": -1, "tool_3": -2}
+    Is Independent: False
+
+  Template 17/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, 1], [0, 0]].
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[1, 0], [1, 0]], "tool_2": 0, "tool_3": 1}
+    Is Independent: False
+
+  Template 18/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: find A^T for A = [[1, 1], [1, 2]].
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[1, 1], [1, 2]], "tool_2": 1, "tool_3": 3}
+    Is Independent: False
+
+  Template 19/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-2, -2], [-1, -1]]?
+Step 2: find the determinant of matrix A, where A = the result from step 1.
+Step 3: calculate the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[-2, -1], [-2, -1]], "tool_2": 0, "tool_3": -3}
+    Is Independent: False
+
+  Template 20/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[1, 0], [0, -2]]?
+Step 2: determine the determinant of matrix A, where A = the result from step 1.
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[1, 0], [0, -2]], "tool_2": -2, "tool_3": -1}
+    Is Independent: False
+
+  Template 21/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-1, 2], [-1, -1]]?
+Step 2: compute the determinant of matrix A, where A = the result from step 1.
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[-1, -1], [2, -1]], "tool_2": 3, "tool_3": -2}
+    Is Independent: False
+
+  Template 22/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-2, -2], [-1, 0]]?
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: evaluate the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[-2, -1], [-2, 0]], "tool_2": -2, "tool_3": -2}
+    Is Independent: False
+
+  Template 23/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[-1, -1], [-2, 1]]?
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[-1, -2], [-1, 1]], "tool_2": -3, "tool_3": 0}
+    Is Independent: False
+
+  Template 24/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[2, 0], [1, -1]]?
+Step 2: given matrix A = the result from step 1, find det(A).
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[2, 1], [0, -1]], "tool_2": -2, "tool_3": 1}
+    Is Independent: False
+
+  Template 25/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[1, -1], [1, 2]]?
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: compute the trace of matrix A = the result from step 1.
+    Answer: {"tool_1": [[1, 1], [-1, 2]], "tool_2": 3, "tool_3": 3}
+    Is Independent: False
+
+  Template 26/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[1, 2], [0, -1]]?
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: find tr(A) for A = the result from step 1.
+    Answer: {"tool_1": [[1, 0], [2, -1]], "tool_2": -1, "tool_3": 0}
+    Is Independent: False
+
+  Template 27/27:
+    Type: COMPOSITE PROBLEM
+    Generated Question: Step 1: what is the transpose of A = [[1, 2], [0, -1]]?
+Step 2: for A = the result from step 1, compute det(A).
+Step 3: what is the trace of A = the result from step 1?
+    Answer: {"tool_1": [[1, 0], [2, -1]], "tool_2": -1, "tool_3": 0}
+    Is Independent: False
