@@ -1,3 +1,4 @@
+import hashlib
 from collections.abc import Callable
 from typing import Any
 
@@ -6,11 +7,13 @@ from linalg_zero.generator.composition.composition import (
     CompositionStrategy,
     ProblemComponent,
 )
+from linalg_zero.generator.difficulty_config import DETERMINISTIC_BASE_SEED, DETERMINISTIC_MODE
 from linalg_zero.generator.entropy_control import EntropyConstraints
 from linalg_zero.generator.generation_constraints import GenerationConstraints
 from linalg_zero.generator.models import DifficultyCategory, Question, Task, Topic
 from linalg_zero.generator.sympy.base import SympyProblemGenerator
 from linalg_zero.generator.sympy.template_engine import TemplateEngine
+from linalg_zero.generator.utils import set_seed
 
 
 def create_composite_factory(
@@ -24,7 +27,17 @@ def create_composite_factory(
     Factory function for creating composite problem generators.
     """
 
+    # Per-factory question counter for deterministic seeding
+    counter = {"i": 0}
+
     def factory() -> Question:
+        # Ensure deterministic generation across different scenarios (e.g. analysis vs generation)
+        if DETERMINISTIC_MODE:
+            base = DETERMINISTIC_BASE_SEED
+            key = f"{problem_type.value}|{topic.value}|{counter['i']}".encode()
+            h = int.from_bytes(hashlib.blake2b(key, digest_size=8).digest(), "big")
+            seed_value = ((base & 0xFFFFFFFF) << 16) ^ (h & 0xFFFFFFFF)
+            set_seed(seed_value & 0x7FFFFFFF)
         generator = CompositeProblem(
             components=components,
             composition_strategy=composition_strategy,
@@ -33,7 +46,10 @@ def create_composite_factory(
             problem_type=problem_type,
             topic=topic,
         )
-        return generator.generate()
+        try:
+            return generator.generate()
+        finally:
+            counter["i"] += 1
 
     return factory
 
@@ -50,9 +66,18 @@ def create_sympy_factory(
     """
     Convenience function for generating a factory function for registry registration.
     """
-    value = entropy.sample_entropy()
+    # Per-factory question counter for deterministic seeding
+    counter = {"i": 0}
 
     def factory() -> Question:
+        # Ensure deterministic generation across different scenarios (e.g. analysis vs generation)
+        if DETERMINISTIC_MODE:
+            base = DETERMINISTIC_BASE_SEED
+            key = f"{problem_type.value}|{topic.value}|{counter['i']}".encode()
+            h = int.from_bytes(hashlib.blake2b(key, digest_size=8).digest(), "big")
+            seed_value = ((base & 0xFFFFFFFF) << 12) ^ (h & 0xFFFFFFFF)
+            set_seed(seed_value & 0x7FFFFFFF)
+        value = entropy.sample_entropy()
         generator: SympyProblemGenerator = generator_class(
             difficulty_level=difficulty_level,
             problem_type=problem_type,
@@ -64,6 +89,9 @@ def create_sympy_factory(
             constraints={},
             **kwargs,
         )
-        return generator.generate()
+        try:
+            return generator.generate()
+        finally:
+            counter["i"] += 1
 
     return factory

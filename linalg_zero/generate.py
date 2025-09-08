@@ -2,15 +2,19 @@ import argparse
 import logging
 from pathlib import Path
 
+import linalg_zero.generator.difficulty_config as dc
 from linalg_zero.generator.analysis.utils import (
     compute_stepwise_value_statistics,
     print_statistics_summary,
 )
 from linalg_zero.generator.core import DatasetGenerator
+from linalg_zero.generator.difficulty_config import DETERMINISTIC_MODE
 from linalg_zero.generator.models import DifficultyCategory, Question, Topic
 from linalg_zero.generator.registry import create_default_registry, create_optimized_registry
 from linalg_zero.generator.utils import (
+    check_constraints,
     convert_to_dataset_splits,
+    load_entropy_settings,
     print_dataset,
     set_seed,
     verify_dataset,
@@ -60,6 +64,9 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
     print_dataset(dataset)
     print_statistics_summary(statistics)
     verify_dataset(dataset)
+    if use_optimized_registry:
+        config = load_entropy_settings(config_path)
+        check_constraints(dataset, config, statistics)
 
     if push_dataset:
         # Create stratified splits by difficulty for balanced evaluation
@@ -82,7 +89,7 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
 
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--push_dataset", action="store_true", default=True)
     parser.add_argument(
         "--use_optimized_registry",
@@ -91,6 +98,11 @@ if __name__ == "__main__":  # pragma: no cover
         help="Use optimized entropy settings from analysis results for dataset generation",
     )
     argv = parser.parse_args()
+    if argv.seed is not None:
+        set_seed(argv.seed)
+        if DETERMINISTIC_MODE:
+            # Let CLI seed control per-question reseed base when deterministic
+            # Importing module and setting its global is sufficient
+            dc.DETERMINISTIC_BASE_SEED = int(argv.seed)
 
-    set_seed()
     main(argv.push_dataset, argv.use_optimized_registry)

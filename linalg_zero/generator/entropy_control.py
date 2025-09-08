@@ -124,14 +124,12 @@ class EntropyConstraints:
 
     def sample_entropy_from_range(self, entropy_range: tuple[float, float]) -> float:
         """Sample an entropy value from a range with a center bias."""
-        if not self.center_biased_draw:
-            return random.uniform(entropy_range[0], entropy_range[1])
-
         low, high = entropy_range
-        if not self.center_biased_draw:
-            return random.uniform(low, high)
+
         if low == high:
             return low
+        if not self.center_biased_draw:
+            return random.uniform(low, high)
         alpha = 2.0
         x = random.betavariate(alpha, alpha)
         return low + x * (high - low)

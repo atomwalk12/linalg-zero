@@ -3,9 +3,9 @@
     "combination": [
       0.9
     ],
-    "score": 118.0,
-    "overall_min": -477.0,
-    "overall_max": 405.0,
+    "score": 173.0,
+    "overall_min": -417.0,
+    "overall_max": 410.0,
     "min_abs": 0.0,
     "count": 8000,
     "optimized": true,
@@ -26,11 +26,11 @@
   },
   "one_matrix_trace": {
     "combination": [
-      2.2
+      2.1
     ],
-    "score": 50.0,
-    "overall_min": -181.0,
-    "overall_max": 169.0,
+    "score": 70.0,
+    "overall_min": -164.0,
+    "overall_max": 166.0,
     "min_abs": 0.0,
     "count": 8000,
     "optimized": true,
@@ -51,12 +51,12 @@
   },
   "one_frobenius_norm": {
     "combination": [
-      2.7
+      2.6
     ],
-    "score": 117.88999999999999,
-    "overall_min": 17.38,
-    "overall_max": 499.49,
-    "min_abs": 17.38,
+    "score": 157.77999999999997,
+    "overall_min": 18.57,
+    "overall_max": 460.79,
+    "min_abs": 18.57,
     "count": 8000,
     "optimized": true,
     "metadata": {
@@ -78,10 +78,10 @@
     "combination": [
       2.5
     ],
-    "score": 1.0,
-    "overall_min": 2.0,
+    "score": 0.0,
+    "overall_min": 1.0,
     "overall_max": 3.0,
-    "min_abs": 2.0,
+    "min_abs": 1.0,
     "count": 8000,
     "optimized": true,
     "metadata": {
@@ -103,11 +103,11 @@
     "combination": [
       3.2
     ],
-    "score": 28.0,
-    "overall_min": -786.0,
-    "overall_max": 786.0,
+    "score": 23.0,
+    "overall_min": -790.0,
+    "overall_max": 787.0,
     "min_abs": 2.0,
-    "count": 52075,
+    "count": 52180,
     "optimized": true,
     "metadata": {
       "is_single_step": true,
@@ -126,13 +126,13 @@
   },
   "one_matrix_cofactor": {
     "combination": [
-      1.7
+      1.6
     ],
-    "score": 175.0,
-    "overall_min": -703.0,
-    "overall_max": 722.0,
+    "score": 86.0,
+    "overall_min": -735.0,
+    "overall_max": 779.0,
     "min_abs": 0.0,
-    "count": 51755,
+    "count": 52130,
     "optimized": true,
     "metadata": {
       "is_single_step": true,
@@ -151,14 +151,14 @@
   },
   "two_transpose_determinant": {
     "combination": [
-      1.0,
+      0.7,
       0.0
     ],
-    "score": 85.0,
-    "overall_min": -315.0,
-    "overall_max": 400.0,
+    "score": 360.0,
+    "overall_min": -216.0,
+    "overall_max": 224.0,
     "min_abs": 0.0,
-    "count": 59955,
+    "count": 59950,
     "optimized": true,
     "metadata": {
       "is_single_step": false,
@@ -178,14 +178,14 @@
   },
   "two_cofactor_frobenius": {
     "combination": [
-      1.5,
+      1.4,
       0.0
     ],
-    "score": 389.24,
-    "overall_min": -435.0,
-    "overall_max": 775.76,
+    "score": 612.06,
+    "overall_min": -350.0,
+    "overall_max": 637.94,
     "min_abs": 0.0,
-    "count": 60145,
+    "count": 59425,
     "optimized": true,
     "metadata": {
       "is_single_step": false,
@@ -205,14 +205,14 @@
   },
   "two_cofactor_rank": {
     "combination": [
-      1.6,
+      1.5,
       0.0
     ],
-    "score": 194.0,
-    "overall_min": -703.0,
-    "overall_max": 703.0,
+    "score": 640.0,
+    "overall_min": -480.0,
+    "overall_max": 480.0,
     "min_abs": 0.0,
-    "count": 60100,
+    "count": 59570,
     "optimized": true,
     "metadata": {
       "is_single_step": false,
@@ -235,11 +235,11 @@
       2.8,
       0.0
     ],
-    "score": 567.58,
-    "overall_min": -316.0,
-    "overall_max": 716.42,
-    "min_abs": 0.0,
-    "count": 60235,
+    "score": 516.12,
+    "overall_min": -315.0,
+    "overall_max": 768.88,
+    "min_abs": 2.0,
+    "count": 60195,
     "optimized": true,
     "metadata": {
       "is_single_step": false,
@@ -263,10 +263,10 @@
       0.0,
       0.0
     ],
-    "score": 21.0,
-    "overall_min": -789.0,
-    "overall_max": 790.0,
-    "min_abs": 0.0,
+    "score": 19.0,
+    "overall_min": -790.0,
+    "overall_max": 791.0,
+    "min_abs": 2.0,
     "count": 72000,
     "optimized": true,
     "metadata": {
@@ -292,9 +292,9 @@
       0.0,
       0.0
     ],
-    "score": 131.0,
-    "overall_min": -766.0,
-    "overall_max": 703.0,
+    "score": 61.0,
+    "overall_min": -765.0,
+    "overall_max": 774.0,
     "min_abs": 0.0,
     "count": 72000,
     "optimized": true,
@@ -321,9 +321,9 @@
       0.0,
       0.0
     ],
-    "score": 259.0,
-    "overall_min": -265.0,
-    "overall_max": 276.0,
+    "score": 85.0,
+    "overall_min": -337.0,
+    "overall_max": 378.0,
     "min_abs": 0.0,
     "count": 48000,
     "optimized": true,

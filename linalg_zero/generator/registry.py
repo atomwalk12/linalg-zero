@@ -670,7 +670,7 @@ def register_problem_type(
         multi_step_functions[problem_type](
             registry,
             converted,
-            {problem_type: {"min_element_abs": min_value_abs}},
+            {comp: {"min_element_abs": min_value_abs} for comp in converted},
         )
     else:
         raise ValueError(f"Unknown problem type: {problem_type}. Not found in single-step or multi-step functions.")

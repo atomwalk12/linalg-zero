@@ -171,6 +171,22 @@ def verify_dataset(dataset: list[Question]) -> dict[str, Any]:
     return verification_results
 
 
+def check_constraints(dataset: list[Question], config: dict[str, Any], statistics: dict[str, Any]) -> None:
+    """Check the constraints for the given config."""
+
+    for problem_type, stats in statistics.get("per_problem_type", {}).items():
+        if problem_type in config:
+            actual_min = stats.get("min")
+            actual_max = stats.get("max")
+            expected_min = config[problem_type]["metadata"].get("target_min_value")
+            expected_max = config[problem_type]["metadata"].get("target_max_value")
+
+            if actual_min is not None and expected_min is not None and actual_min < expected_min:
+                raise ValueError(f"{problem_type}: min {actual_min} < expected {expected_min}")
+            if actual_max is not None and expected_max is not None and actual_max > expected_max:
+                raise ValueError(f"{problem_type}: max {actual_max} > expected {expected_max}")
+
+
 def set_seed(seed_val: int = 42) -> None:
     """Set the seed for the deterministic generation."""
     random.seed(seed_val)

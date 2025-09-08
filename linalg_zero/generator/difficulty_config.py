@@ -9,6 +9,26 @@ from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
 
+# Deterministic controls
+#
+# Why both set_seed and DETERMINISTIC_BASE_SEED exist:
+# - set_seed(seed) initializes Python/NumPy/SymPy RNGs. It makes a single
+#   process deterministic only when the sequence of RNG calls is identical.
+#   Across phases (e.g., analysis vs generation), RNG call order/count differs
+#   (entropy sampling timing, retries, filters), so outputs can diverge despite
+#   using the same seed.
+# - When DETERMINISTIC_MODE is True, factories reseed per question using a
+#   stable function of (DETERMINISTIC_BASE_SEED, problem_type, topic, index).
+#   This pins each question's randomness to its identity, making results
+#   invariant to incidental RNG call ordering differences between phases.
+# - If a CLI --seed is provided and DETERMINISTIC_MODE is True, we set
+#   DETERMINISTIC_BASE_SEED = --seed so users can reproduce/scan deterministic
+#   sequences without code changes. When DETERMINISTIC_MODE is False, the base
+#   seed is ignored and set_seed controls reproducibility as usual.
+#
+DETERMINISTIC_MODE: bool = True
+DETERMINISTIC_BASE_SEED: int = 146959810
+
 
 class Precision(Enum):
     """Precision for formatting mathematical expressions."""
