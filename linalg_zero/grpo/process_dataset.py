@@ -114,7 +114,7 @@ def make_map_fn(split_name: str) -> Callable[[dict[str, Any], int], dict[str, An
         messages = []
         messages.append({
             "role": "system",
-            "content": get_math_system_prompt(summary=True),
+            "content": get_math_system_prompt(),
         })
         messages.append({
             "role": "user",

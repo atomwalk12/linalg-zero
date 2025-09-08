@@ -50,17 +50,3 @@ enable_auto_tool_choice: true
 quantization: "awq"
 host: "localhost"
 port: 8000
-
-# Memory / performance tuning for 24GB GPU
-dtype: "float16"
-kv_cache_dtype: "fp8"
-max_num_seqs: 1
-gpu_memory_utilization: 0.85
-enforce_eager: true
-swap_space: 4
-max_num_batched_tokens: 2048
-max_model_len: 32768
-enable_chunked_prefill: true
-
-# Distillation parameters
-n_turns: 6

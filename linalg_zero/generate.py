@@ -19,7 +19,7 @@ from linalg_zero.generator.utils import (
     set_seed,
     verify_dataset,
 )
-from linalg_zero.shared.utils import get_logger, push_to_hub, setup_logging
+from linalg_zero.shared.utils import get_log_file_path, get_logger, push_to_hub, setup_logging
 
 
 def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> None:  # pragma: no cover
@@ -85,6 +85,7 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
     # arithmetic_generator = DatasetGenerator(topic="arithmetic")
     # arithmetic_questions = arithmetic_generator.generate_dataset(num_questions=2)
     # print_dataset(arithmetic_questions)
+    logger.info(f"Log file path: {get_log_file_path()}")
 
 
 if __name__ == "__main__":  # pragma: no cover

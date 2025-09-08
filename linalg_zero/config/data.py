@@ -141,8 +141,55 @@ class VllmServerConfig:
     tool_call_parser: str = field(
         metadata={"help": "Tool call parser to use"},
     )
-    chat_template: str = field(
+    chat_template: str | None = field(
+        default=None,
         metadata={"help": "Chat template to use"},
+    )
+
+    # Memory / performance tuning parameters
+    dtype: str | None = field(
+        default=None,
+        metadata={"help": "Computation dtype for model weights and activations (e.g., float16)"},
+    )
+    kv_cache_dtype: str | None = field(
+        default=None,
+        metadata={"help": "KV cache dtype (auto, fp8, fp8_e4m3, fp8_e5m2)"},
+    )
+    max_model_len: int | None = field(
+        default=None,
+        metadata={"help": "Maximum model context length (tokens)"},
+    )
+    max_num_seqs: int | None = field(
+        default=None,
+        metadata={"help": "Maximum number of concurrent sequences"},
+    )
+    gpu_memory_utilization: float | None = field(
+        default=None,
+        metadata={"help": "Fraction of GPU memory to be used by vLLM (0-1)"},
+    )
+    enforce_eager: bool | None = field(
+        default=None,
+        metadata={"help": "Disable CUDA graphs to reduce memory usage"},
+    )
+    swap_space: int | None = field(
+        default=None,
+        metadata={"help": "CPU swap space in GB per GPU for paging KV cache"},
+    )
+    max_num_batched_tokens: int | None = field(
+        default=None,
+        metadata={"help": "Limit number of tokens processed per batch (prefill)"},
+    )
+    tensor_parallel_size: int | None = field(
+        default=None,
+        metadata={"help": "Tensor parallelism degree"},
+    )
+    enable_chunked_prefill: bool | None = field(
+        default=None,
+        metadata={"help": "Enable chunked prefill to reduce peak prefill memory"},
+    )
+    reasoning_parser: str | None = field(
+        default=None,
+        metadata={"help": "Reasoning parser to use"},
     )
 
 
@@ -216,4 +263,10 @@ class DistillationConfig:
     # Generation parameters
     n_turns: int = field(
         metadata={"help": "Number of turns to generate"},
+    )
+
+    # Optional stopping sequences (must come after non-default fields)
+    stop: list[str] | None = field(
+        default=None,
+        metadata={"help": "Stop sequences for generation (each string is a stop token)"},
     )

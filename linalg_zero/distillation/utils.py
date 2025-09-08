@@ -28,6 +28,8 @@ from linalg_zero.config.data import (
 from linalg_zero.shared.lib import get_tools
 from linalg_zero.shared.utils import get_libpath, get_logger, setup_logging
 
+logger = get_logger(__name__)
+
 
 # TODO: is this the right file to store this class in?
 class CustomOpenAILLM(OpenAILLM):
@@ -128,10 +130,10 @@ def create_llm_clients(
         "top_p": args.top_p,
     }
 
-    llm_planner = get_openai_client(**base_params, structured_output={"schema": schema})
-    llm_synthesizer = get_openai_client(**base_params, structured_output=None)
+    llm = get_openai_client(**base_params, structured_output=None)
+    llm_structured = get_openai_client(**base_params, structured_output={"schema": schema})
 
-    return llm_planner, llm_synthesizer
+    return llm, llm_structured
 
 
 def get_function_schema() -> str:
@@ -377,7 +379,9 @@ def _convert_item_to_argilla_record(item: dict[str, Any]) -> dict[str, str] | No
         return None
 
 
-def create_argilla_dataset(dataset_name: str, distiset_data: list[dict[str, Any]], client: rg.Argilla) -> None:
+def create_argilla_dataset(
+    dataset_name: str, distiset_data: list[dict[str, Any]], client: rg.Argilla, private: bool
+) -> None:
     """Create and populate an Argilla dataset from distillation results."""
     logger = get_logger(__name__)
 
@@ -409,9 +413,23 @@ def create_argilla_dataset(dataset_name: str, distiset_data: list[dict[str, Any]
         else:
             logger.warning("No valid records found to log")
 
+        logger.info("✅ Argilla dataset created successfully")
+        logger.info(f"   Privacy: {'Private' if private else 'Public'}")
+        logger.info(f"   Access URL: https://{dataset_name.replace('/', '-')}.hf.space")
     except Exception:
         logger.exception("Failed to create Argilla dataset")
         raise
+
+
+def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) -> None:
+    # Push to HuggingFace Hub
+    distiset.push_to_hub(
+        dataset_name,
+        private=private,
+    )
+    logger.info(f"✅ Dataset successfully pushed to: {dataset_name}")
+    logger.info(f"   Privacy: {'Private' if private else 'Public'}")
+    logger.info(f"   Access URL: https://huggingface.co/datasets/{dataset_name}")
 
 
 def prepare_dataset_for_sft(distiset: Distiset) -> None:
@@ -425,7 +443,7 @@ def prepare_dataset_for_sft(distiset: Distiset) -> None:
     distiset["default"]["train"] = distiset["default"]["train"].map(add_tools_column)
 
 
-def load_dataset(args: DistillationConfig) -> list[dict[str, Any]]:
+def load_dataset(args: DistillationConfig, take_n: int) -> list[dict[str, Any]]:
     """Loads the dataset either from the hub or from a local file."""
     logger = get_logger(__name__)
 
@@ -440,6 +458,8 @@ def load_dataset(args: DistillationConfig) -> list[dict[str, Any]]:
     except Exception as err:
         raise FileNotFoundError(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.") from err
     else:
+        if take_n is not None:
+            dataset = dataset.select(range(take_n))
         # Convert the dict format back to list of dicts. This is the format expected by Argilla.
         dataset_dict = dataset.to_dict()
         return [dict(zip(dataset_dict.keys(), vals, strict=True)) for vals in zip(*dataset_dict.values(), strict=True)]

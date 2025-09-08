@@ -17,7 +17,7 @@ from linalg_zero.generator.sympy.generators.base_generator import (
     MatrixVectorBaseGenerator,
 )
 from linalg_zero.generator.sympy.template_engine import MathFormatter
-from linalg_zero.shared.lib import matrix_inverse
+from linalg_zero.shared.lib_extra import matrix_inverse
 
 
 class MatrixInverseGenerator(MatrixVectorBaseGenerator):

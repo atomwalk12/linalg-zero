@@ -66,19 +66,16 @@ def get_libpath() -> Path:
     return Path(__file__).parent / "lib.py"
 
 
-def get_function_schema(summary_only: bool = False) -> str:
-    """Return a string representation of the tool schema. This can be a short list of descriptions or a full schema."""
+def get_function_schema() -> str:
+    """Return a JSON string with the full tool function schemas (sorted by name)."""
     from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 
     libpath_module = load_module_from_path(get_libpath())
     tools = libpath_module.get_tools()
+    # Ensure deterministic order for readability
+    tools = sorted(tools, key=lambda t: t["function"]["name"])
 
-    if summary_only:
-        # Return only the descriptions
-        return "\n".join(
-            f'"{tool_info["function"]["name"]}": {tool_info["function"]["description"]}' for tool_info in tools
-        )
-
+    # For prompts, show only the inner function object (cleaner to read than the wrapper)
     extracted_functions = [tool_info["function"] for tool_info in tools]
     return json.dumps(extracted_functions, indent=2)
 

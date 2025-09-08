@@ -19,7 +19,7 @@ from linalg_zero.generator.sympy.generators.base_generator import (
     MatrixVectorBaseGenerator,
 )
 from linalg_zero.generator.sympy.template_engine import MathFormatter
-from linalg_zero.shared.lib import multiply_matrices
+from linalg_zero.shared.lib_extra import multiply_matrices
 
 
 class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):

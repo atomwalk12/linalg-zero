@@ -86,7 +86,7 @@ VLLM_CONFIG=linalg_zero/config/distillation/vllm_debug.yaml
 .PHONY: distillation-llamacpp
 distillation-llamacpp: ## Start the llama.cpp server
 	@echo "🚀 Starting llama.cpp server"
-	@INFERENCE_BACKEND=llamacpp uv run python linalg_zero/distillation/launch_server.py --config $(LLAMACPP_CONFIG)
+	@INFERENCE_BACKEND=llamacpp uv run python linalg_zero/distillation/launch_server.py --config $(VLLM_CONFIG)
 
 .PHONY: distillation-vllm
 distillation-vllm: ## Start the vLLM server
@@ -124,6 +124,11 @@ grpo-debug: ## Run GRPO training using multi-turn rollout
 prepare-grpo-dataset: ## Prepare the GRPO dataset
 	@echo "🚀 Creating GRPO dataset"
 	@uv run linalg_zero/grpo/process_dataset.py
+
+.PHONY: generate-optimised-config
+generate-optimised-config: ## Generate the optimised config
+	@echo "🚀 Generating optimised config"
+	@uv run linalg_zero/generator/analysis/analyse.py
 
 .PHONY: run-training
 run-training: ## Run the training pipeline

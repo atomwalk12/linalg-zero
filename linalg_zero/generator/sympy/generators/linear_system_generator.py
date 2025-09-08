@@ -19,7 +19,7 @@ from linalg_zero.generator.sympy.generators.base_generator import (
     MatrixVectorBaseGenerator,
 )
 from linalg_zero.generator.sympy.template_engine import MathFormatter
-from linalg_zero.shared.lib import solve_linear_system
+from linalg_zero.shared.lib_extra import solve_linear_system
 
 
 class LinearSystemGenerator(MatrixVectorBaseGenerator):

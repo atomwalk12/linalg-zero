@@ -1,7 +1,7 @@
 # Distillation Configuration for llama.cpp inference
 
 # Dataset parameters
-hf_dataset: "atomwalk12/linalg-debug"
+hf_dataset: "atomwalk12/linalg-zero-dataset"
 hf_dataset_config: null
 hf_dataset_split: "train"
 
@@ -10,10 +10,12 @@ prompt_column: "prompt"
 prompt_template: "{{ instruction }}"
 
 # Generation parameters
-temperature: 0.7
-top_p: 0.9
+temperature: 0.0
+top_p: 1.0
 max_new_tokens: 8192
 num_generations: 1
+stop:
+  - "</answer>"
 
 # Processing parameters
 input_batch_size: 5
@@ -38,9 +40,9 @@ private: false
 
 # Model 2
 # Supports regular expressions, which can be useful in some cases.
-model: "Qwen3-32B-Q4_K_M.gguf"
-hf_model_repo_id: "unsloth/Qwen3-32B-GGUF"
-hf_pretrained_model_name_or_path: "Qwen/Qwen3-32B"
+# model: "DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf" # "Qwen3-32B-Q4_K_M.gguf" #
+hf_model_repo_id:  "unsloth/DeepSeek-R1-Distill-Llama-70B-GGUF" # "unsloth/Qwen3-32B-GGUF"
+# hf_pretrained_model_name_or_path: "Qwen/Qwen3-32B"
 
 n_gpu_layers: 60
 host: "0.0.0.0"
