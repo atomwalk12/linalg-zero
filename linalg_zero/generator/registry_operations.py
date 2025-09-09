@@ -1,12 +1,15 @@
 from typing import Any
 
 from linalg_zero.generator.composition.components import (
+    DeterminantWrapperComponent,
     FrobeniusNormWrapperComponent,
     LinearSystemSolverWrapperComponent,
     MatrixCofactorWrapperComponent,
     MatrixMatrixMultiplicationWrapperComponent,
+    MatrixTraceWrapperComponent,
     MatrixVectorMultiplicationWrapperComponent,
     RankWrapperComponent,
+    TransposeWrapperComponent,
 )
 from linalg_zero.generator.composition.composition import (
     SequentialComposition,
@@ -54,6 +57,42 @@ def register_one_linear_system_solver_factory(
             gen_constraints=_merge_gen_constraints({"square": True}, gen_constraints),
         ),
         difficulty=DifficultyCategory.ONE_TOOL_CALL,
+    )
+
+
+def register_two_cofactor_frobenius(
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
+) -> None:
+    """Register cofactor + frobenius_norm composition."""
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.TWO_COFACTOR_FROBENIUS,
+        components=[
+            MatrixCofactorWrapperComponent(
+                name=Task.ONE_COFACTOR,
+                constraints={"is_independent": True},
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
+            ),
+            FrobeniusNormWrapperComponent(
+                name=Task.ONE_FROBENIUS_NORM,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.TWO_TOOL_CALLS,
     )
 
 
@@ -194,6 +233,53 @@ def register_three_cofactor_matrixmult_rank(
                     {}, gen_constraints.get(Task.ONE_RANK) if gen_constraints else None
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_RANK]),
+            ),
+        ],
+        composition_strategy=SequentialComposition(),
+        difficulty_level=DifficultyCategory.THREE_TOOL_CALLS,
+    )
+
+
+def register_three_transpose_determinant_trace(
+    registry: "FactoryRegistry",
+    entropy: dict[Task, tuple[float, float] | float],
+    gen_constraints: dict[Task, dict[str, Any]] | None = None,
+) -> None:
+    registry.register_composite_factory(
+        topic=Topic.LINEAR_ALGEBRA,
+        problem_type=Task.THREE_TRANSPOSE_DETERMINANT_TRACE,
+        components=[
+            TransposeWrapperComponent(
+                name=Task.ONE_TRANSPOSE,
+                constraints={"is_independent": True},
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_TRANSPOSE) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
+            ),
+            DeterminantWrapperComponent(
+                name=Task.ONE_DETERMINANT,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_DETERMINANT]),
+            ),
+            MatrixTraceWrapperComponent(
+                name=Task.ONE_TRACE,
+                constraints={
+                    "is_independent": False,
+                    "input_indices": {"input_matrix": 0},
+                    "sources": {"input_matrix": "result"},
+                },
+                gen_constraints=_merge_gen_constraints(
+                    {"square": True}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
+                ),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRACE]),
             ),
         ],
         composition_strategy=SequentialComposition(),

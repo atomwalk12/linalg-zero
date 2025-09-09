@@ -176,25 +176,25 @@
       "target_max_value": 400
     }
   },
-  "two_cofactor_frobenius": {
+  "two_cofactor_trace": {
     "combination": [
       1.4,
       0.0
     ],
-    "score": 612.06,
-    "overall_min": -350.0,
-    "overall_max": 637.94,
+    "score": 527.0,
+    "overall_min": -469.0,
+    "overall_max": 604.0,
     "min_abs": 0.0,
-    "count": 59425,
+    "count": 60420,
     "optimized": true,
     "metadata": {
       "is_single_step": false,
       "components": [
         "ONE_COFACTOR",
-        "ONE_FROBENIUS_NORM"
+        "ONE_TRACE"
       ],
       "difficulty_category": "TWO_TOOL_CALLS",
-      "task_enum": "TWO_COFACTOR_FROBENIUS",
+      "task_enum": "TWO_COFACTOR_TRACE",
       "entropy_jitter": 0.2,
       "min_element_abs": 2,
       "step_size": 0.1,
@@ -315,33 +315,33 @@
       "target_max_value": 800
     }
   },
-  "three_transpose_determinant_trace": {
+  "three_transpose_cofactor_frobenius": {
     "combination": [
-      1.4,
+      2.9,
       0.0,
       0.0
     ],
-    "score": 85.0,
-    "overall_min": -337.0,
-    "overall_max": 378.0,
-    "min_abs": 0.0,
-    "count": 48000,
+    "score": 505.41999999999996,
+    "overall_min": -395.0,
+    "overall_max": 699.58,
+    "min_abs": 2.0,
+    "count": 72000,
     "optimized": true,
     "metadata": {
       "is_single_step": false,
       "components": [
         "ONE_TRANSPOSE",
-        "ONE_DETERMINANT",
-        "ONE_TRACE"
+        "ONE_COFACTOR",
+        "ONE_FROBENIUS_NORM"
       ],
       "difficulty_category": "THREE_TOOL_CALLS",
-      "task_enum": "THREE_TRANSPOSE_DETERMINANT_TRACE",
+      "task_enum": "THREE_TRANSPOSE_COFACTOR_FROBENIUS",
       "entropy_jitter": 0.2,
       "min_element_abs": 2,
       "step_size": 0.1,
       "samples_per_test": 8000,
-      "target_min_value": -400,
-      "target_max_value": 400
+      "target_min_value": -800,
+      "target_max_value": 800
     }
   }
 }

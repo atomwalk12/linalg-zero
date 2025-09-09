@@ -36,19 +36,23 @@ class Task(Enum):
 
     # Two tool call problems
     TWO_TRANSPOSE_DETERMINANT = "two_transpose_determinant"
-    TWO_COFACTOR_FROBENIUS = "two_cofactor_frobenius"
     TWO_COFACTOR_RANK = "two_cofactor_rank"
     TWO_TRANSPOSE_FROBENIUS = "two_transpose_frobenius"
+    TWO_COFACTOR_TRACE = "two_cofactor_trace"
+
+    # Not used
+    TWO_COFACTOR_FROBENIUS = "two_cofactor_frobenius"
 
     # Cause value explosion due to matrix multiplications
     THREE_COFACTOR_MATRIXMULT_RANK = "three_cofactor_matrixmult_rank"
     THREE_SYSTEM_MATRIXMULT_FROBENIUS = "three_system_matrixmult_frobenius"
     THREE_MATRIXVECTOR_SYSTEM_FROBENIUS = "three_matrixvector_system_frobenius"
+    THREE_TRANSPOSE_DETERMINANT_TRACE = "three_transpose_determinant_trace"
 
     # Stable output values
     THREE_TRANSPOSE_COFACTOR_RANK = "three_transpose_cofactor_rank"
     THREE_COFACTOR_TRANSPOSE_TRACE = "three_cofactor_transpose_trace"
-    THREE_TRANSPOSE_DETERMINANT_TRACE = "three_transpose_determinant_trace"
+    THREE_TRANSPOSE_COFACTOR_FROBENIUS = "three_transpose_cofactor_frobenius"
 
 
 class DifficultyCategory(Enum):

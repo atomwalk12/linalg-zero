@@ -9,7 +9,7 @@ import numpy as np
 from sympy.core.random import seed
 
 from datasets import Dataset, DatasetDict
-from linalg_zero.generator.models import Question, Task
+from linalg_zero.generator.models import Question
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.utils import get_logger
@@ -282,8 +282,7 @@ def _question_to_example(q: Question) -> dict[str, Any]:
                     if isinstance(from_idx, int):
                         dependency_edges.append((from_idx, idx))
 
-    pt = q.problem_type
-    dependency_type = "fan_out" if pt == Task.THREE_TRANSPOSE_DETERMINANT_TRACE else "strict"
+    dependency_type = "strict"
 
     return {
         "query": q.question,

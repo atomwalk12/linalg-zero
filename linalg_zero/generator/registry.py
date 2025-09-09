@@ -187,15 +187,15 @@ def register_two_transpose_determinant(
     )
 
 
-def register_two_cofactor_frobenius(
+def register_two_cofactor_trace(
     registry: "FactoryRegistry",
     entropy: dict[Task, tuple[float, float] | float],
     gen_constraints: dict[Task, dict[str, Any]] | None = None,
 ) -> None:
-    """Register cofactor + frobenius_norm composition."""
+    """Register cofactor + trace composition."""
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
-        problem_type=Task.TWO_COFACTOR_FROBENIUS,
+        problem_type=Task.TWO_COFACTOR_TRACE,
         components=[
             MatrixCofactorWrapperComponent(
                 name=Task.ONE_COFACTOR,
@@ -205,17 +205,17 @@ def register_two_cofactor_frobenius(
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
             ),
-            FrobeniusNormWrapperComponent(
-                name=Task.ONE_FROBENIUS_NORM,
+            MatrixTraceWrapperComponent(
+                name=Task.ONE_TRACE,
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_matrix": 0},
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {"square": True}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
                 ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRACE]),
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -389,14 +389,14 @@ def register_three_cofactor_transpose_trace(
     )
 
 
-def register_three_transpose_determinant_trace(
+def register_three_transpose_cofactor_frobenius(
     registry: "FactoryRegistry",
     entropy: dict[Task, tuple[float, float] | float],
     gen_constraints: dict[Task, dict[str, Any]] | None = None,
 ) -> None:
     registry.register_composite_factory(
         topic=Topic.LINEAR_ALGEBRA,
-        problem_type=Task.THREE_TRANSPOSE_DETERMINANT_TRACE,
+        problem_type=Task.THREE_TRANSPOSE_COFACTOR_FROBENIUS,
         components=[
             TransposeWrapperComponent(
                 name=Task.ONE_TRANSPOSE,
@@ -406,29 +406,29 @@ def register_three_transpose_determinant_trace(
                 ),
                 entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRANSPOSE]),
             ),
-            DeterminantWrapperComponent(
-                name=Task.ONE_DETERMINANT,
+            MatrixCofactorWrapperComponent(
+                name=Task.ONE_COFACTOR,
                 constraints={
                     "is_independent": False,
                     "input_indices": {"input_matrix": 0},
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {"square": True}, gen_constraints.get(Task.ONE_DETERMINANT) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_COFACTOR) if gen_constraints else None
                 ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_DETERMINANT]),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_COFACTOR]),
             ),
-            MatrixTraceWrapperComponent(
-                name=Task.ONE_TRACE,
+            FrobeniusNormWrapperComponent(
+                name=Task.ONE_FROBENIUS_NORM,
                 constraints={
                     "is_independent": False,
-                    "input_indices": {"input_matrix": 0},
+                    "input_indices": {"input_matrix": 1},
                     "sources": {"input_matrix": "result"},
                 },
                 gen_constraints=_merge_gen_constraints(
-                    {"square": True}, gen_constraints.get(Task.ONE_TRACE) if gen_constraints else None
+                    {"square": True}, gen_constraints.get(Task.ONE_FROBENIUS_NORM) if gen_constraints else None
                 ),
-                entropy_constraints=EntropyConstraints(entropy[Task.ONE_TRACE]),
+                entropy_constraints=EntropyConstraints(entropy[Task.ONE_FROBENIUS_NORM]),
             ),
         ],
         composition_strategy=SequentialComposition(),
@@ -552,9 +552,9 @@ def create_default_registry() -> FactoryRegistry:
             Task.ONE_TRANSPOSE: entropy,
             Task.ONE_DETERMINANT: (0.0, 0.0),
         },
-        Task.TWO_COFACTOR_FROBENIUS: {
+        Task.TWO_COFACTOR_TRACE: {
             Task.ONE_COFACTOR: entropy,
-            Task.ONE_FROBENIUS_NORM: (0.0, 0.0),
+            Task.ONE_TRACE: (0.0, 0.0),
         },
         Task.TWO_COFACTOR_RANK: {
             Task.ONE_COFACTOR: entropy,
@@ -567,7 +567,7 @@ def create_default_registry() -> FactoryRegistry:
     }
 
     register_two_transpose_determinant(registry, entropy=entropy_ranges[Task.TWO_TRANSPOSE_DETERMINANT])
-    register_two_cofactor_frobenius(registry, entropy=entropy_ranges[Task.TWO_COFACTOR_FROBENIUS])
+    register_two_cofactor_trace(registry, entropy=entropy_ranges[Task.TWO_COFACTOR_TRACE])
     register_two_cofactor_rank(registry, entropy=entropy_ranges[Task.TWO_COFACTOR_RANK])
     register_two_transpose_frobenius(registry, entropy=entropy_ranges[Task.TWO_TRANSPOSE_FROBENIUS])
 
@@ -585,10 +585,10 @@ def create_default_registry() -> FactoryRegistry:
             Task.ONE_TRANSPOSE: (0.0, 0.0),
             Task.ONE_TRACE: (0.0, 0.0),
         },
-        Task.THREE_TRANSPOSE_DETERMINANT_TRACE: {
+        Task.THREE_TRANSPOSE_COFACTOR_FROBENIUS: {
             Task.ONE_TRANSPOSE: (0.3, 0.6),
-            Task.ONE_DETERMINANT: (0.0, 0.0),
-            Task.ONE_TRACE: (0.0, 0.0),
+            Task.ONE_COFACTOR: (0.0, 0.0),
+            Task.ONE_FROBENIUS_NORM: (0.0, 0.0),
         },
     }
     register_three_transpose_cofactor_rank(
@@ -596,8 +596,8 @@ def create_default_registry() -> FactoryRegistry:
         entropy=entropy_ranges[Task.THREE_TRANSPOSE_COFACTOR_RANK],
     )
     register_three_cofactor_transpose_trace(registry, entropy=entropy_ranges[Task.THREE_COFACTOR_TRANSPOSE_TRACE])
-    register_three_transpose_determinant_trace(
-        registry, entropy=entropy_ranges[Task.THREE_TRANSPOSE_DETERMINANT_TRACE]
+    register_three_transpose_cofactor_frobenius(
+        registry, entropy=entropy_ranges[Task.THREE_TRANSPOSE_COFACTOR_FROBENIUS]
     )
 
     return registry
@@ -621,12 +621,12 @@ def get_multi_step_functions() -> dict[
 ]:
     return {
         Task.TWO_TRANSPOSE_DETERMINANT: register_two_transpose_determinant,
-        Task.TWO_COFACTOR_FROBENIUS: register_two_cofactor_frobenius,
+        Task.TWO_COFACTOR_TRACE: register_two_cofactor_trace,
         Task.TWO_COFACTOR_RANK: register_two_cofactor_rank,
         Task.TWO_TRANSPOSE_FROBENIUS: register_two_transpose_frobenius,
         Task.THREE_TRANSPOSE_COFACTOR_RANK: register_three_transpose_cofactor_rank,
         Task.THREE_COFACTOR_TRANSPOSE_TRACE: register_three_cofactor_transpose_trace,
-        Task.THREE_TRANSPOSE_DETERMINANT_TRACE: register_three_transpose_determinant_trace,
+        Task.THREE_TRANSPOSE_COFACTOR_FROBENIUS: register_three_transpose_cofactor_frobenius,
     }
 
 

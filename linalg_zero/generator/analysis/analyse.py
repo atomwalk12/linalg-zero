@@ -41,7 +41,7 @@ WRITE_PER_PROBLEM_RANKINGS = True
 PROBLEM_DIR = Path("results") / "entropy_analysis"
 
 ALL_ENTROPY_RANGES = {
-    # # 1-Tool Call Problems (Foundation Layer)
+    # 1-Tool Call Problems (Foundation Layer)
     Task.ONE_DETERMINANT: {
         "entropy_ranges": (0.6, 1.2),
         "target_min": -500,
@@ -79,11 +79,11 @@ ALL_ENTROPY_RANGES = {
         Task.ONE_TRANSPOSE: (0.7, 1.8),
         Task.ONE_DETERMINANT: (0.0, 0.0),
     },
-    Task.TWO_COFACTOR_FROBENIUS: {
+    Task.TWO_COFACTOR_TRACE: {
         "target_min": -800,
         "target_max": 800,
         Task.ONE_COFACTOR: (1.0, 2.0),
-        Task.ONE_FROBENIUS_NORM: (0.0, 0.0),
+        Task.ONE_TRACE: (0.0, 0.0),
     },
     Task.TWO_COFACTOR_RANK: {
         "target_min": -800,
@@ -112,12 +112,12 @@ ALL_ENTROPY_RANGES = {
         Task.ONE_TRANSPOSE: (0.0, 0.0),
         Task.ONE_TRACE: (0.0, 0.0),
     },
-    Task.THREE_TRANSPOSE_DETERMINANT_TRACE: {
-        "target_min": -400,
-        "target_max": 400,
-        Task.ONE_TRANSPOSE: (0.1, 2.0),
-        Task.ONE_DETERMINANT: (0.0, 0.0),
-        Task.ONE_TRACE: (0.0, 0.0),
+    Task.THREE_TRANSPOSE_COFACTOR_FROBENIUS: {
+        "target_min": -800,
+        "target_max": 800,
+        Task.ONE_TRANSPOSE: (2.8, 3.3),
+        Task.ONE_COFACTOR: (0.0, 0.0),
+        Task.ONE_FROBENIUS_NORM: (0.0, 0.0),
     },
 }
 
@@ -258,9 +258,9 @@ def execute_analysis(
     values_by_combination = extract_values_by_combination(statistics, use_min_max=False)
 
     if WRITE_PER_PROBLEM_RANKINGS:
-        plot_overall_histogram(all_values, output_dir=per_problem_dir)
+        plot_overall_histogram(all_values, output_dir=per_problem_dir, target_min=target_min, target_max=target_max)
         plot_combination_comparison(values_by_combination, output_dir=per_problem_dir)
-        plot_target_compliance(statistics, output_dir=per_problem_dir)
+        plot_target_compliance(statistics, output_dir=per_problem_dir, target_min=target_min, target_max=target_max)
 
     return statistics, report
 
