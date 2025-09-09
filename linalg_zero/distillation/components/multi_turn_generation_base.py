@@ -160,7 +160,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         self, conversations: list["ChatType"], final_answers: list[str], success_indices: list[bool]
     ) -> list[dict[str, Any]]:
         """Prepare the output conversation removing the system prompt if necessary.
-        It will return a dictionary with a "conversation" key."""
+        It will return a dictionary with a "messages" key."""
         outputs: list[dict[str, Any]] = []
         for conversation, final_answer, is_correct in zip(conversations, final_answers, success_indices, strict=True):
             if conversation is None:
@@ -168,7 +168,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
             if len(conversation) == 0:
                 # Something went wrong with the `LLM` and it didn't generate any message
-                outputs.append({"conversation": []})
+                outputs.append({"messages": []})
                 continue
 
             conv_out = list(conversation)
@@ -181,7 +181,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             if not self.include_system_prompt and conv_out[0]["role"] == "system":
                 conv_out = conv_out[1:]
 
-            output = {"conversation": conv_out, "final_answer": final_answer, "is_correct": is_correct}
+            output = {"messages": conv_out, "final_answer": final_answer, "is_correct": is_correct}
             outputs.append(output)
         return outputs
 

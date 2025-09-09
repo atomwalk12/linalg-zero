@@ -1,11 +1,8 @@
 # Distillation Configuration for vLLM inference
 
 # Dataset parameters
-hf_dataset: "atomwalk12/linalgzero"
-hf_dataset_config: null
-hf_dataset_train_split: "train"
-hf_dataset_validation_split: "validation"
-hf_dataset_test_split: "test"
+dataset_name: "atomwalk12/linalgzero"
+dataset_config: null
 
 # Prompt parameters
 prompt_column: "prompt"
@@ -22,7 +19,7 @@ num_generations: 1
 
 # Processing parameters
 input_batch_size: 5
-use_cache: false
+use_cache: true
 client_replicas: 1
 timeout: 600
 retries: 2

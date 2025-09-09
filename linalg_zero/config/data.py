@@ -202,14 +202,11 @@ class DistillationConfig:
     """
 
     # Dataset parameters
-    hf_dataset: str | None = field(
+    dataset_name: str | None = field(
         metadata={"help": "HuggingFace dataset to load"},
     )
-    hf_dataset_config: str | None = field(
+    dataset_config: str | None = field(
         metadata={"help": "Dataset config to use"},
-    )
-    hf_dataset_train_split: str = field(
-        metadata={"help": "Dataset split to use"},
     )
 
     # Prompt parameters
@@ -271,15 +268,4 @@ class DistillationConfig:
     stop: list[str] | None = field(
         default=None,
         metadata={"help": "Stop sequences for generation (each string is a stop token)"},
-    )
-
-    # Optional validation split (must come after non-default fields)
-    hf_dataset_validation_split: str | None = field(
-        default=None,
-        metadata={"help": "Optional validation split to also load and process"},
-    )
-
-    hf_dataset_test_split: str | None = field(
-        default=None,
-        metadata={"help": "Optional test split to also load and process"},
     )

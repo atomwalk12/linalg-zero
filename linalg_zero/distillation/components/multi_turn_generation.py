@@ -17,7 +17,7 @@ class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
     @property
     def outputs(self) -> "StepColumns":
         """Define what data this task produces for downstream steps."""
-        return ["conversation", "model_name", "final_answer", "is_correct"]
+        return ["messages", "model_name", "final_answer", "is_correct"]
 
     def format_output(
         self,

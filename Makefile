@@ -97,7 +97,7 @@ distillation-vllm: ## Start the vLLM server
 .PHONY: distillation
 distillation: ## Run the distillation pipeline using the vllm config
 	@echo "🚀 Running distillation pipeline"
-	@uv run python linalg_zero/distillation/run.py --config linalg_zero/config/distillation/vllm_debug.yaml
+	@uv run python linalg_zero/distillation.py --config linalg_zero/config/distillation/vllm_debug.yaml
 
 # SFT Training Commands
 SFT_CONFIG=linalg_zero/config/sft/sft_debug_config.yaml

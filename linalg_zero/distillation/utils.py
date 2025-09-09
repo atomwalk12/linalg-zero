@@ -19,12 +19,15 @@ from distilabel.typing import FormattedInput, GenerateOutput
 from pydantic import BaseModel, NonNegativeInt, PositiveInt
 from typing_extensions import override
 
+from datasets import Dataset, DatasetDict
 from datasets import load_dataset as hf_load_dataset
 from linalg_zero.config.data import (
     DistillationConfig,
     LlamaCppServerConfig,
+    ScriptArguments,
     VllmServerConfig,
 )
+from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.shared.lib import get_tools
 from linalg_zero.shared.utils import get_libpath, get_logger, setup_logging
 
@@ -265,7 +268,7 @@ def create_argilla_dataset_settings() -> rg.Settings:
                 use_markdown=False,
             ),
             rg.TextField(
-                name="conversation",
+                name="messages",
                 title="Full Conversation",
                 use_markdown=True,
             ),
@@ -376,9 +379,7 @@ def _convert_item_to_argilla_record(item: dict[str, Any]) -> dict[str, str] | No
             "problem_type": str(item.get("problem_type", "N/A")),
             "composition_type": str(item.get("composition_type", "N/A")),
             "composition_dependencies": str(item.get("composition_dependencies", "N/A")),
-            "conversation": json.dumps(item.get("conversation", "N/A"), indent=2)
-            if item.get("conversation") != "N/A"
-            else "N/A",
+            "messages": json.dumps(item.get("messages", "N/A"), indent=2) if item.get("messages") != "N/A" else "N/A",
             "dependency_edges": str(item.get("dependency_edges", "N/A")),
             "final_answer": str(item.get("final_answer", "N/A")),
             "is_correct": str(item.get("is_correct", "N/A")),
@@ -430,7 +431,6 @@ def create_argilla_dataset(
         logger.info(f"   Access URL: https://{domain}.hf.space")
     except Exception:
         logger.exception("Failed to create Argilla dataset")
-        raise
 
 
 def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) -> None:
@@ -438,13 +438,16 @@ def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) ->
     strip_diagnostic_messages_from_metadata(distiset)
     normalize_schema(distiset)
 
-    distiset.push_to_hub(
-        dataset_name,
-        private=private,
-    )
-    logger.info(f"✅ Dataset successfully pushed to: {dataset_name}")
-    logger.info(f"   Privacy: {'Private' if private else 'Public'}")
-    logger.info(f"   Access URL: https://huggingface.co/datasets/{dataset_name}")
+    try:
+        distiset.push_to_hub(
+            dataset_name,
+            private=private,
+        )
+        logger.info(f"✅ Dataset successfully pushed to: {dataset_name}")
+        logger.info(f"   Privacy: {'Private' if private else 'Public'}")
+        logger.info(f"   Access URL: https://huggingface.co/datasets/{dataset_name}")
+    except Exception:
+        logger.exception("Failed to push dataset to Hugging Face Hub")
 
 
 def prepare_dataset_for_sft(distiset: Distiset) -> None:
@@ -465,8 +468,8 @@ def normalize_schema(distiset: Distiset) -> None:
 
     # 1) Stringify nested columns if present
     for split in list(ns.keys()):
-        if "conversation" in ns[split].column_names:
-            ns[split] = ns[split].map(lambda r: {"conversation": json.dumps(r.get("conversation", []))})
+        if "messages" in ns[split].column_names:
+            ns[split] = ns[split].map(lambda r: {"messages": json.dumps(r.get("messages", []))})
         if "distilabel_metadata" in ns[split].column_names:
             ns[split] = ns[split].map(lambda r: {"distilabel_metadata": json.dumps(r.get("distilabel_metadata", {}))})
 
@@ -482,34 +485,49 @@ def normalize_schema(distiset: Distiset) -> None:
                 ns[split] = ns[split].add_column(col, [None] * len(ns[split]))
 
 
-def load_dataset_split(args: DistillationConfig, split: str, take_n: int | None = None) -> list[dict[str, Any]]:
+def convert_dataset_to_list_of_dicts(dataset: Dataset) -> list[dict[str, Any]]:
+    """Convert dataset from dict format to list of dicts."""
+    dataset_dict = dataset.to_dict()
+    return [dict(zip(dataset_dict.keys(), vals, strict=True)) for vals in zip(*dataset_dict.values(), strict=True)]
+
+
+def load_dataset_split(args: DistillationConfig | ScriptArguments, split: str, take_n: int | None = None) -> Dataset:
     """Loads a single dataset split either from the hub or from a local file."""
     logger = get_logger(__name__)
 
     try:
-        logger.info(f"Loading '{args.hf_dataset}' (config: {args.hf_dataset_config}, split: {split}) dataset.")
+        logger.info(f"Loading '{args.dataset_name}' (config: {args.dataset_config}, split: {split}) dataset.")
 
-        dataset = hf_load_dataset(args.hf_dataset, args.hf_dataset_config, split=split)
+        dataset = hf_load_dataset(args.dataset_name, args.dataset_config, split=split)
+        assert isinstance(dataset, Dataset)  # noqa: S101
 
         logger.info("Dataset loaded!")
     except Exception as err:
-        raise FileNotFoundError(f"The dataset {args.hf_dataset} is not available on the Hugging Face Hub.") from err
+        raise FileNotFoundError(f"The dataset {args.dataset_name} is not available on the Hugging Face Hub.") from err
     else:
         if take_n is not None:
             dataset = dataset.select(range(take_n))
-        # Convert the dict format back to list of dicts. This is the format expected by Argilla.
-        dataset_dict = dataset.to_dict()
-        return [dict(zip(dataset_dict.keys(), vals, strict=True)) for vals in zip(*dataset_dict.values(), strict=True)]
+        return dataset
 
 
-def load_datasets(args: DistillationConfig, take_n: int | None) -> dict[str, list[dict[str, Any]]]:
+def load_datasets_for_sft(args: DistillationConfig, take_n: int | None) -> DatasetDict:
+    """Loads train and optionally validation splits as lists of dicts."""
+
+    def process_split(split_name: str) -> Dataset:
+        dataset = load_dataset_split(args, split_name, take_n)
+        dataset = remove_redundant_columns(dataset, ["tools", "messages"])
+        dataset["messages"] = json.loads(dataset["messages"])
+        return dataset
+
+    return DatasetDict({"train": process_split("train"), "validation": process_split("validation")})
+
+
+def load_datasets_for_distillation(args: DistillationConfig, take_n: int | None) -> dict[str, list[dict[str, Any]]]:
     """Loads train and optionally validation splits as lists of dicts."""
     datasets: dict[str, list[dict[str, Any]]] = {}
-    datasets["train"] = load_dataset_split(args, args.hf_dataset_train_split, take_n)
-    if args.hf_dataset_validation_split:
-        datasets["validation"] = load_dataset_split(args, args.hf_dataset_validation_split, take_n)
-    if args.hf_dataset_test_split:
-        datasets["test"] = load_dataset_split(args, args.hf_dataset_test_split)
+    datasets["train"] = convert_dataset_to_list_of_dicts(load_dataset_split(args, "train", take_n))
+    datasets["validation"] = convert_dataset_to_list_of_dicts(load_dataset_split(args, "validation", take_n))
+
     return datasets
 
 
