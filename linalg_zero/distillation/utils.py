@@ -405,6 +405,9 @@ def create_argilla_dataset(
 
 def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) -> None:
     # Push to HuggingFace Hub
+    prepare_dataset_for_sft(distiset)
+    normalize_schema(distiset)
+
     distiset.push_to_hub(
         dataset_name,
         private=private,
@@ -423,18 +426,40 @@ def prepare_dataset_for_sft(distiset: Distiset) -> None:
         return example
 
     distiset["default"]["train"] = distiset["default"]["train"].map(add_tools_column)
+    if "validation" in distiset["default"]:
+        distiset["default"]["validation"] = distiset["default"]["validation"].map(add_tools_column)
 
 
-def load_dataset(args: DistillationConfig, take_n: int | None) -> list[dict[str, Any]]:
-    """Loads the dataset either from the hub or from a local file."""
+def normalize_schema(distiset: Distiset) -> None:
+    ns = distiset["default"]
+
+    # 1) Stringify nested columns if present
+    for split in list(ns.keys()):
+        if "conversation" in ns[split].column_names:
+            ns[split] = ns[split].map(lambda r: {"conversation": json.dumps(r.get("conversation", []))})
+        if "distilabel_metadata" in ns[split].column_names:
+            ns[split] = ns[split].map(lambda r: {"distilabel_metadata": json.dumps(r.get("distilabel_metadata", {}))})
+
+    # 2) Align columns by UNION: add missing columns with empty placeholders
+    all_cols = set()
+    for split in ns:
+        all_cols |= set(ns[split].column_names)
+
+    for split in list(ns.keys()):
+        missing = sorted(all_cols - set(ns[split].column_names))
+        if missing:
+            for col in missing:
+                ns[split] = ns[split].add_column(col, [None] * len(ns[split]))
+
+
+def load_dataset_split(args: DistillationConfig, split: str, take_n: int | None = None) -> list[dict[str, Any]]:
+    """Loads a single dataset split either from the hub or from a local file."""
     logger = get_logger(__name__)
 
     try:
-        logger.info(
-            f"Loading '{args.hf_dataset}' (config: {args.hf_dataset_config}, split: {args.hf_dataset_split}) dataset."
-        )
+        logger.info(f"Loading '{args.hf_dataset}' (config: {args.hf_dataset_config}, split: {split}) dataset.")
 
-        dataset = hf_load_dataset(args.hf_dataset, args.hf_dataset_config, split=args.hf_dataset_split)
+        dataset = hf_load_dataset(args.hf_dataset, args.hf_dataset_config, split=split)
 
         logger.info("Dataset loaded!")
     except Exception as err:
@@ -445,3 +470,14 @@ def load_dataset(args: DistillationConfig, take_n: int | None) -> list[dict[str,
         # Convert the dict format back to list of dicts. This is the format expected by Argilla.
         dataset_dict = dataset.to_dict()
         return [dict(zip(dataset_dict.keys(), vals, strict=True)) for vals in zip(*dataset_dict.values(), strict=True)]
+
+
+def load_datasets(args: DistillationConfig, take_n: int | None) -> dict[str, list[dict[str, Any]]]:
+    """Loads train and optionally validation splits as lists of dicts."""
+    datasets: dict[str, list[dict[str, Any]]] = {}
+    datasets["train"] = load_dataset_split(args, args.hf_dataset_train_split, take_n)
+    if args.hf_dataset_validation_split:
+        datasets["validation"] = load_dataset_split(args, args.hf_dataset_validation_split, take_n)
+    if args.hf_dataset_test_split:
+        datasets["test"] = load_dataset_split(args, args.hf_dataset_test_split)
+    return datasets

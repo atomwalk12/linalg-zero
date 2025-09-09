@@ -15,8 +15,7 @@ from linalg_zero.distillation.utils import (
     cleanup,
     create_argilla_dataset,
     create_llm_clients,
-    load_dataset,
-    prepare_dataset_for_sft,
+    load_datasets,
     push_to_huggingface,
 )
 from linalg_zero.shared.lib import get_lib
@@ -25,9 +24,9 @@ from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig, take_n: int | None) -> None:  # noqa: C901
-    ##################
-    # Initialization #
-    ##################
+    ################################
+    # Initialize and load datasets #
+    ################################
     enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": True}}}
 
     # Setup the logging and environment variables
@@ -53,20 +52,18 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             logger.warning(f"Could not initialize Argilla client: {e}")
             logger.warning("Argilla dataset creation will be skipped")
 
-    ############################
-    # Load dataset/LLM clients #
-    ############################
+    # Load dataset splits and LLM clients
     llm, _ = create_llm_clients(server, args, ThoughtSchema)
-    dataset = load_dataset(args, take_n=take_n)
-    logger.info(f"Loaded {len(dataset)} examples")
+    datasets = load_datasets(args, take_n=take_n)
+    for split_name, split_ds in datasets.items():
+        logger.info(f"Loaded {len(split_ds)} examples for split '{split_name}'")
 
-    ############################
-    # Build and run the pipeline
-    ############################
+    ##########################
+    # Run the training split #
+    ##########################
 
     # Run the pipeline
-    logger.info("Running generation pipeline...")
-    logger.info(f"Processing {len(dataset)} examples with batch size {args.input_batch_size}")
+    logger.info("Running generation pipeline for available splits...")
     logger.info("Monitor progress in Ray dashboard: http://localhost:8265")
 
     generation_kwargs = {
@@ -81,16 +78,15 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     if args.stop is not None:
         generation_kwargs["stop"] = args.stop
 
-    with Pipeline("generation-pipeline", cache_dir="./distilabel_cache").ray() as pipeline:
-        # Single step: generate multi-turn conversations
+    # Run train split first
+    with Pipeline("train-generation-pipeline", cache_dir="./distilabel_cache") as pipeline:
         multi_turn_generator = MultiTurnWithToolUseGenerator(
             name="multi_turn_generator",
             llm=llm,
-            dataset=dataset,
+            dataset=datasets["train"],
             batch_size=args.input_batch_size,
             n_turns=args.n_turns,
             system_prompt=get_math_system_prompt(),
-            include_system_prompt=True,
             thought_schema=ThoughtSchema,
             library=get_lib(),
         )
@@ -99,9 +95,36 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             parameters={
                 multi_turn_generator.name: {"llm": {"generation_kwargs": generation_kwargs}},
             },
-            use_cache=False,
+            use_cache=args.use_cache,
             dataset_batch_size=args.input_batch_size,
         )
+
+    ############################
+    # Run the validation split #
+    ############################
+
+    if "validation" in datasets:
+        with Pipeline("validation-generation-pipeline", cache_dir="./distilabel_cache") as pipeline:
+            multi_turn_generator = MultiTurnWithToolUseGenerator(
+                name="multi_turn_generator",
+                llm=llm,
+                dataset=datasets["validation"],
+                batch_size=args.input_batch_size,
+                n_turns=args.n_turns,
+                system_prompt=get_math_system_prompt(),
+                thought_schema=ThoughtSchema,
+                library=get_lib(),
+            )
+
+            val_distiset: Distiset = pipeline.run(
+                parameters={
+                    multi_turn_generator.name: {"llm": {"generation_kwargs": generation_kwargs}},
+                },
+                use_cache=args.use_cache,
+                dataset_batch_size=args.input_batch_size,
+            )
+
+        distiset["default"]["validation"] = val_distiset["default"]["train"]
 
     # The run interferes with the logger, this restores its state
     cleanup()
@@ -110,23 +133,23 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     # Push the results to the hub #
     ###############################
     logger.info("Generation complete!")
-    distilabel_data = distiset["default"]["train"]
+    distilabel_train = distiset["default"]["train"]
+    total_train = len(distilabel_train)
+    train_correct = sum(1 for row in distilabel_train if row["is_correct"])
+    logger.info("Pipeline completed (train):")
+    logger.info(f"  Math verify successes: {train_correct}/{total_train}")
 
-    total_examples = len(distilabel_data)
-
-    # Count successes at each stage
-    math_verify_successes = sum(1 for row in distilabel_data if row["is_correct"])
-
-    logger.info("Pipeline completed:")
-    logger.info(f"  Math verify successes: {math_verify_successes}/{total_examples}")
+    if "validation" in distiset["default"]:
+        distilabel_val = distiset["default"]["validation"]
+        total_val = len(distilabel_val)
+        val_correct = sum(1 for row in distilabel_val if row["is_correct"])
+        logger.info("Pipeline completed (validation):")
+        logger.info(f"  Math verify successes: {val_correct}/{total_val}")
 
     if args.hf_output_dataset:
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")
 
         try:
-            # Add the tools column to the dataset, required for SFT
-            prepare_dataset_for_sft(distiset)
-
             push_to_huggingface(distiset, args.hf_output_dataset, args.private)
 
             # Create Argilla dataset for annotation if client is available
@@ -134,12 +157,19 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
                 try:
                     dataset_data = distiset["default"]["train"]
                     create_argilla_dataset(
-                        dataset_name=args.argilla_output_dataset,
+                        dataset_name=f"{args.argilla_output_dataset}-train",
                         distiset_data=dataset_data,
                         client=argilla_client,
                         private=args.private,
                     )
 
+                    dataset_data = distiset["default"]["validation"]
+                    create_argilla_dataset(
+                        dataset_name=f"{args.argilla_output_dataset}-validation",
+                        distiset_data=dataset_data,
+                        client=argilla_client,
+                        private=args.private,
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to create Argilla dataset: {e}")
 

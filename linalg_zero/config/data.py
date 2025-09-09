@@ -14,6 +14,8 @@ class ScriptArguments(trl.ScriptArguments):
         default=None, metadata={"help": "Dataset name. Can be omitted if using dataset_mixture."}
     )
 
+    take_n: int | None = field(default=None, metadata={"help": "Number of examples to take from the dataset."})
+
 
 @dataclass
 class SFTConfig(trl.SFTConfig):
@@ -206,7 +208,7 @@ class DistillationConfig:
     hf_dataset_config: str | None = field(
         metadata={"help": "Dataset config to use"},
     )
-    hf_dataset_split: str = field(
+    hf_dataset_train_split: str = field(
         metadata={"help": "Dataset split to use"},
     )
 
@@ -269,4 +271,15 @@ class DistillationConfig:
     stop: list[str] | None = field(
         default=None,
         metadata={"help": "Stop sequences for generation (each string is a stop token)"},
+    )
+
+    # Optional validation split (must come after non-default fields)
+    hf_dataset_validation_split: str | None = field(
+        default=None,
+        metadata={"help": "Optional validation split to also load and process"},
+    )
+
+    hf_dataset_test_split: str | None = field(
+        default=None,
+        metadata={"help": "Optional test split to also load and process"},
     )

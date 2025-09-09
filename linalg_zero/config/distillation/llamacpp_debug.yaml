@@ -3,7 +3,7 @@
 # Dataset parameters
 hf_dataset: "atomwalk12/linalg-zero-dataset"
 hf_dataset_config: null
-hf_dataset_split: "train"
+hf_dataset_train_split: "train"
 
 # Prompt parameters
 prompt_column: "prompt"

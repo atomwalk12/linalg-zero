@@ -1,7 +1,17 @@
+import json
 import re
 
 
 class XMLParser:
+    think_then_answer_regex = (
+        r"^<think>\s*([^<]*(?:<(?!/?think>)[^<]*)*)\s*<\/think>\s*"
+        r"<answer>\s*([\s\S]*?)\s*<\/answer>$"
+    )
+    think_then_tool_regex = (
+        r"^<think>\s*([^<]*(?:<(?!/?think>)[^<]*)*)\s*<\/think>\s*"
+        r"<tool>\s*([\s\S]*?)\s*<\/tool>$"
+    )
+
     def get_assistant_messages(self, completion: list[dict]) -> list[dict]:
         """Helper function to extract assistant messages from a completion."""
         return [msg for msg in completion if msg["role"] == "assistant"]
@@ -14,7 +24,7 @@ class XMLParser:
         """Extract answer content from <answer> tags.
 
         Primary path: properly closed <answer>...</answer> (last occurrence).
-        Fallback: if an opening <answer> exists but closing is missing (e.g., due to
+        Fallback: if an opening <answer> exists but closing is missing (e.g.,
         stop sequences), return content from after <answer> to end of message.
         """
         contents = self._extract_tag_contents(message, "answer", last_only=True)
@@ -43,6 +53,31 @@ class XMLParser:
 
         # We look for a match and assert that the number of matched groups is correct
         return match is not None and len(match.groups()) == expected_groups
+
+    def is_valid_think_then_answer(self, message: str) -> bool:
+        """Validate '<think>...</think>' followed by '<answer>...</answer>'."""
+
+        return self.check_format(message, self.think_then_answer_regex, expected_groups=2)
+
+    def is_valid_think_then_tool(self, message: str) -> bool:
+        """Validate '<think>...</think>' followed by '<tool>...</tool>'."""
+
+        return self.check_format(message, self.think_then_tool_regex, expected_groups=2)
+
+    def is_valid_think_then_tool_or_answer(self, message: str) -> bool:
+        """Validate '<think>...</think>' followed by exactly one of '<tool>...</tool>' or '<answer>...</answer>'."""
+
+        valid_tool = self.check_format(message, self.think_then_tool_regex, expected_groups=2)
+        valid_answer = self.check_format(message, self.think_then_answer_regex, expected_groups=2)
+        return valid_tool or valid_answer
+
+    def ensure_think_prefix(self, message: str | None) -> str | None:
+        """Ensure the message starts with a single '<think>' prefix without duplicating it."""
+        if message is None:
+            return None
+        if message.startswith("<think>"):
+            return message
+        return "<think>" + message
 
     def _extract_tag_contents(
         self,
@@ -111,3 +146,67 @@ class XMLParser:
 
         contents = self._extract_tag_contents(message, "think", last_only=True)
         return contents[0] if contents else None
+
+
+class XMLDiagnostics:
+    """Diagnostic helpers for analyzing malformed generations.
+
+    Separated from XMLParser to keep core parsing/validation lean.
+    """
+
+    def __init__(self, parser: XMLParser):
+        self.parser = parser
+
+    def has_unclosed_answer(self, message: str) -> bool:
+        return self.has_unclosed_tag(message, "answer")
+
+    def count_tags(self, message: str, tag: str) -> int:
+        return len(self.parser._extract_tag_contents(message, tag, last_only=False))
+
+    def has_unclosed_tag(self, message: str, tag: str) -> bool:
+        if not message:
+            return False
+        open_token = f"<{tag}>"
+        close_token = f"</{tag}>"
+        last_open = message.rfind(open_token)
+        if last_open == -1:
+            return False
+        after_open = message[last_open + len(open_token) :]
+        return close_token not in after_open
+
+    def get_first_tool_block(self, message: str) -> str | None:
+        tools = self.parser._extract_tag_contents(message, "tool", last_only=False)
+        return tools[0] if tools else None
+
+    def has_code_fences_in_first_tool(self, message: str) -> bool:
+        block = self.get_first_tool_block(message)
+        if not block:
+            return False
+        return "```" in block
+
+    def extract_first_tool_call(self, message: str) -> tuple[dict | None, str | None]:
+        block = self.get_first_tool_block(message)
+        if block is None:
+            return None, "no tool block found"
+        try:
+            data = json.loads(block)
+        except Exception:
+            return None, "invalid tool JSON"
+        if not isinstance(data, dict):
+            return None, "invalid tool JSON"
+        name = data.get("name")
+        args = data.get("arguments")
+        if not isinstance(name, str):
+            return None, "missing or invalid 'name' in tool JSON"
+        if not isinstance(args, dict):
+            return None, "missing or invalid 'arguments' in tool JSON"
+        return {"name": name, "arguments": args}, None
+
+    def has_stray_content_outside_allowed(self, message: str) -> bool:
+        if "<think>" not in message:
+            return False
+        has_tool = "<tool>" in message and "</tool>" in message
+        has_answer = "<answer>" in message and "</answer>" in message
+        if not (has_tool or has_answer):
+            return False
+        return not (self.parser.is_valid_think_then_tool(message) or self.parser.is_valid_think_then_answer(message))

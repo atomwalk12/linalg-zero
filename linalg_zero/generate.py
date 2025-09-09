@@ -22,7 +22,9 @@ from linalg_zero.generator.utils import (
 from linalg_zero.shared.utils import get_log_file_path, get_logger, push_to_hub, setup_logging
 
 
-def main(push_dataset: bool, use_optimized_registry: bool, dataset_name: str) -> None:  # pragma: no cover
+def main(
+    push_dataset: bool, use_optimized_registry: bool, dataset_name: str, n_one: int, n_two: int, n_three: int
+) -> None:  # pragma: no cover
     # Set up logging
     setup_logging(level=logging.INFO, include_timestamp=False)
     logger = get_logger(__name__)
@@ -54,10 +56,9 @@ def main(push_dataset: bool, use_optimized_registry: bool, dataset_name: str) ->
     # Easy: 3000, Medium: 2000, Hard: 1000 (total: 6000)
     dataset = generator.generate_exact_for_categories(
         requests={
-            # Total: 12.4k problems
-            DifficultyCategory.ONE_TOOL_CALL: 800,
-            DifficultyCategory.TWO_TOOL_CALLS: 1000,
-            DifficultyCategory.THREE_TOOL_CALLS: 1200,
+            DifficultyCategory.ONE_TOOL_CALL: n_one,
+            DifficultyCategory.TWO_TOOL_CALLS: n_two,
+            DifficultyCategory.THREE_TOOL_CALLS: n_three,
         }
     )
     statistics = compute_stepwise_value_statistics(dataset)
@@ -99,6 +100,9 @@ if __name__ == "__main__":  # pragma: no cover
         default=True,
         help="Use optimized entropy settings from analysis results for dataset generation",
     )
+    parser.add_argument("--n_one", type=int, default=700, help="Per-generator 1-step samples")
+    parser.add_argument("--n_two", type=int, default=900, help="Per-generator 2-step samples")
+    parser.add_argument("--n_three", type=int, default=600, help="Per-generator 3-step samples")
     argv = parser.parse_args()
     if argv.seed is not None:
         set_seed(argv.seed)
@@ -107,4 +111,4 @@ if __name__ == "__main__":  # pragma: no cover
             # Importing module and setting its global is sufficient
             dc.DETERMINISTIC_BASE_SEED = int(argv.seed)
 
-    main(argv.push_dataset, argv.use_optimized_registry, argv.dataset_name)
+    main(argv.push_dataset, argv.use_optimized_registry, argv.dataset_name, argv.n_one, argv.n_two, argv.n_three)

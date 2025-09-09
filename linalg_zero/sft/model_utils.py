@@ -88,5 +88,8 @@ def load_dataset(args: ScriptArguments) -> DatasetDict:
 
     dataset = hf_load_dataset(args.dataset_name, args.dataset_config)
 
+    if args.take_n is not None:
+        dataset = dataset.select(range(args.take_n))
+
     # Only the ["messages", "tools"] columns are relevant for SFT
     return remove_redundant_columns(dataset)

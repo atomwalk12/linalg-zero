@@ -3,7 +3,9 @@
 # Dataset parameters
 hf_dataset: "atomwalk12/linalgzero"
 hf_dataset_config: null
-hf_dataset_split: "train"
+hf_dataset_train_split: "train"
+hf_dataset_validation_split: "validation"
+hf_dataset_test_split: "test"
 
 # Prompt parameters
 prompt_column: "prompt"
@@ -20,7 +22,7 @@ stop:
 
 # Processing parameters
 input_batch_size: 5
-use_cache: true
+use_cache: false
 client_replicas: 1
 timeout: 600
 retries: 2

@@ -21,13 +21,8 @@ def reward_response_format(parser: XMLParser, completion: list[dict] | str, grou
     else:
         message = completion
 
-    regex = (
-        r"^<think>\s*([^<]*(?:<(?!/?think>)[^<]*)*)\s*<\/think>\s*"
-        r"<answer>\s*([\s\S]*?)\s*<\/answer>$"
-    )
-
     # Check format adheres to the expected format
-    if parser.check_format(message, regex, expected_groups=2):
+    if parser.is_valid_think_then_answer(message):
         return 1.0
 
     return 0.0

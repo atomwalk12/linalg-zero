@@ -12,7 +12,7 @@ from distilabel.models.llms.base import LLM
 from pydantic import Field, PositiveInt, ValidationError
 
 from linalg_zero.distillation.data import FunctionInvocationInfo, ThoughtSchema
-from linalg_zero.grpo.verifiers.xml_parser import XMLParser
+from linalg_zero.grpo.verifiers.xml_parser import XMLDiagnostics, XMLParser
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.utils import get_logger
 
@@ -50,6 +50,10 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     enable_hint_injection: RuntimeParameter[bool] = Field(
         default=True,
         description="If true (and immediate recovery is disabled), inject a system hint about the previous issue to guide the next turn.",
+    )
+    strict_format: RuntimeParameter[bool] = Field(
+        default=True,
+        description="If true, enforce strict '<think> then <tool>|<answer>' structure gate in parsing.",
     )
 
     def _prepare_inputs_for_instruction_generation(self, inputs: list[dict[str, Any]]) -> list["ChatType"]:
@@ -202,15 +206,13 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         )
 
         # Force-start assistant generations with a <think> prefix to stabilize reasoning traces.
+        parser = XMLParser()
         seeded_messages: list[str | None] = []
         for msg in messages:
             if msg is None:
                 seeded_messages.append(None)
             else:
-                # Here we prepend a <think> tag to the message to facilitate parsing.
-                # The model may not always start with a <think> tag, but we manage one or two
-                # <think> tokens in parser.extract_thought.
-                seeded_messages.append("<think>" + msg)
+                seeded_messages.append(parser.ensure_think_prefix(msg))
 
         # The parsed messages may contain `None`s if the LLM didn't generate a message.
         parsed_active_msgs = self.extract_structured_output(list(seeded_messages), self.thought_schema)
@@ -266,24 +268,53 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 conv.append({"role": "system", "content": hint})
         self._logger.info("Injected recovery hints for malformed turns where applicable.")
 
-    def _diagnose_generation_issue(self, msg: str | None) -> str:
+    def _diagnose_generation_issue(self, msg: str | None) -> str:  # noqa: C901
         """Heuristic diagnosis of why a generation is unusable to guide recovery."""
         if msg is None or not str(msg).strip():
             return "empty generation"
         parser = XMLParser()
-        msg = "<think>" + msg  # Some models do not always start with a <think> tag
+        diag = XMLDiagnostics(parser)
+        msg = parser.ensure_think_prefix(msg) or ""
         if parser.extract_thought(msg) is None:
             return "missing <think> block"
+
+        # Multiple think blocks can confuse parsing
+        if diag.count_tags(msg, "think") > 1:
+            return "multiple <think> blocks"
+
+        # Tool/Answer multiplicity and presence
+        tool_count = diag.count_tags(msg, "tool")
+        answer_count = diag.count_tags(msg, "answer")
+        if tool_count > 1:
+            return "multiple <tool> blocks"
+        if answer_count > 1:
+            return "multiple <answer> blocks"
+
         tools = parser.extract_tools(msg, first_only=True)
         if not tools:
-            if "<answer>" in msg and "</answer>" not in msg:
+            if diag.has_unclosed_tag(msg, "answer"):
                 return "premature <answer> without closing tag"
+            if diag.has_stray_content_outside_allowed(msg):
+                return "content outside allowed tags"
             return "no tool call and no final answer"
 
-        try:
-            _ = json.loads(tools[0])
-        except Exception:
-            return "invalid tool JSON"
+        # Tool path validations
+        if diag.has_unclosed_tag(msg, "tool"):
+            return "premature <tool> without closing tag"
+        if diag.has_code_fences_in_first_tool(msg):
+            return "remove code fences from <tool> content"
+
+        parsed_tool, err = diag.extract_first_tool_call(msg)
+        if parsed_tool is None:
+            return err or "invalid tool JSON"
+
+        name = parsed_tool["name"]
+        args = parsed_tool["arguments"]
+        if name not in self.library:
+            return "unknown tool name"
+        if not isinstance(args, dict):
+            return "invalid tool arguments"
+
         return "unspecified formatting issue"
 
     def _execute_tool_calls(
@@ -379,11 +410,18 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 result.append(placeholder)
         return result
 
-    def extract_non_structured_output(self, message: str | None) -> ThoughtSchema | None:
+    def extract_non_structured_output(self, message: str) -> ThoughtSchema | None:
         """Extract the non-structured output from the messages."""
         parser = XMLParser()
-        if message is None:
-            return None
+
+        # Optional strict gate: require '<think> then <tool>|<answer>' structure
+        if self.strict_format and not parser.is_valid_think_then_tool_or_answer(message):
+            return ThoughtSchema(
+                thought="",
+                tool_call=None,
+                final_answer=None,
+                completed=False,
+            )
 
         answer = parser.extract_answer(message)
         # Prefer explicit <think>; else take prefix before any XML tags; else None
@@ -409,7 +447,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 tool_call = None
 
         # If both a tool and an answer appear, treat this as a tool-call step
-        # and ignore the answer for this turn.
+        # and ignore the answer for this turn. This can never happen because of
+        # the strict gate above.
         if tool_call is not None and answer is not None:
             return ThoughtSchema(
                 thought=thought,
@@ -538,11 +577,13 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 "model_name": self.llm.model_name,
             }
             generation["distilabel_metadata"] = {
-                f"statistics_gen_{self.name}": stats_gen.get("gen_stats", {}),
-                f"statistics_tools_{self.name}": stats_tools,
-                f"malformed_turns_{self.name}": stats_gen.get("malformed_turns", 0),
-                f"tool_errors_{self.name}": stats_gen.get("tool_errors", 0),
-                f"tool_calls_total_{self.name}": sum(stats_tools.values()),
+                f"statistics_gen_{self.name}": stats_gen.get("gen_stats", []),
+                f"statistics_tools_{self.name}": stats_tools if isinstance(stats_tools, dict) else {},
+                f"malformed_turns_{self.name}": int(stats_gen.get("malformed_turns", 0) or 0),
+                f"tool_errors_{self.name}": int(stats_gen.get("tool_errors", 0) or 0),
+                f"tool_calls_total_{self.name}": int(
+                    sum(stats_tools.values()) if isinstance(stats_tools, dict) else 0
+                ),
             }
             generations.append(generation)
         return generations
