@@ -24,10 +24,10 @@ from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
-def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig) -> None:  # noqa: C901
-    ################
-    # Initialization
-    ################
+def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig, take_n: int | None) -> None:  # noqa: C901
+    ##################
+    # Initialization #
+    ##################
     enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": True}}}
 
     # Setup the logging and environment variables
@@ -53,11 +53,11 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             logger.warning(f"Could not initialize Argilla client: {e}")
             logger.warning("Argilla dataset creation will be skipped")
 
-    ##########################
-    # Load dataset/LLM clients
-    ##########################
+    ############################
+    # Load dataset/LLM clients #
+    ############################
     llm, _ = create_llm_clients(server, args, ThoughtSchema)
-    dataset = load_dataset(args, take_n=4)
+    dataset = load_dataset(args, take_n=take_n)
     logger.info(f"Loaded {len(dataset)} examples")
 
     ############################
@@ -81,7 +81,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     if args.stop is not None:
         generation_kwargs["stop"] = args.stop
 
-    with Pipeline("generation-pipeline", cache_dir="./distilabel_cache") as pipeline:
+    with Pipeline("generation-pipeline", cache_dir="./distilabel_cache").ray() as pipeline:
         # Single step: generate multi-turn conversations
         multi_turn_generator = MultiTurnWithToolUseGenerator(
             name="multi_turn_generator",
@@ -106,9 +106,9 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     # The run interferes with the logger, this restores its state
     cleanup()
 
-    #############################
-    # Push the results to the hub
-    #############################
+    ###############################
+    # Push the results to the hub #
+    ###############################
     logger.info("Generation complete!")
     distilabel_data = distiset["default"]["train"]
 
@@ -149,12 +149,14 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
 
 if __name__ == "__main__":
+    take_n = None
     if "--config" not in argv:
         argv.append("--config")
         argv.append("linalg_zero/config/distillation/vllm_debug.yaml")
+        take_n = 4
 
     # Parse configuration from YAML file stored in the --config argument
     parser = TrlParser(dataclass_types=[DistillationConfig, VllmServerConfig])
     (distillation_config, backend_config) = parser.parse_args_and_config()
 
-    main(distillation_config, backend_config)
+    main(distillation_config, backend_config, take_n)

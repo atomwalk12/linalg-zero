@@ -230,33 +230,48 @@ def create_argilla_dataset_settings() -> rg.Settings:
         guidelines="""Review and validate the model's reasoning for linear algebra problems.""",
         fields=[
             rg.TextField(
+                name="query",
+                title="User's Linear Algebra Problem Query",
+                use_markdown=False,
+            ),
+            rg.TextField(
                 name="ground_truth",
                 title="Ground Truth Result",
                 use_markdown=False,
             ),
             rg.TextField(
-                name="problem",
-                title="User's Linear Algebra Problem",
-                use_markdown=False,
-            ),
-            rg.TextField(
-                name="tool_planning_thought",
-                title="Model's Tool Planning Thought",
+                name="stepwise_ground_truths",
+                title="Stepwise Ground Truth Solutions",
                 use_markdown=False,
             ),
             rg.TextField(
                 name="tool_calls",
-                title="Tool Calls Made",
+                title="Number of Tool Calls Made",
                 use_markdown=False,
             ),
             rg.TextField(
-                name="execution_result",
-                title="Code Execution Result",
+                name="problem_type",
+                title="Problem Type",
                 use_markdown=False,
             ),
             rg.TextField(
-                name="keep_row_after_execution_check",
-                title="Keep Row After Execution Check",
+                name="composition_type",
+                title="Composition Type",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="composition_dependencies",
+                title="Composition Dependencies",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="conversation",
+                title="Full Conversation",
+                use_markdown=True,
+            ),
+            rg.TextField(
+                name="dependency_edges",
+                title="Dependency Edges",
                 use_markdown=False,
             ),
             rg.TextField(
@@ -265,23 +280,13 @@ def create_argilla_dataset_settings() -> rg.Settings:
                 use_markdown=False,
             ),
             rg.TextField(
-                name="verification_result",
-                title="Math-Verify Verification Result",
+                name="is_correct",
+                title="Is Answer Correct?",
                 use_markdown=False,
             ),
             rg.TextField(
-                name="verification_details",
-                title="Detailed Verification Information",
-                use_markdown=False,
-            ),
-            rg.TextField(
-                name="final_result_correct",
-                title="Does the final answer match the ground truth?",
-                use_markdown=False,
-            ),
-            rg.TextField(
-                name="keep_row_after_semantic_check",
-                title="Keep Row After Semantic Check",
+                name="model_name",
+                title="Model Name Used",
                 use_markdown=False,
             ),
         ],
@@ -328,51 +333,28 @@ def _delete_existing_argilla_dataset(client: rg.Argilla, dataset_name: str) -> N
         pass
 
 
-def _extract_assistant_messages(messages: list[dict[str, Any]]) -> tuple[str, str, str]:
-    """Extract tool planning thought, tool calls, and final answer from assistant messages."""
-    tool_planning_thought = ""
-    tool_calls = ""
-    final_answer = ""
-
-    for msg in messages:
-        if msg.get("role") == "assistant":
-            if msg.get("tool_calls"):
-                tool_calls = str(msg.get("tool_calls", ""))
-                if msg.get("content"):
-                    tool_planning_thought = msg.get("content", "")
-            elif msg.get("content"):
-                # Preserve the raw content including special tags like <think></think> and <RESULT></RESULT>
-                final_answer = msg.get("content", "")
-
-    return tool_planning_thought, tool_calls, final_answer
-
-
 def _convert_item_to_argilla_record(item: dict[str, Any]) -> dict[str, str] | None:
     """Convert a single distillation item to an Argilla record."""
     logger = get_logger(__name__)
     try:
         # Extract problem from messages
-        problem = ""
-        for msg in item.get("messages", []):
-            if msg.get("role") == "user":
-                problem = msg.get("content", "")
-                break
-
-        # Extract assistant message components
-        tool_planning_thought, tool_calls, final_answer = _extract_assistant_messages(item.get("messages", []))
+        num_tool_calls = len(json.loads(item.get("stepwise_ground_truths", "N/A")))
 
         return {
-            "problem": problem,
-            "ground_truth": str(item.get("ground_truth", "")),
-            "tool_planning_thought": tool_planning_thought,
-            "tool_calls": tool_calls,
-            "execution_result": str(item.get("execution_result", "")),
-            "final_answer": final_answer,
-            "verification_result": str(item.get("verification_result", "")),
-            "final_result_correct": str(item.get("final_result_correct", "")),
-            "keep_row_after_semantic_check": str(item.get("keep_row_after_semantic_check", "")),
-            "verification_details": str(item.get("verification_details", "")),
-            "keep_row_after_execution_check": str(item.get("keep_row_after_execution_check", "")),
+            "query": str(item.get("query", "N/A")),
+            "ground_truth": str(item.get("ground_truth", "N/A")),
+            "stepwise_ground_truths": str(item.get("stepwise_ground_truths", "N/A")),
+            "tool_calls": str(num_tool_calls),
+            "problem_type": str(item.get("problem_type", "N/A")),
+            "composition_type": str(item.get("composition_type", "N/A")),
+            "composition_dependencies": str(item.get("composition_dependencies", "N/A")),
+            "conversation": json.dumps(item.get("conversation", "N/A"), indent=2)
+            if item.get("conversation") != "N/A"
+            else "N/A",
+            "dependency_edges": str(item.get("dependency_edges", "N/A")),
+            "final_answer": str(item.get("final_answer", "N/A")),
+            "is_correct": str(item.get("is_correct", "N/A")),
+            "model_name": str(item.get("model_name", "N/A")),
         }
     except Exception as e:
         logger.warning(f"Failed to process record: {e}")
@@ -415,7 +397,7 @@ def create_argilla_dataset(
 
         logger.info("✅ Argilla dataset created successfully")
         logger.info(f"   Privacy: {'Private' if private else 'Public'}")
-        logger.info(f"   Access URL: https://{dataset_name.replace('/', '-')}.hf.space")
+        logger.info(f"   Access URL: https://{dataset_name.replace('/', '-').replace('-debug', '')}.hf.space")
     except Exception:
         logger.exception("Failed to create Argilla dataset")
         raise
@@ -443,7 +425,7 @@ def prepare_dataset_for_sft(distiset: Distiset) -> None:
     distiset["default"]["train"] = distiset["default"]["train"].map(add_tools_column)
 
 
-def load_dataset(args: DistillationConfig, take_n: int) -> list[dict[str, Any]]:
+def load_dataset(args: DistillationConfig, take_n: int | None) -> list[dict[str, Any]]:
     """Loads the dataset either from the hub or from a local file."""
     logger = get_logger(__name__)
 

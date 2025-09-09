@@ -5,7 +5,7 @@ torch_dtype: bfloat16
 attn_implementation: flash_attention_2
 
 # Data training arguments
-dataset_name: atomwalk12/linalg-debug-distilled
+dataset_name: atomwalk12/linalgzero-distilled
 dataset_config: default
 dataset_num_proc: 12
 eos_token: <|im_end|>

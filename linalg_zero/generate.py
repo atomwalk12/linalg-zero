@@ -22,7 +22,7 @@ from linalg_zero.generator.utils import (
 from linalg_zero.shared.utils import get_log_file_path, get_logger, push_to_hub, setup_logging
 
 
-def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> None:  # pragma: no cover
+def main(push_dataset: bool, use_optimized_registry: bool, dataset_name: str) -> None:  # pragma: no cover
     # Set up logging
     setup_logging(level=logging.INFO, include_timestamp=False)
     logger = get_logger(__name__)
@@ -77,7 +77,7 @@ def main(push_dataset: bool = False, use_optimized_registry: bool = False) -> No
             seed=argv.seed or 42,
             stratify_by="difficulty",
         )
-        push_to_hub(splits, "atomwalk12/linalg-zero-dataset", private=False, config_path=config_path)
+        push_to_hub(splits, dataset_name, private=False, config_path=config_path)
 
     # --------------------------------------------------
     # This is an example on generating other topic types
@@ -92,6 +92,7 @@ if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--push_dataset", action="store_true", default=True)
+    parser.add_argument("--dataset_name", type=str, default="atomwalk12/linalgzero")
     parser.add_argument(
         "--use_optimized_registry",
         action="store_true",
@@ -106,4 +107,4 @@ if __name__ == "__main__":  # pragma: no cover
             # Importing module and setting its global is sufficient
             dc.DETERMINISTIC_BASE_SEED = int(argv.seed)
 
-    main(argv.push_dataset, argv.use_optimized_registry)
+    main(argv.push_dataset, argv.use_optimized_registry, argv.dataset_name)

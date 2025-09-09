@@ -119,7 +119,7 @@ def frobenius_norm(matrix: list[list[float | int]]) -> float:
 
     Examples:
         >>> frobenius_norm([[1, 2], [3, 4]])
-        5.477226
+        5.48
         >>> frobenius_norm([[0, 0], [0, 0]])
         0.0
     """
