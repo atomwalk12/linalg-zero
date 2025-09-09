@@ -289,6 +289,16 @@ def create_argilla_dataset_settings() -> rg.Settings:
                 title="Model Name Used",
                 use_markdown=False,
             ),
+            rg.TextField(
+                name="diagnostics",
+                title="Diagnostics (per turn)",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="diagnostic_messages",
+                title="Diagnostic raw messages (failed turns)",
+                use_markdown=False,
+            ),
         ],
         questions=[
             rg.LabelQuestion(
@@ -333,12 +343,30 @@ def _delete_existing_argilla_dataset(client: rg.Argilla, dataset_name: str) -> N
         pass
 
 
+def _format_indexed_list(items: list[Any]) -> str:
+    """Format a list with indexed headers and separators for better readability."""
+    if not items:
+        return ""
+
+    indexed_list = []
+    for i, item in enumerate(items):
+        indexed_list.append({"index": i, "content": item})
+
+    return json.dumps(indexed_list, indent=2)
+
+
 def _convert_item_to_argilla_record(item: dict[str, Any]) -> dict[str, str] | None:
     """Convert a single distillation item to an Argilla record."""
     logger = get_logger(__name__)
     try:
         # Extract problem from messages
         num_tool_calls = len(json.loads(item.get("stepwise_ground_truths", "N/A")))
+        # Get diagnostics and find diagnostics_* key if present
+        metadata = item.get("distilabel_metadata", {})
+        diagnostics_key = next((k for k in metadata if k.startswith("diagnostics_")), None)
+        diagnostic_msgs_key = next((k for k in metadata if k.startswith("diagnostic_messages_")), None)
+        diagnostics_list = metadata.get(diagnostics_key, []) if diagnostics_key else []
+        diagnostic_msgs_list = metadata.get(diagnostic_msgs_key, []) if diagnostic_msgs_key else []
 
         return {
             "query": str(item.get("query", "N/A")),
@@ -355,6 +383,8 @@ def _convert_item_to_argilla_record(item: dict[str, Any]) -> dict[str, str] | No
             "final_answer": str(item.get("final_answer", "N/A")),
             "is_correct": str(item.get("is_correct", "N/A")),
             "model_name": str(item.get("model_name", "N/A")),
+            "diagnostics": _format_indexed_list(diagnostics_list),
+            "diagnostic_messages": _format_indexed_list(diagnostic_msgs_list),
         }
     except Exception as e:
         logger.warning(f"Failed to process record: {e}")
@@ -394,18 +424,18 @@ def create_argilla_dataset(
             logger.info(f"Logged {len(records)} records to Argilla dataset")
         else:
             logger.warning("No valid records found to log")
-
+        domain = dataset_name.replace("/", "-").replace("-debug", "").replace("-train", "").replace("-validation", "")
         logger.info("✅ Argilla dataset created successfully")
         logger.info(f"   Privacy: {'Private' if private else 'Public'}")
-        logger.info(f"   Access URL: https://{dataset_name.replace('/', '-').replace('-debug', '')}.hf.space")
+        logger.info(f"   Access URL: https://{domain}.hf.space")
     except Exception:
         logger.exception("Failed to create Argilla dataset")
         raise
 
 
 def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) -> None:
-    # Push to HuggingFace Hub
     prepare_dataset_for_sft(distiset)
+    strip_diagnostic_messages_from_metadata(distiset)
     normalize_schema(distiset)
 
     distiset.push_to_hub(
@@ -481,3 +511,22 @@ def load_datasets(args: DistillationConfig, take_n: int | None) -> dict[str, lis
     if args.hf_dataset_test_split:
         datasets["test"] = load_dataset_split(args, args.hf_dataset_test_split)
     return datasets
+
+
+def strip_diagnostic_messages_from_metadata(distiset: Distiset) -> None:
+    """Remove diagnostic_messages_* keys from distilabel_metadata for all splits (before HF push)."""
+    ns = distiset["default"]
+
+    def strip_md(record: dict[str, Any]) -> dict[str, Any]:
+        md = record.get("distilabel_metadata", {})
+        if isinstance(md, dict):
+            keys_to_remove = [k for k in md if k.startswith("diagnostic_messages_")]
+            if keys_to_remove:
+                for k in keys_to_remove:
+                    md.pop(k, None)
+                return {"distilabel_metadata": md}
+        return {"distilabel_metadata": md}
+
+    for split in list(ns.keys()):
+        if "distilabel_metadata" in ns[split].column_names:
+            ns[split] = ns[split].map(strip_md)

@@ -140,10 +140,6 @@ class XMLParser:
         if not message:
             return None
 
-        # If message starts with duplicated '<think><think>', strip one to normalize
-        if message.startswith("<think><think>"):
-            message = message.replace("<think><think>", "<think>", 1)
-
         contents = self._extract_tag_contents(message, "think", last_only=True)
         return contents[0] if contents else None
 
@@ -210,3 +206,15 @@ class XMLDiagnostics:
         if not (has_tool or has_answer):
             return False
         return not (self.parser.is_valid_think_then_tool(message) or self.parser.is_valid_think_then_answer(message))
+
+    def has_orphan_closing_tag(self, message: str, tag: str) -> bool:
+        """Return True if a closing </tag> appears without any prior opening <tag>."""
+        if not message:
+            return False
+        open_token = f"<{tag}>"
+        close_token = f"</{tag}>"
+        if close_token not in message:
+            return False
+        first_close = message.find(close_token)
+        first_open = message.find(open_token)
+        return first_open == -1 or first_close < first_open

@@ -187,7 +187,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
     def _generate_conversation_turn(
         self, conversations: list["ChatType"], active_indices: list[int]
-    ) -> tuple[list["ChatType"], list[int], tuple[Any, ...], list[ThoughtSchema | None]]:
+    ) -> tuple[list["ChatType"], list[int], tuple[Any, ...], list[ThoughtSchema | None], dict[int, tuple[str, str]]]:
         # Generate an output for the conversations that are still active
         inputs = []
         for idx in active_indices:
@@ -218,8 +218,9 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         parsed_active_msgs = self.extract_structured_output(list(seeded_messages), self.thought_schema)
 
         # Inject hint for failed messages to guide next turn (no immediate extra LLM call)
+        diagnostics: dict[int, tuple[str, str]] = {}
         if self.enable_hint_injection:
-            self._inject_hints(conversations, active_indices, parsed_active_msgs, list(messages))
+            diagnostics = self._inject_hints(conversations, active_indices, parsed_active_msgs, list(messages))
 
         active_conversations = [conversations[idx] for idx in active_indices]
         updated_conversations = self._append_messages_to_conversations(
@@ -243,7 +244,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         for active_idx, parsed_msg in zip(active_indices, parsed_active_msgs, strict=True):
             full_parsed_messages[active_idx] = parsed_msg
 
-        return conversations, new_active_indices, statistics, full_parsed_messages
+        return conversations, new_active_indices, statistics, full_parsed_messages, diagnostics
 
     # Removed immediate recovery in favor of next-turn retry with hint injection
 
@@ -253,13 +254,18 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         active_indices: list[int],
         parsed_active_msgs: list[ThoughtSchema | None],
         raw_messages: list[str | None],
-    ) -> None:
-        """Append a brief system hint to conversations with malformed assistant outputs to guide the next turn."""
+    ) -> dict[int, tuple[str, str]]:
+        """Append a brief system hint to conversations with malformed assistant outputs to guide the next turn.
+        Returns a mapping from global sample index to (diagnostic reason, raw message).
+        """
+        reasons: dict[int, tuple[str, str]] = {}
         for local_idx, parsed in enumerate(parsed_active_msgs):
             if parsed is None or (parsed.tool_call is None and not parsed.completed):
                 global_idx = active_indices[local_idx]
                 conv = conversations[global_idx]
-                reason = self._diagnose_generation_issue(raw_messages[local_idx])
+                raw = raw_messages[local_idx] or ""
+                reason = self._diagnose_generation_issue(raw)
+                reasons[global_idx] = (reason, raw)
                 hint = (
                     "Previous response issue: "
                     + reason
@@ -267,6 +273,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 )
                 conv.append({"role": "system", "content": hint})
         self._logger.info("Injected recovery hints for malformed turns where applicable.")
+        return reasons
 
     def _diagnose_generation_issue(self, msg: str | None) -> str:  # noqa: C901
         """Heuristic diagnosis of why a generation is unusable to guide recovery."""
@@ -275,16 +282,24 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         parser = XMLParser()
         diag = XMLDiagnostics(parser)
         msg = parser.ensure_think_prefix(msg) or ""
+
+        # Orphan closing tags
+        if diag.has_orphan_closing_tag(msg, "think"):
+            return "closing </think> without opening <think>"
+        if diag.has_orphan_closing_tag(msg, "tool"):
+            return "closing </tool> without opening <tool>"
+        if diag.has_orphan_closing_tag(msg, "answer"):
+            return "closing </answer> without opening <answer>"
+
         if parser.extract_thought(msg) is None:
             return "missing <think> block"
 
-        # Multiple think blocks can confuse parsing
-        if diag.count_tags(msg, "think") > 1:
-            return "multiple <think> blocks"
-
         # Tool/Answer multiplicity and presence
+        think_count = diag.count_tags(msg, "think")
         tool_count = diag.count_tags(msg, "tool")
         answer_count = diag.count_tags(msg, "answer")
+        if think_count > 1:
+            return "multiple <think> blocks"
         if tool_count > 1:
             return "multiple <tool> blocks"
         if answer_count > 1:
@@ -477,6 +492,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         final_answers: list[str | None] = [None] * len(conversations)
         malformed_counts: list[int] = [0] * len(conversations)
         tool_errors_total: list[int] = [0] * len(conversations)
+        diagnostics_reasons: list[list[str]] = [[] for _ in range(len(conversations))]
+        diagnostics_messages: list[list[str]] = [[] for _ in range(len(conversations))]
         for i in range(self.n_turns):
             if not active_indices:
                 break
@@ -485,7 +502,13 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             current_active_indices = active_indices.copy()
 
             # Generate assistant-tool interaction
-            conversations, active_indices, statistics_generation, parsed_messages = self._generate_conversation_turn(
+            (
+                conversations,
+                active_indices,
+                statistics_generation,
+                parsed_messages,
+                diagnostics_map,
+            ) = self._generate_conversation_turn(
                 conversations=conversations,
                 active_indices=active_indices,
             )
@@ -497,6 +520,11 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                     final_answers[idx] = message.final_answer
                 if message is None:
                     malformed_counts[idx] += 1
+
+            # Record diagnostics for this turn
+            for idx, (reason, raw) in diagnostics_map.items():
+                diagnostics_reasons[idx].append(f"turn {i}: {reason}")
+                diagnostics_messages[idx].append(raw)
 
             if i == (self.n_turns - 1):
                 # Map tuple of stats back to global indices
@@ -538,6 +566,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                     "gen_stats": gen_stats_list[i],
                     "malformed_turns": malformed_counts[i],
                     "tool_errors": tool_errors_total[i],
+                    "diagnostics": diagnostics_reasons[i],
+                    "diagnostic_messages": diagnostics_messages[i],
                 }
                 for i in range(len(inputs))
             ],
@@ -584,6 +614,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 f"tool_calls_total_{self.name}": int(
                     sum(stats_tools.values()) if isinstance(stats_tools, dict) else 0
                 ),
+                f"diagnostics_{self.name}": list(stats_gen.get("diagnostics", [])),
+                f"diagnostic_messages_{self.name}": list(stats_gen.get("diagnostic_messages", [])),
             }
             generations.append(generation)
         return generations

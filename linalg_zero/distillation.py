@@ -150,9 +150,6 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")
 
         try:
-            push_to_huggingface(distiset, args.hf_output_dataset, args.private)
-
-            # Create Argilla dataset for annotation if client is available
             if argilla_client and args.argilla_output_dataset:
                 try:
                     dataset_data = distiset["default"]["train"]
@@ -172,6 +169,8 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
                     )
                 except Exception as e:
                     logger.warning(f"Failed to create Argilla dataset: {e}")
+
+            push_to_huggingface(distiset, args.hf_output_dataset, args.private)
 
         except Exception:
             logger.exception("❌ Error pushing dataset")
