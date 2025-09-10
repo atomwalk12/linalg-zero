@@ -18,7 +18,7 @@ num_generations: 1
 #  - "</answer>"
 
 # Processing parameters
-input_batch_size: 5
+input_batch_size: 4
 use_cache: true
 client_replicas: 1
 timeout: 600

@@ -53,15 +53,10 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
     # Load dataset, tokenizer, and model #
     ######################################
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
-    dataset = load_datasets_for_sft(script_args, take_n=script_args.take_n)
+    dataset = load_datasets_for_sft(script_args, take_n=script_args.take_n, do_eval=training_args.do_eval)
 
     if not isinstance(dataset, datasets.DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
-
-    if training_args.do_eval:
-        # TODO: this is a workaround since we are currently missing the evaluation dataset
-        logger.info(f"Loading eval dataset from {script_args.dataset_name}...")
-        dataset["test"] = dataset["train"]
 
     logger.info("Loading tokenizer...")
     tokenizer = get_tokenizer(model_args, training_args)
@@ -88,6 +83,20 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
         peft_config=get_peft_config(model_args),
         callbacks=get_callbacks(training_args, model_args),
     )
+
+    # # Wire eval dataset and tool library into ToolCallingAccuracyCallback if present
+    for cb in trainer.callback_handler.callbacks:
+        try:
+            from linalg_zero.sft.tool_calling_accuracy import (
+                ToolCallingAccuracyCallback,  # local import to avoid cycles
+            )
+
+            if isinstance(cb, ToolCallingAccuracyCallback) and training_args.eval_strategy != "no":
+                cb.set_eval_dataset(dataset[script_args.dataset_test_split])
+        except Exception:
+            # If anything goes wrong, fail safe without breaking training
+            logger = get_logger(__name__)
+            logger.debug("Failed to wire ToolCallingAccuracyCallback", exc_info=True)
 
     #################
     # Training loop #

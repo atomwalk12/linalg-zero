@@ -215,6 +215,12 @@ def is_openai_format(messages: Any) -> bool:
     return all(isinstance(x, dict) and "role" in x and ("content" in x or "tool_calls" in x) for x in messages)
 
 
+def print_statistics(distilabel_train: list[dict[str, Any]]) -> None:
+    total_train = len(distilabel_train)
+    train_correct = sum(1 for row in distilabel_train if row["is_correct"])
+    logger.info(f"  Math verify successes: {train_correct}/{total_train}")
+
+
 def cleanup() -> None:
     """Cleans up logging to prevent multiprocessing queue errors."""
     root_logger = stdlib_logging.getLogger()
@@ -238,6 +244,11 @@ def create_argilla_dataset_settings() -> rg.Settings:
                 use_markdown=False,
             ),
             rg.TextField(
+                name="is_correct",
+                title="Is Answer Correct?",
+                use_markdown=False,
+            ),
+            rg.TextField(
                 name="ground_truth",
                 title="Ground Truth Result",
                 use_markdown=False,
@@ -248,6 +259,11 @@ def create_argilla_dataset_settings() -> rg.Settings:
                 use_markdown=False,
             ),
             rg.TextField(
+                name="final_answer",
+                title="Model's Final Answer",
+                use_markdown=False,
+            ),
+            rg.TextField(
                 name="tool_calls",
                 title="Number of Tool Calls Made",
                 use_markdown=False,
@@ -255,11 +271,6 @@ def create_argilla_dataset_settings() -> rg.Settings:
             rg.TextField(
                 name="problem_type",
                 title="Problem Type",
-                use_markdown=False,
-            ),
-            rg.TextField(
-                name="composition_type",
-                title="Composition Type",
                 use_markdown=False,
             ),
             rg.TextField(
@@ -278,16 +289,6 @@ def create_argilla_dataset_settings() -> rg.Settings:
                 use_markdown=False,
             ),
             rg.TextField(
-                name="final_answer",
-                title="Model's Final Answer",
-                use_markdown=False,
-            ),
-            rg.TextField(
-                name="is_correct",
-                title="Is Answer Correct?",
-                use_markdown=False,
-            ),
-            rg.TextField(
                 name="model_name",
                 title="Model Name Used",
                 use_markdown=False,
@@ -300,6 +301,11 @@ def create_argilla_dataset_settings() -> rg.Settings:
             rg.TextField(
                 name="diagnostic_messages",
                 title="Diagnostic raw messages (failed turns)",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="composition_type",
+                title="Composition Type",
                 use_markdown=False,
             ),
         ],
@@ -510,16 +516,34 @@ def load_dataset_split(args: DistillationConfig | ScriptArguments, split: str, t
         return dataset
 
 
-def load_datasets_for_sft(args: DistillationConfig, take_n: int | None) -> DatasetDict:
+def load_datasets_for_sft(
+    args: DistillationConfig | ScriptArguments, take_n: int | None, do_eval: bool = True
+) -> DatasetDict:
     """Loads train and optionally validation splits as lists of dicts."""
 
     def process_split(split_name: str) -> Dataset:
         dataset = load_dataset_split(args, split_name, take_n)
-        dataset = remove_redundant_columns(dataset, ["tools", "messages"])
-        dataset["messages"] = json.loads(dataset["messages"])
-        return dataset
+        # Preserve minimal columns needed for SFT + optional correctness metrics
+        # "messages" is required; "tools" helps validate tool names; ground truth fields enable answer correctness.
+        keep_columns = [
+            "tools",
+            "messages",
+            "ground_truth",
+            "stepwise_ground_truths",
+        ]
+        dataset = remove_redundant_columns(dataset, keep_columns)
+        if "messages" in dataset.column_names:
+            dataset = dataset.map(lambda x: {"messages": json.loads(x["messages"])})
+        return dataset  # type: ignore[reportReturnAny]
 
-    return DatasetDict({"train": process_split("train"), "validation": process_split("validation")})
+    dataset_dict = {"train": process_split("train")}
+    if do_eval:
+        dataset_dict["test"] = process_split("validation")
+
+    ds_dict = DatasetDict()
+    for k, v in dataset_dict.items():
+        ds_dict[k] = v
+    return ds_dict
 
 
 def load_datasets_for_distillation(args: DistillationConfig, take_n: int | None) -> dict[str, list[dict[str, Any]]]:

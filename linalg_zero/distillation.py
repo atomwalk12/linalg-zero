@@ -15,6 +15,7 @@ from linalg_zero.distillation.utils import (
     create_argilla_dataset,
     create_llm_clients,
     load_datasets_for_distillation,
+    print_statistics,
     push_to_huggingface,
 )
 from linalg_zero.shared.lib import get_lib
@@ -124,24 +125,18 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
     distiset["default"]["validation"] = val_distiset["default"]["train"]
 
+    logger.info("Generation complete!")
     # The run interferes with the logger, this restores its state
     cleanup()
 
     ###############################
     # Push the results to the hub #
     ###############################
-    logger.info("Generation complete!")
-    distilabel_train = distiset["default"]["train"]
-    total_train = len(distilabel_train)
-    train_correct = sum(1 for row in distilabel_train if row["is_correct"])
     logger.info("Pipeline completed (train):")
-    logger.info(f"  Math verify successes: {train_correct}/{total_train}")
+    print_statistics(distiset["default"]["train"])
 
-    distilabel_val = distiset["default"]["validation"]
-    total_val = len(distilabel_val)
-    val_correct = sum(1 for row in distilabel_val if row["is_correct"])
     logger.info("Pipeline completed (validation):")
-    logger.info(f"  Math verify successes: {val_correct}/{total_val}")
+    print_statistics(distiset["default"]["validation"])
 
     if argilla_client and args.argilla_output_dataset:
         logger.info(f"Creating Argilla dataset: {args.argilla_output_dataset}")
@@ -169,7 +164,7 @@ if __name__ == "__main__":
     if "--config" not in argv:
         argv.append("--config")
         argv.append("linalg_zero/config/distillation/vllm_debug.yaml")
-        take_n = 4
+        take_n = 12
 
     # Parse configuration from YAML file stored in the --config argument
     parser = TrlParser(dataclass_types=[DistillationConfig, VllmServerConfig])

@@ -12,6 +12,7 @@ from trl import ModelConfig
 from linalg_zero.config.data import SFTConfig
 from linalg_zero.sft.hub import push_to_hub_revision
 from linalg_zero.sft.tool_calling_accuracy import ToolCallingAccuracyCallback
+from linalg_zero.shared.lib import get_lib
 
 
 class DummyConfig:
@@ -61,7 +62,7 @@ def get_callbacks(train_config: SFTConfig, model_config: ModelConfig) -> list[Tr
 
         # Different callbacks have different constructor signatures
         if callback_name == "tool_calling_accuracy":
-            callbacks.append(CALLBACKS[callback_name]())
+            callbacks.append(CALLBACKS[callback_name](library=get_lib()))
         elif callback_name == "early_stopping":
             patience = train_config.early_stopping_patience
             threshold = train_config.early_stopping_threshold
