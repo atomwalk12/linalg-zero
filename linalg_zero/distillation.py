@@ -17,6 +17,7 @@ from linalg_zero.distillation.utils import (
     load_datasets_for_distillation,
     print_statistics,
     push_to_huggingface,
+    save_distiset_to_disk,
 )
 from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.system_prompts import get_math_system_prompt
@@ -71,6 +72,8 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
         **enable_thinking,
     }
 
+    available_functions = list(get_lib().keys())
+
     if args.temperature is not None:
         generation_kwargs["temperature"] = args.temperature
     if args.top_p is not None:
@@ -87,8 +90,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             batch_size=args.input_batch_size,
             n_turns=args.n_turns,
             system_prompt=get_math_system_prompt(),
-            thought_schema=ThoughtSchema,
-            library=get_lib(),
+            library=available_functions,
         )
 
         distiset: Distiset = pipeline.run(
@@ -111,8 +113,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             batch_size=args.input_batch_size,
             n_turns=args.n_turns,
             system_prompt=get_math_system_prompt(),
-            thought_schema=ThoughtSchema,
-            library=get_lib(),
+            library=available_functions,
         )
 
         val_distiset: Distiset = pipeline.run(
@@ -125,9 +126,10 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
     distiset["default"]["validation"] = val_distiset["default"]["train"]
 
-    logger.info("Generation complete!")
-    # The run interferes with the logger, this restores its state
     cleanup()
+    logger.info("Generation complete!")
+
+    save_distiset_to_disk(distiset, "results/distiset/")
 
     ###############################
     # Push the results to the hub #

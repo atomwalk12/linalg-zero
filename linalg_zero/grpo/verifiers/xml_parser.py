@@ -3,13 +3,15 @@ import re
 
 
 class XMLParser:
+    # Checks exact format: <think>...</think> followed by <answer>...</answer>
     think_then_answer_regex = (
         r"^<think>\s*([^<]*(?:<(?!/?think>)[^<]*)*)\s*<\/think>\s*"
         r"<answer>\s*([\s\S]*?)\s*<\/answer>$"
     )
+    # Checks exact format: <think>...</think> followed by <tool_call>...</tool_call>
     think_then_tool_regex = (
         r"^<think>\s*([^<]*(?:<(?!/?think>)[^<]*)*)\s*<\/think>\s*"
-        r"<tool>\s*([\s\S]*?)\s*<\/tool>$"
+        r"<tool_call>\s*([\s\S]*?)\s*<\/tool_call>$"
     )
 
     def get_assistant_messages(self, completion: list[dict]) -> list[dict]:
@@ -60,12 +62,12 @@ class XMLParser:
         return self.check_format(message, self.think_then_answer_regex, expected_groups=2)
 
     def is_valid_think_then_tool(self, message: str) -> bool:
-        """Validate '<think>...</think>' followed by '<tool>...</tool>'."""
+        """Validate '<think>...</think>' followed by '<tool_call>...</tool_call>'."""
 
         return self.check_format(message, self.think_then_tool_regex, expected_groups=2)
 
     def is_valid_think_then_tool_or_answer(self, message: str) -> bool:
-        """Validate '<think>...</think>' followed by exactly one of '<tool>...</tool>' or '<answer>...</answer>'."""
+        """Validate '<think>...</think>' followed by exactly one of '<tool_call>...</tool_call>' or '<answer>...</answer>'."""
 
         valid_tool = self.check_format(message, self.think_then_tool_regex, expected_groups=2)
         valid_answer = self.check_format(message, self.think_then_answer_regex, expected_groups=2)
@@ -95,6 +97,7 @@ class XMLParser:
           contents in document order.
         - Whitespace around extracted content is stripped.
         """
+        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
         if not message:
             return []
 
@@ -116,18 +119,9 @@ class XMLParser:
         pattern = re.compile(rf"<{re.escape(tag)}>\s*(.*?)\s*</{re.escape(tag)}>", re.DOTALL)
         return [m.group(1).strip() for m in pattern.finditer(message)]
 
-    def extract_tools(self, message: str, first_only: bool = False) -> list[str]:
-        """Extract <tool>...</tool> block contents.
-
-        If first_only is False (default), returns all tool blocks in order of appearance.
-        If first_only is True, returns at most one element: the first properly closed
-        <tool> block encountered in document order.
-        """
-        if first_only:
-            # Find all, then slice to at most the first to keep return type stable (list[str])
-            tools = self._extract_tag_contents(message, "tool", last_only=False)
-            return tools[:1]
-        return self._extract_tag_contents(message, "tool", last_only=False)
+    def extract_tools(self, message: str, last_only: bool = False) -> list[str]:
+        """Extract <tool_call>...</tool_call> block contents."""
+        return self._extract_tag_contents(message, "tool_call", last_only=last_only)
 
     def extract_thought(self, message: str) -> str | None:
         """Extract thought content from properly formed <think></think> tags.
@@ -160,6 +154,7 @@ class XMLDiagnostics:
         return len(self.parser._extract_tag_contents(message, tag, last_only=False))
 
     def has_unclosed_tag(self, message: str, tag: str) -> bool:
+        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
         if not message:
             return False
         open_token = f"<{tag}>"
@@ -171,7 +166,7 @@ class XMLDiagnostics:
         return close_token not in after_open
 
     def get_first_tool_block(self, message: str) -> str | None:
-        tools = self.parser._extract_tag_contents(message, "tool", last_only=False)
+        tools = self.parser._extract_tag_contents(message, "tool_call", last_only=False)
         return tools[0] if tools else None
 
     def has_code_fences_in_first_tool(self, message: str) -> bool:
@@ -201,7 +196,7 @@ class XMLDiagnostics:
     def has_stray_content_outside_allowed(self, message: str) -> bool:
         if "<think>" not in message:
             return False
-        has_tool = "<tool>" in message and "</tool>" in message
+        has_tool = "<tool_call>" in message and "</tool_call>" in message
         has_answer = "<answer>" in message and "</answer>" in message
         if not (has_tool or has_answer):
             return False
@@ -209,6 +204,7 @@ class XMLDiagnostics:
 
     def has_orphan_closing_tag(self, message: str, tag: str) -> bool:
         """Return True if a closing </tag> appears without any prior opening <tag>."""
+        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
         if not message:
             return False
         open_token = f"<{tag}>"

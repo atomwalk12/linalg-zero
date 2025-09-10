@@ -1,3 +1,4 @@
+import html
 import json
 import logging
 import logging as stdlib_logging
@@ -215,6 +216,11 @@ def is_openai_format(messages: Any) -> bool:
     return all(isinstance(x, dict) and "role" in x and ("content" in x or "tool_calls" in x) for x in messages)
 
 
+def save_distiset_to_disk(distiset: Distiset, path: str) -> None:
+    """Save the distiset to a directory."""
+    distiset.save_to_disk(path)
+
+
 def print_statistics(distilabel_train: list[dict[str, Any]]) -> None:
     total_train = len(distilabel_train)
     train_correct = sum(1 for row in distilabel_train if row["is_correct"])
@@ -238,6 +244,16 @@ def create_argilla_dataset_settings() -> rg.Settings:
     return rg.Settings(
         guidelines="""Review and validate the model's reasoning for linear algebra problems.""",
         fields=[
+            rg.TextField(
+                name="problem_type",
+                title="Problem Type",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="tool_calls",
+                title="Number of Tool Calls Made",
+                use_markdown=False,
+            ),
             rg.TextField(
                 name="query",
                 title="User's Linear Algebra Problem Query",
@@ -264,33 +280,8 @@ def create_argilla_dataset_settings() -> rg.Settings:
                 use_markdown=False,
             ),
             rg.TextField(
-                name="tool_calls",
-                title="Number of Tool Calls Made",
-                use_markdown=False,
-            ),
-            rg.TextField(
-                name="problem_type",
-                title="Problem Type",
-                use_markdown=False,
-            ),
-            rg.TextField(
-                name="composition_dependencies",
-                title="Composition Dependencies",
-                use_markdown=False,
-            ),
-            rg.TextField(
                 name="messages",
                 title="Full Conversation",
-                use_markdown=True,
-            ),
-            rg.TextField(
-                name="dependency_edges",
-                title="Dependency Edges",
-                use_markdown=False,
-            ),
-            rg.TextField(
-                name="model_name",
-                title="Model Name Used",
                 use_markdown=False,
             ),
             rg.TextField(
@@ -304,8 +295,23 @@ def create_argilla_dataset_settings() -> rg.Settings:
                 use_markdown=False,
             ),
             rg.TextField(
+                name="composition_dependencies",
+                title="Composition Dependencies",
+                use_markdown=False,
+            ),
+            rg.TextField(
                 name="composition_type",
                 title="Composition Type",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="dependency_edges",
+                title="Dependency Edges",
+                use_markdown=False,
+            ),
+            rg.TextField(
+                name="model_name",
+                title="Model Name Used",
                 use_markdown=False,
             ),
         ],
@@ -357,39 +363,56 @@ def _format_indexed_list(items: list[Any]) -> str:
     if not items:
         return ""
 
-    indexed_list = []
+    indexed_dict = []
     for i, item in enumerate(items):
-        indexed_list.append({"index": i, "content": item})
+        indexed_dict.append({"index": i, "content": safe_str_with_xml(item)})
 
-    return json.dumps(indexed_list, indent=2)
+    return json.dumps(indexed_dict, indent=2)
+
+
+def safe_str_with_xml(value: Any) -> str:
+    if value is None:
+        return "N/A"
+    str_value = str(value)
+    return html.escape(str_value)
 
 
 def _convert_item_to_argilla_record(item: dict[str, Any]) -> dict[str, str] | None:
     """Convert a single distillation item to an Argilla record."""
     logger = get_logger(__name__)
     try:
-        # Extract problem from messages
-        num_tool_calls = len(json.loads(item.get("stepwise_ground_truths", "N/A")))
-        # Get diagnostics and find diagnostics_* key if present
         metadata = item.get("distilabel_metadata", {})
         diagnostics_key = next((k for k in metadata if k.startswith("diagnostics_")), None)
         diagnostic_msgs_key = next((k for k in metadata if k.startswith("diagnostic_messages_")), None)
         diagnostics_list = metadata.get(diagnostics_key, []) if diagnostics_key else []
         diagnostic_msgs_list = metadata.get(diagnostic_msgs_key, []) if diagnostic_msgs_key else []
 
+        query = item.get("query", "N/A")
+        ground_truth = item.get("ground_truth", "N/A")
+        stepwise_ground_truths = item.get("stepwise_ground_truths", "N/A")
+        problem_type = item.get("problem_type", "N/A")
+        composition_type = item.get("composition_type", "N/A")
+        composition_dependencies = item.get("composition_dependencies", "N/A")
+        messages = item.get("messages", [])
+        dependency_edges = item.get("dependency_edges", "N/A")
+        final_answer = item.get("final_answer", "N/A")
+        is_correct = item.get("is_correct", "N/A")
+        model_name = item.get("model_name", "N/A")
+        num_tool_calls = len(json.loads(stepwise_ground_truths))
+
         return {
-            "query": str(item.get("query", "N/A")),
-            "ground_truth": str(item.get("ground_truth", "N/A")),
-            "stepwise_ground_truths": str(item.get("stepwise_ground_truths", "N/A")),
+            "query": str(query),
+            "ground_truth": str(ground_truth),
+            "stepwise_ground_truths": str(stepwise_ground_truths),
             "tool_calls": str(num_tool_calls),
-            "problem_type": str(item.get("problem_type", "N/A")),
-            "composition_type": str(item.get("composition_type", "N/A")),
-            "composition_dependencies": str(item.get("composition_dependencies", "N/A")),
-            "messages": json.dumps(item.get("messages", "N/A"), indent=2) if item.get("messages") != "N/A" else "N/A",
-            "dependency_edges": str(item.get("dependency_edges", "N/A")),
-            "final_answer": str(item.get("final_answer", "N/A")),
-            "is_correct": str(item.get("is_correct", "N/A")),
-            "model_name": str(item.get("model_name", "N/A")),
+            "problem_type": str(problem_type),
+            "composition_type": str(composition_type),
+            "composition_dependencies": str(composition_dependencies),
+            "messages": _format_indexed_list(messages),
+            "dependency_edges": str(dependency_edges),
+            "final_answer": str(final_answer),
+            "is_correct": str(is_correct),
+            "model_name": str(model_name),
             "diagnostics": _format_indexed_list(diagnostics_list),
             "diagnostic_messages": _format_indexed_list(diagnostic_msgs_list),
         }
@@ -534,7 +557,8 @@ def load_datasets_for_sft(
         dataset = remove_redundant_columns(dataset, keep_columns)
         if "messages" in dataset.column_names:
             dataset = dataset.map(lambda x: {"messages": json.loads(x["messages"])})
-        return dataset  # type: ignore[reportReturnAny]
+        assert isinstance(dataset, Dataset)  # noqa: S101
+        return dataset
 
     dataset_dict = {"train": process_split("train")}
     if do_eval:

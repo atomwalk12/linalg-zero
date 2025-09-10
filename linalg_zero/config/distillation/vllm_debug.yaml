@@ -14,9 +14,6 @@ top_p: 1.0
 max_new_tokens: 4096
 num_generations: 1
 
-#stop:
-#  - "</answer>"
-
 # Processing parameters
 input_batch_size: 4
 use_cache: true

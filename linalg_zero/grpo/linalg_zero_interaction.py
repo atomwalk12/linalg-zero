@@ -23,7 +23,7 @@ class LinalgZeroInteraction(BaseInteraction):
         super().__init__(config)
         self._instance_dict: dict[str, Any] = {}
 
-        # The expected completion output is <think> AND (<tool> OR <answer>)
+        # The expected completion output is <think> AND (<tool_call> OR <answer>)
         self.parser = XMLParser()
 
     async def start_interaction(
