@@ -2,6 +2,7 @@ import html
 import json
 import logging
 import logging as stdlib_logging
+from copy import deepcopy
 from typing import (
     Any,
 )
@@ -358,6 +359,14 @@ def _delete_existing_argilla_dataset(client: rg.Argilla, dataset_name: str) -> N
         pass
 
 
+def _format_value(value: Any) -> Any:
+    """Recursively format values, applying safe_str_with_xml to strings and recursing through dicts."""
+    if isinstance(value, dict):
+        return {k: _format_value(v) for k, v in value.items()}
+    else:
+        return safe_str_with_xml(value)
+
+
 def _format_indexed_list(items: list[Any]) -> str:
     """Format a list with indexed headers and separators for better readability."""
     if not items:
@@ -365,7 +374,10 @@ def _format_indexed_list(items: list[Any]) -> str:
 
     indexed_dict = []
     for i, item in enumerate(items):
-        indexed_dict.append({"index": i, "content": safe_str_with_xml(item)})
+        if isinstance(item, dict):
+            indexed_dict.append({"index": i, "content": _format_value(item)})
+        else:
+            indexed_dict.append({"index": i, "content": safe_str_with_xml(item)})
 
     return json.dumps(indexed_dict, indent=2)
 
@@ -462,6 +474,25 @@ def create_argilla_dataset(
         logger.exception("Failed to create Argilla dataset")
 
 
+def filter_dataset_by_correctness(distiset: Distiset, only_correct: bool = True) -> Distiset:
+    """Filter dataset by is_correct flag."""
+
+    filtered_distiset = deepcopy(distiset)
+
+    for split_name in filtered_distiset["default"]:
+        split_data = filtered_distiset["default"][split_name]
+        if only_correct:  # noqa: SIM108
+            # Keep only correct entries for SFT training
+            filtered_data = split_data.filter(lambda x: x["is_correct"] is True)
+        else:
+            # Keep all entries for inspection
+            filtered_data = split_data
+
+        filtered_distiset["default"][split_name] = filtered_data
+
+    return filtered_distiset
+
+
 def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) -> None:
     prepare_dataset_for_sft(distiset)
     strip_diagnostic_messages_from_metadata(distiset)
@@ -477,6 +508,22 @@ def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) ->
         logger.info(f"   Access URL: https://huggingface.co/datasets/{dataset_name}")
     except Exception:
         logger.exception("Failed to push dataset to Hugging Face Hub")
+
+
+def push_datasets_to_huggingface(distiset: Distiset, base_dataset_name: str, private: bool) -> None:
+    """Push two datasets to Hugging Face: one with all entries and one with only correct entries."""
+
+    # Push all entries dataset
+    all_entries_name = f"{base_dataset_name}-all"
+    logger.info(f"Pushing dataset with all entries to: {all_entries_name}")
+    all_entries_distiset = filter_dataset_by_correctness(distiset, only_correct=False)
+    push_to_huggingface(all_entries_distiset, all_entries_name, private)
+
+    # Push correct entries only dataset
+    correct_only_name = base_dataset_name
+    logger.info(f"Pushing dataset with correct entries only to: {correct_only_name}")
+    correct_only_distiset = filter_dataset_by_correctness(distiset, only_correct=True)
+    push_to_huggingface(correct_only_distiset, correct_only_name, private)
 
 
 def prepare_dataset_for_sft(distiset: Distiset) -> None:

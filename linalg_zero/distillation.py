@@ -16,7 +16,7 @@ from linalg_zero.distillation.utils import (
     create_llm_clients,
     load_datasets_for_distillation,
     print_statistics,
-    push_to_huggingface,
+    push_datasets_to_huggingface,
     save_distiset_to_disk,
 )
 from linalg_zero.shared.lib import get_lib
@@ -158,7 +158,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
     if args.hf_output_dataset:
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")
-        push_to_huggingface(distiset, args.hf_output_dataset, args.private)
+        push_datasets_to_huggingface(distiset, args.hf_output_dataset, args.private)
 
 
 if __name__ == "__main__":

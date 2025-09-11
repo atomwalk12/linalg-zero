@@ -22,7 +22,7 @@ class XMLParser:
         """Helper function to extract tool messages from a completion."""
         return [msg for msg in completion if msg["role"] == "tool"]
 
-    def extract_answer(self, message: str) -> str | None:
+    def extract_last_answer(self, message: str) -> str | None:
         """Extract answer content from <answer> tags.
 
         Primary path: properly closed <answer>...</answer> (last occurrence).
@@ -32,17 +32,9 @@ class XMLParser:
         contents = self._extract_tag_contents(message, "answer", last_only=True)
         if contents:
             return contents[0]
+        return None
 
-        if not message:
-            return None
-        open_token = "<answer>"  # noqa: S105
-        last_open = message.rfind(open_token)
-        if last_open == -1:
-            return None
-        # Return everything after the opening tag as best-effort fallback
-        return message[last_open + len(open_token) :].strip()
-
-    def check_format(self, message: str, regex: str, expected_groups: int) -> bool:
+    def _check_format(self, message: str, regex: str, expected_groups: int) -> bool:
         """Check if message matches the expected format with correct number of groups."""
         last_think_pos = message.rfind("<think>")
         if last_think_pos == -1:
@@ -59,18 +51,18 @@ class XMLParser:
     def is_valid_think_then_answer(self, message: str) -> bool:
         """Validate '<think>...</think>' followed by '<answer>...</answer>'."""
 
-        return self.check_format(message, self.think_then_answer_regex, expected_groups=2)
+        return self._check_format(message, self.think_then_answer_regex, expected_groups=2)
 
-    def is_valid_think_then_tool(self, message: str) -> bool:
+    def _is_valid_think_then_tool(self, message: str) -> bool:
         """Validate '<think>...</think>' followed by '<tool_call>...</tool_call>'."""
 
-        return self.check_format(message, self.think_then_tool_regex, expected_groups=2)
+        return self._check_format(message, self.think_then_tool_regex, expected_groups=2)
 
     def is_valid_think_then_tool_or_answer(self, message: str) -> bool:
         """Validate '<think>...</think>' followed by exactly one of '<tool_call>...</tool_call>' or '<answer>...</answer>'."""
 
-        valid_tool = self.check_format(message, self.think_then_tool_regex, expected_groups=2)
-        valid_answer = self.check_format(message, self.think_then_answer_regex, expected_groups=2)
+        valid_tool = self._check_format(message, self.think_then_tool_regex, expected_groups=2)
+        valid_answer = self._check_format(message, self.think_then_answer_regex, expected_groups=2)
         return valid_tool or valid_answer
 
     def ensure_think_prefix(self, message: str | None) -> str | None:
@@ -119,9 +111,9 @@ class XMLParser:
         pattern = re.compile(rf"<{re.escape(tag)}>\s*(.*?)\s*</{re.escape(tag)}>", re.DOTALL)
         return [m.group(1).strip() for m in pattern.finditer(message)]
 
-    def extract_tools(self, message: str, last_only: bool = False) -> list[str]:
+    def extract_last_tool_call(self, message: str) -> list[str]:
         """Extract <tool_call>...</tool_call> block contents."""
-        return self._extract_tag_contents(message, "tool_call", last_only=last_only)
+        return self._extract_tag_contents(message, "tool_call", last_only=True)
 
     def extract_thought(self, message: str) -> str | None:
         """Extract thought content from properly formed <think></think> tags.
@@ -129,7 +121,7 @@ class XMLParser:
         Supports normalization when the message begins with an auto-seeded
         "<think>" and the model also emitted its own "<think>", resulting in
         leading "<think><think>". In such case, we still return the content of
-        the first properly closed think block.
+        the last properly closed think block.
         """
         if not message:
             return None
@@ -147,13 +139,10 @@ class XMLDiagnostics:
     def __init__(self, parser: XMLParser):
         self.parser = parser
 
-    def has_unclosed_answer(self, message: str) -> bool:
-        return self.has_unclosed_tag(message, "answer")
-
-    def count_tags(self, message: str, tag: str) -> int:
+    def _count_tags(self, message: str, tag: str) -> int:
         return len(self.parser._extract_tag_contents(message, tag, last_only=False))
 
-    def has_unclosed_tag(self, message: str, tag: str) -> bool:
+    def _has_unclosed_tag(self, message: str, tag: str) -> bool:
         assert tag in ["tool_call", "answer", "think"]  # noqa: S101
         if not message:
             return False
@@ -165,44 +154,22 @@ class XMLDiagnostics:
         after_open = message[last_open + len(open_token) :]
         return close_token not in after_open
 
-    def get_first_tool_block(self, message: str) -> str | None:
-        tools = self.parser._extract_tag_contents(message, "tool_call", last_only=False)
-        return tools[0] if tools else None
-
-    def has_code_fences_in_first_tool(self, message: str) -> bool:
-        block = self.get_first_tool_block(message)
+    def _has_code_fences_in_last_tool(self, message: str) -> bool:
+        block = self.parser._extract_tag_contents(message, "tool_call", last_only=True)
         if not block:
             return False
-        return "```" in block
+        return "```" in block[0]
 
-    def extract_first_tool_call(self, message: str) -> tuple[dict | None, str | None]:
-        block = self.get_first_tool_block(message)
-        if block is None:
-            return None, "no tool block found"
-        try:
-            data = json.loads(block)
-        except Exception:
-            return None, "invalid tool JSON"
-        if not isinstance(data, dict):
-            return None, "invalid tool JSON"
-        name = data.get("name")
-        args = data.get("arguments")
-        if not isinstance(name, str):
-            return None, "missing or invalid 'name' in tool JSON"
-        if not isinstance(args, dict):
-            return None, "missing or invalid 'arguments' in tool JSON"
-        return {"name": name, "arguments": args}, None
-
-    def has_stray_content_outside_allowed(self, message: str) -> bool:
+    def _has_stray_content_outside_allowed(self, message: str) -> bool:
         if "<think>" not in message:
             return False
         has_tool = "<tool_call>" in message and "</tool_call>" in message
         has_answer = "<answer>" in message and "</answer>" in message
         if not (has_tool or has_answer):
             return False
-        return not (self.parser.is_valid_think_then_tool(message) or self.parser.is_valid_think_then_answer(message))
+        return not (self.parser._is_valid_think_then_tool(message) or self.parser.is_valid_think_then_answer(message))
 
-    def has_orphan_closing_tag(self, message: str, tag: str) -> bool:
+    def _has_orphan_closing_tag(self, message: str, tag: str) -> bool:
         """Return True if a closing </tag> appears without any prior opening <tag>."""
         assert tag in ["tool_call", "answer", "think"]  # noqa: S101
         if not message:
@@ -214,3 +181,130 @@ class XMLDiagnostics:
         first_close = message.find(close_token)
         first_open = message.find(open_token)
         return first_open == -1 or first_close < first_open
+
+
+def _safe_json_loads(s: str) -> tuple[dict | None, str | None]:
+    try:
+        return json.loads(s), None
+    except Exception as e:
+        return None, f"invalid tool JSON: {type(e).__name__}: {e}"
+
+
+def analyze_message(
+    parser: XMLParser,
+    message: str,
+    *,
+    tool_names: set[str] | None = None,
+) -> dict:
+    """
+    Parse a single assistant message and return diagnostics + extracted fields.
+
+    Returns a dictionary with keys:
+      - has_think, has_tool_call, has_answer: bool
+      - valid_format: bool (think then tool_call|answer)
+      - is_valid_think_then_answer: bool (think then answer)
+      - first_turn_policy_valid: bool | None (if enforce_first_turn_tool)
+      - think_count, tool_call_count, answer_count: int
+      - orphan_closing: {think, tool_call, answer}: bool
+      - unclosed: {think, tool_call, answer}: bool
+      - stray_content: bool
+      - code_fences_in_last_tool: bool
+      - thought: str | None
+      - answer: str | None
+      - tool: {
+          json_valid: bool,
+          name: str | "",
+          arguments: dict | {},
+          name_known: bool | None,
+        }
+    """
+
+    diagnostics = XMLDiagnostics(parser)
+
+    thought = parser.extract_thought(message)
+    answer = parser.extract_last_answer(message)
+    last_tool_block = parser.extract_last_tool_call(message)
+    tool_block = last_tool_block[0] if last_tool_block else None
+
+    result: dict = {}
+    result["thought"] = thought
+    result["answer"] = answer
+    result["has_think"] = bool(thought)
+    result["has_tool_call"] = tool_block is not None
+    result["has_answer"] = bool(answer)
+
+    # Counts
+    result["think_count"] = diagnostics._count_tags(message, "think")
+    result["tool_call_count"] = diagnostics._count_tags(message, "tool_call")
+    result["answer_count"] = diagnostics._count_tags(message, "answer")
+
+    # Format validity
+    result["is_valid_think_then_tool_or_answer"] = parser.is_valid_think_then_tool_or_answer(message)
+    result["is_valid_think_then_answer"] = parser.is_valid_think_then_answer(message)
+
+    # Structural diagnostics
+    result["unopened"] = {
+        "think": diagnostics._has_orphan_closing_tag(message, "think"),
+        "tool_call": diagnostics._has_orphan_closing_tag(message, "tool_call"),
+        "answer": diagnostics._has_orphan_closing_tag(message, "answer"),
+    }
+    result["unclosed"] = {
+        "think": diagnostics._has_unclosed_tag(message, "think"),
+        "tool_call": diagnostics._has_unclosed_tag(message, "tool_call"),
+        "answer": diagnostics._has_unclosed_tag(message, "answer"),
+    }
+    result["stray_content"] = diagnostics._has_stray_content_outside_allowed(message)
+    result["code_fences_in_last_tool"] = diagnostics._has_code_fences_in_last_tool(message)
+
+    # Tool parsing
+    tool_info: dict = {"json_valid": False, "name": "", "arguments": {}, "name_known": None}
+    if tool_block is not None:
+        data, err = _safe_json_loads(tool_block)
+        if isinstance(data, dict) and isinstance(data.get("name"), str) and isinstance(data.get("arguments"), dict):
+            tool_info["json_valid"] = True
+            tool_info["name"] = data["name"]
+            tool_info["arguments"] = data["arguments"]
+            if tool_names is not None:
+                tool_info["name_known"] = data["name"] in tool_names
+        else:
+            tool_info["json_valid"] = False
+
+    result["tool"] = tool_info
+
+    return result
+
+
+def analyze_message_in_context(
+    parser: XMLParser,
+    context: list[dict],
+    message: str,
+    *,
+    tool_names: set[str] | None = None,
+) -> dict:
+    """
+    Like analyze_message, but also evaluates conversation-level policy:
+    - answer_policy_valid: if an <answer> is present in message, the immediately
+      previous message in the conversation MUST be a tool response (a system message
+      whose content contains <tool_response> ... </tool_response>).
+    Adds fields:
+      - answer_allowed: bool (there is a prior adjacent tool_response)
+      - answer_policy_valid: bool (no answer, or answer_allowed)
+    """
+    result = analyze_message(parser, message, tool_names=tool_names)
+
+    # Determine adjacency policy for answers: previous message should be a tool message
+    prev_is_tool_response = False
+    for prev in reversed(context):
+        if prev.get("role") == "system":
+            continue
+        if isinstance(prev, dict) and prev.get("role") == "tool":
+            prev_is_tool_response = True
+            break
+        break
+
+    has_answer = bool(result["has_answer"])
+    answer_allowed = bool(prev_is_tool_response)
+
+    result["answer_allowed"] = answer_allowed
+    result["answer_policy_valid"] = (not has_answer) or answer_allowed
+    return result

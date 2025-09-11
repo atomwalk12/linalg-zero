@@ -81,22 +81,8 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
         eval_dataset=(dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None),
         processing_class=tokenizer,
         peft_config=get_peft_config(model_args),
-        callbacks=get_callbacks(training_args, model_args),
+        callbacks=get_callbacks(training_args, model_args, script_args, dataset),
     )
-
-    # # Wire eval dataset and tool library into ToolCallingAccuracyCallback if present
-    for cb in trainer.callback_handler.callbacks:
-        try:
-            from linalg_zero.sft.tool_calling_accuracy import (
-                ToolCallingAccuracyCallback,  # local import to avoid cycles
-            )
-
-            if isinstance(cb, ToolCallingAccuracyCallback) and training_args.eval_strategy != "no":
-                cb.set_eval_dataset(dataset[script_args.dataset_test_split])
-        except Exception:
-            # If anything goes wrong, fail safe without breaking training
-            logger = get_logger(__name__)
-            logger.debug("Failed to wire ToolCallingAccuracyCallback", exc_info=True)
 
     #################
     # Training loop #

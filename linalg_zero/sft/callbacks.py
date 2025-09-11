@@ -7,7 +7,8 @@ from transformers.trainer_callback import (
     TrainerState,
 )
 from transformers.training_args import TrainingArguments
-from trl import ModelConfig
+from trl import ModelConfig, ScriptArguments
+from trl.data_utils import DatasetDict
 
 from linalg_zero.config.data import SFTConfig
 from linalg_zero.sft.hub import push_to_hub_revision
@@ -54,7 +55,9 @@ CALLBACKS = {
 }
 
 
-def get_callbacks(train_config: SFTConfig, model_config: ModelConfig) -> list[TrainerCallback]:
+def get_callbacks(
+    train_config: SFTConfig, model_config: ModelConfig, script_args: ScriptArguments, dataset: DatasetDict
+) -> list[TrainerCallback]:
     callbacks = []
     for callback_name in train_config.callbacks:
         if callback_name not in CALLBACKS:
@@ -62,7 +65,9 @@ def get_callbacks(train_config: SFTConfig, model_config: ModelConfig) -> list[Tr
 
         # Different callbacks have different constructor signatures
         if callback_name == "tool_calling_accuracy":
-            callbacks.append(CALLBACKS[callback_name](library=get_lib()))
+            callbacks.append(
+                CALLBACKS[callback_name](library=get_lib(), eval_dataset=dataset[script_args.dataset_test_split])
+            )
         elif callback_name == "early_stopping":
             patience = train_config.early_stopping_patience
             threshold = train_config.early_stopping_threshold

@@ -11,7 +11,10 @@ from distilabel.models.llms.base import LLM
 from pydantic import Field, PositiveInt, ValidationError
 
 from linalg_zero.distillation.data import FunctionInvocationInfo, ThoughtSchema
-from linalg_zero.grpo.verifiers.xml_parser import XMLDiagnostics, XMLParser
+from linalg_zero.grpo.verifiers.xml_parser import (
+    XMLParser,
+    analyze_message_in_context,
+)
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.lib import get_lib
 from linalg_zero.shared.system_prompts import (
@@ -206,7 +209,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         # Extract the single message from the conversation and the statistics in separate lists
         messages, statistics = zip(
             *[(output["generations"][0], output["statistics"]) for output in outputs],
-            strict=True,  # debug(atom)
+            strict=True,
         )
 
         parser = XMLParser()
@@ -218,7 +221,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 seeded_messages.append(parser.ensure_think_prefix(msg))
 
         # The parsed messages may contain `None`s if the LLM didn't generate a message.
-        parsed_active_msgs = self.extract_structured_output(list(seeded_messages))
+        contexts = [conversations[idx] for idx in active_indices]
+        parsed_active_msgs = self.extract_structured_output(list(seeded_messages), contexts=contexts)
 
         # Inject hint for failed messages to guide next turn (no immediate extra LLM call)
         diagnostics: dict[int, tuple[str, str]] = {}
@@ -265,7 +269,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 global_idx = active_indices[local_idx]
                 conv = conversations[global_idx]
                 raw = raw_messages[local_idx] or ""
-                reason = self._diagnose_generation_issue(raw)
+                reason = self._diagnose_generation_issue(raw, context=conv)
                 reasons[global_idx] = (reason, raw)
                 hint = (
                     "Previous response issue: "
@@ -273,100 +277,83 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                     + f". Be explicit: write 2-4 steps in a single {THINK_OPEN} block. If not finished, emit exactly one {TOOL_CALL_OPEN} with valid JSON; otherwise emit exactly one {ANSWER_OPEN} containing only the result."
                 )
                 conv.append({"role": "system", "content": hint})
-        self._logger.info("Injected recovery hints for malformed turns where applicable.")
+                self._logger.info(f"Injected recovery hint for turn {global_idx}: {reason}")
+
         return reasons
 
-    def _diagnose_generation_issue(self, msg: str | None) -> str:  # noqa: C901
+    def _diagnose_generation_issue(self, msg: str | None, context: list[dict]) -> str:  # noqa: C901
         """Heuristic diagnosis of why a generation is unusable to guide recovery."""
         if msg is None or not str(msg).strip():
             return "empty generation"
         parser = XMLParser()
-        diag = XMLDiagnostics(parser)
         msg = parser.ensure_think_prefix(msg) or ""
+        analysis = analyze_message_in_context(parser, context, msg, tool_names=set(self.library))
 
-        # Orphan closing tags
-        if diag.has_orphan_closing_tag(msg, "think"):
-            return f"closing {THINK_CLOSE} without opening {THINK_OPEN}"
-        if diag.has_orphan_closing_tag(msg, "tool_call"):
-            return f"closing {TOOL_CALL_CLOSE} without opening {TOOL_CALL_OPEN}"
-        if diag.has_orphan_closing_tag(msg, "answer"):
-            return f"closing {ANSWER_CLOSE} without opening {ANSWER_OPEN}"
+        # Syntax checks
+        if analysis["unclosed"]["think"]:
+            return f"opened {THINK_OPEN} without matching {THINK_CLOSE}"
 
-        if parser.extract_thought(msg) is None:
-            return f"missing {THINK_OPEN} block"
+        if analysis["unclosed"]["answer"]:
+            return f"opened {ANSWER_OPEN} without matching {ANSWER_CLOSE}"
 
-        # Tool/Answer multiplicity and presence
-        think_count = diag.count_tags(msg, "think")
-        tool_count = diag.count_tags(msg, "tool_call")
-        answer_count = diag.count_tags(msg, "answer")
-        if think_count > 1:
-            return f"multiple {THINK_OPEN} blocks"
-        if tool_count > 1:
-            return f"multiple {TOOL_CALL_OPEN} blocks"
-        if answer_count > 1:
-            return f"multiple {ANSWER_OPEN} blocks"
+        if analysis["unclosed"]["tool_call"]:
+            return f"opened {TOOL_CALL_OPEN} without matching {TOOL_CALL_CLOSE}"
 
-        tools = parser.extract_tools(msg, last_only=True)
-        if not tools:
-            if diag.has_unclosed_tag(msg, "answer"):
-                return f"premature {ANSWER_OPEN} without closing tag"
-            if diag.has_stray_content_outside_allowed(msg):
-                return "content outside allowed tags"
+        if analysis["unopened"]["think"]:
+            return f"closed {THINK_CLOSE} without matching {THINK_OPEN}"
+
+        if analysis["unopened"]["answer"]:
+            return f"closed {ANSWER_CLOSE} without matching {ANSWER_OPEN}"
+
+        if analysis["unopened"]["tool_call"]:
+            return f"closed {TOOL_CALL_CLOSE} without matching {TOOL_CALL_OPEN}"
+
+        # Policy-level checks
+        if not analysis["has_tool_call"] and not analysis["has_answer"]:
             return "no tool call and no final answer"
 
-        # Tool path validations
-        if diag.has_unclosed_tag(msg, "tool_call"):
-            return f"premature {TOOL_CALL_OPEN} without closing tag"
-        if diag.has_code_fences_in_first_tool(msg):
-            return f"remove code fences from {TOOL_CALL_OPEN} content"
+        if (
+            analysis["has_think"]
+            and (analysis["has_tool_call"] or analysis["has_answer"])
+            and not analysis["is_valid_think_then_tool_or_answer"]
+        ):
+            think_n = analysis.get("think_count", 0)
+            tool_n = analysis.get("tool_call_count", 0)
+            answer_n = analysis.get("answer_count", 0)
+            if think_n != 1:
+                return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: expected exactly one {THINK_OPEN} block, found {think_n}"
+            if (tool_n + answer_n) != 1:
+                return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: expected exactly one of {TOOL_CALL_OPEN} or {ANSWER_OPEN}, found {tool_n} {TOOL_CALL_OPEN} and {answer_n} {ANSWER_OPEN}"
+            return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: each tag must be unique"
 
-        parsed_tool, err = diag.extract_first_tool_call(msg)
-        if parsed_tool is None:
-            return err or "invalid tool JSON"
+        if analysis["has_answer"] and not analysis["answer_policy_valid"]:
+            return "final answer emitted without adjacent tool response"
 
-        name = parsed_tool["name"]
-        args = parsed_tool["arguments"]
-        if name not in self.library:
-            return "unknown tool name"
-        if not isinstance(args, dict):
-            return "invalid tool arguments"
-
-        return "unspecified formatting issue"
-
-    def _diagnose_generation_issue2(self, msg: str | None) -> str:
-        """Heuristic diagnosis. This can be reached if the tool call is None and the task is not completed."""
-        if msg is None or not str(msg).strip():
-            return "empty generation"
-        parser = XMLParser()
-        msg = parser.ensure_think_prefix(msg) or ""
-
-        # Verify think block
-        if parser.extract_thought(msg) is None:
+        # Check the think/tool/answer blocks
+        if not analysis["has_think"]:
             return f"missing {THINK_OPEN} block"
 
-        # Verify tool or answer presence
-        tools = parser.extract_tools(msg, last_only=True)
-        if not tools:
-            answer = parser.extract_answer(msg)
-            if answer is None:
-                return "no tool call and no final answer"
+        # Check the tool block
+        if analysis["code_fences_in_last_tool"]:
+            return f"remove code fences from {TOOL_CALL_OPEN} content"
 
-        # Verify tool block JSON shape
-        tool_block = tools[0]
-        try:
-            tool_json = json.loads(tool_block)
-        except Exception:
-            return "invalid tool_call JSON"
-        if not isinstance(tool_json, dict):
-            return "invalid tool_call JSON"
-        name = tool_json.get("name")
-        args = tool_json.get("arguments")
-        if not isinstance(name, str):
-            return "missing or invalid 'name' in tool_call"
-        if not isinstance(args, dict):
-            return "missing or invalid 'arguments' in tool_call"
-        if name not in self.library:
-            return "unknown tool name"
+        if analysis["has_tool_call"]:
+            tool = analysis["tool"]
+            if not tool["json_valid"]:
+                return "invalid tool JSON"
+
+            if not isinstance(tool["arguments"], dict):
+                return "invalid tool arguments"
+
+            if tool["name"] not in self.library:
+                return "unknown tool name"
+
+        if not analysis["has_answer"]:
+            return f"no {ANSWER_OPEN} block"
+
+        # Other checks
+        if analysis["stray_content"]:
+            return "content outside allowed tags"
 
         return "unspecified formatting issue"
 
@@ -446,10 +433,12 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         return results, statistics
 
-    def extract_structured_output(self, messages: list[str | None]) -> list[ThoughtSchema | None]:
+    def extract_structured_output(
+        self, messages: list[str | None], contexts: list[list[dict]]
+    ) -> list[ThoughtSchema | None]:
         """Extract the structured output from the messages."""
         result: list[ThoughtSchema | None] = []
-        for message in messages:
+        for ctx, message in zip(contexts, messages, strict=True):
             # Default placeholder to avoid None entries
             placeholder = ThoughtSchema(thought="", tool_call=None, final_answer=None, completed=False)
             if message is None:
@@ -460,7 +449,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 if self.structured_output:
                     parsed = ThoughtSchema.model_validate_json(message)
                 else:
-                    parsed = self.extract_non_structured_output(message)
+                    parsed = self.extract_non_structured_output(message, context=ctx)
                 if parsed is None:
                     parsed = placeholder
                 result.append(parsed)
@@ -469,12 +458,12 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 result.append(placeholder)
         return result
 
-    def extract_non_structured_output(self, message: str) -> ThoughtSchema | None:
+    def extract_non_structured_output(self, message: str, context: list[dict]) -> ThoughtSchema | None:
         """Extract the non-structured output from the messages."""
         parser = XMLParser()
+        analysis = analyze_message_in_context(parser, context, message, tool_names=set(self.library))
 
-        # This gate enforces that the message contains a think block followed by a (tool or answer) block.
-        if self.strict_format and not parser.is_valid_think_then_tool_or_answer(message):
+        if self.strict_format and not bool(analysis["is_valid_think_then_tool_or_answer"]):
             return ThoughtSchema(
                 thought="",
                 tool_call=None,
@@ -482,29 +471,27 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 completed=False,
             )
 
-        answer = parser.extract_answer(message)
-        thought = parser.extract_thought(message) or ""
+        if analysis["has_answer"] and not bool(analysis["answer_policy_valid"]):
+            return ThoughtSchema(
+                thought="",
+                tool_call=None,
+                final_answer=None,
+                completed=False,
+            )
+        thought = analysis["thought"] or ""
 
-        # Enforce a single tool call per turn: take only the first tool block
-        last_tool_block = parser.extract_tools(message, last_only=True)
-
+        # Enforce a single tool call per turn: take only the last tool block
         tool_call: FunctionInvocationInfo | None = None
-        if last_tool_block:
-            tool_content = last_tool_block[0]
-            try:
-                tool_json = json.loads(tool_content)
-                name = tool_json.get("name")
-                arguments = tool_json.get("arguments")
-                if isinstance(name, str) and isinstance(arguments, dict):
-                    tool_call = FunctionInvocationInfo(name=name, arguments=arguments)
-                else:
-                    # Malformed tool call; keep turn active without executing
-                    tool_call = None
-            except Exception:
-                tool_call = None
+        tool_info = analysis["tool"]
+        if tool_info and tool_info.get("json_valid"):
+            tool_call = FunctionInvocationInfo(
+                name=str(tool_info["name"]),
+                arguments=dict(tool_info["arguments"]),
+            )
 
         # If both a tool and an answer appear, treat this as a tool-call step
         # and ignore the answer for this turn.
+        answer = analysis["answer"]
         if tool_call is not None and answer is not None:
             return ThoughtSchema(
                 thought=thought,
