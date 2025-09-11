@@ -9,10 +9,13 @@ class ScriptArguments(trl.ScriptArguments):
     Extended version of ScriptArguments with support for dataset mixtures.
     """
 
-    # Override the dataset_name to make it optional
     dataset_name: str | None = field(
-        default=None, metadata={"help": "Dataset name. Can be omitted if using dataset_mixture."}
+        default=None, metadata={"help": "Training dataset name. Contains chain-of-thought solutions."}
     )
+    eval_dataset_name: str | None = field(
+        default=None, metadata={"help": "Evaluation dataset name. Contains ground-truth solutions only."}
+    )
+    eval_dataset_config: str | None = field(default=None, metadata={"help": "Evaluation dataset config."})
 
     take_n: int | None = field(default=None, metadata={"help": "Number of examples to take from the dataset."})
 
@@ -56,6 +59,11 @@ class SFTConfig(trl.SFTConfig):
     wandb_run_group: str | None = field(
         default=None,
         metadata={"help": ("The group to store runs under.")},
+    )
+
+    eval_max_new_tokens: int | None = field(
+        default=None,
+        metadata={"help": "Max new tokens for evaluation callbacks (does not affect training)."},
     )
 
 
@@ -268,4 +276,14 @@ class DistillationConfig:
     stop: list[str] | None = field(
         default=None,
         metadata={"help": "Stop sequences for generation (each string is a stop token)"},
+    )
+
+    do_eval: bool = field(
+        default=False,
+        metadata={"help": "Whether to do evaluation"},
+    )
+
+    take_n: int | None = field(
+        default=None,
+        metadata={"help": "Number of examples to take from the dataset."},
     )

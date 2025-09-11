@@ -31,6 +31,7 @@ from linalg_zero.config.data import (
 )
 from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.shared.lib import get_tools
+from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_libpath, get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -481,12 +482,8 @@ def filter_dataset_by_correctness(distiset: Distiset, only_correct: bool = True)
 
     for split_name in filtered_distiset["default"]:
         split_data = filtered_distiset["default"][split_name]
-        if only_correct:  # noqa: SIM108
-            # Keep only correct entries for SFT training
-            filtered_data = split_data.filter(lambda x: x["is_correct"] is True)
-        else:
-            # Keep all entries for inspection
-            filtered_data = split_data
+        # Keep only correct entries for SFT training if only_correct=True, otherwise keep all
+        filtered_data = split_data.filter(lambda x: x["is_correct"] is True) if only_correct else split_data
 
         filtered_distiset["default"][split_name] = filtered_data
 
@@ -510,17 +507,19 @@ def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) ->
         logger.exception("Failed to push dataset to Hugging Face Hub")
 
 
-def push_datasets_to_huggingface(distiset: Distiset, base_dataset_name: str, private: bool) -> None:
+def push_datasets_to_huggingface(distiset: Distiset, args: DistillationConfig) -> None:
     """Push two datasets to Hugging Face: one with all entries and one with only correct entries."""
+    assert args.hf_output_dataset is not None  # noqa: S101
+    private = args.private
 
     # Push all entries dataset
-    all_entries_name = f"{base_dataset_name}-all"
+    all_entries_name = f"{args.hf_output_dataset}-all"
     logger.info(f"Pushing dataset with all entries to: {all_entries_name}")
     all_entries_distiset = filter_dataset_by_correctness(distiset, only_correct=False)
     push_to_huggingface(all_entries_distiset, all_entries_name, private)
 
     # Push correct entries only dataset
-    correct_only_name = base_dataset_name
+    correct_only_name = args.hf_output_dataset
     logger.info(f"Pushing dataset with correct entries only to: {correct_only_name}")
     correct_only_distiset = filter_dataset_by_correctness(distiset, only_correct=True)
     push_to_huggingface(correct_only_distiset, correct_only_name, private)
@@ -567,61 +566,103 @@ def convert_dataset_to_list_of_dicts(dataset: Dataset) -> list[dict[str, Any]]:
     return [dict(zip(dataset_dict.keys(), vals, strict=True)) for vals in zip(*dataset_dict.values(), strict=True)]
 
 
-def load_dataset_split(args: DistillationConfig | ScriptArguments, split: str, take_n: int | None = None) -> Dataset:
+def load_dataset_split(dataset_name: str, dataset_config: str, split: str, take_n: int | None = None) -> Dataset:
     """Loads a single dataset split either from the hub or from a local file."""
     logger = get_logger(__name__)
 
     try:
-        logger.info(f"Loading '{args.dataset_name}' (config: {args.dataset_config}, split: {split}) dataset.")
+        logger.info(f"Loading '{dataset_name}' (config: {dataset_config}, split: {split}) dataset.")
 
-        dataset = hf_load_dataset(args.dataset_name, args.dataset_config, split=split)
+        dataset = hf_load_dataset(dataset_name, dataset_config, split=split)
         assert isinstance(dataset, Dataset)  # noqa: S101
 
         logger.info("Dataset loaded!")
     except Exception as err:
-        raise FileNotFoundError(f"The dataset {args.dataset_name} is not available on the Hugging Face Hub.") from err
+        raise FileNotFoundError(f"The dataset {dataset_name} is not available on the Hugging Face Hub.") from err
     else:
         if take_n is not None:
             dataset = dataset.select(range(take_n))
         return dataset
 
 
-def load_datasets_for_sft(
-    args: DistillationConfig | ScriptArguments, take_n: int | None, do_eval: bool = True
-) -> DatasetDict:
-    """Loads train and optionally validation splits as lists of dicts."""
+def process_dataset_for_sft(dataset: Dataset) -> Dataset:
+    """Process a dataset for SFT training by keeping only required columns and parsing messages."""
+    # Preserve minimal columns needed for SFT + optional correctness metrics
+    # "messages" is required; "tools" helps validate tool names; ground truth fields enable answer correctness.
+    keep_columns = [
+        "tools",
+        "messages",
+        "ground_truth",
+        "stepwise_ground_truths",
+    ]
+    dataset = remove_redundant_columns(dataset, keep_columns)
+    if "messages" in dataset.column_names:
+        dataset = dataset.map(lambda x: {"messages": json.loads(x["messages"])})
+    assert isinstance(dataset, Dataset)  # noqa: S101
+    return dataset
 
-    def process_split(split_name: str) -> Dataset:
-        dataset = load_dataset_split(args, split_name, take_n)
-        # Preserve minimal columns needed for SFT + optional correctness metrics
-        # "messages" is required; "tools" helps validate tool names; ground truth fields enable answer correctness.
-        keep_columns = [
-            "tools",
-            "messages",
-            "ground_truth",
-            "stepwise_ground_truths",
-        ]
-        dataset = remove_redundant_columns(dataset, keep_columns)
-        if "messages" in dataset.column_names:
-            dataset = dataset.map(lambda x: {"messages": json.loads(x["messages"])})
-        assert isinstance(dataset, Dataset)  # noqa: S101
-        return dataset
 
-    dataset_dict = {"train": process_split("train")}
+def add_missing_fields_for_eval(dataset: Dataset) -> Dataset:
+    """Add missing tools and messages fields to evaluation dataset from query field."""
+
+    def add_fields(example: dict[str, Any]) -> dict[str, Any]:
+        # Add tools if missing
+        if "tools" not in example:
+            example["tools"] = get_tools()
+
+        # Add messages if missing, build from query field
+        if "messages" not in example and "query" in example:
+            example["messages"] = json.dumps([
+                {"role": "system", "content": get_math_system_prompt()},
+                {"role": "user", "content": example["query"]},
+            ])
+
+        return example
+
+    return dataset.map(add_fields)
+
+
+def load_datasets_for_sft(args: ScriptArguments, do_eval: bool = True) -> DatasetDict:
+    """Loads train and optionally validation splits from separate datasets."""
+
+    # Load training dataset
+    if args.dataset_name is None or args.dataset_config is None:
+        raise ValueError("dataset_name and dataset_config must be provided")
+
+    train_dataset = load_dataset_split(args.dataset_name, args.dataset_config, "train", args.take_n)
+    train_dataset = process_dataset_for_sft(train_dataset)
+
+    dataset_dict = {"train": train_dataset}
+
     if do_eval:
-        dataset_dict["test"] = process_split("validation")
+        # Load evaluation dataset from separate dataset if specified
+        eval_dataset_name = args.eval_dataset_name
+        eval_dataset_config = args.eval_dataset_config
 
-    ds_dict = DatasetDict()
-    for k, v in dataset_dict.items():
-        ds_dict[k] = v
-    return ds_dict
+        if eval_dataset_name is None or eval_dataset_config is None:
+            raise ValueError("eval_dataset_name and eval_dataset_config must be provided when do_eval=True")
+
+        eval_dataset = load_dataset_split(eval_dataset_name, eval_dataset_config, "validation", args.take_n)
+        eval_dataset = add_missing_fields_for_eval(eval_dataset)
+        eval_dataset = process_dataset_for_sft(eval_dataset)
+        dataset_dict["test"] = eval_dataset
+
+    return DatasetDict(dataset_dict)
 
 
-def load_datasets_for_distillation(args: DistillationConfig, take_n: int | None) -> dict[str, list[dict[str, Any]]]:
+def load_datasets_for_distillation(args: DistillationConfig) -> dict[str, list[dict[str, Any]]]:
     """Loads train and optionally validation splits as lists of dicts."""
+    take_n = args.take_n
     datasets: dict[str, list[dict[str, Any]]] = {}
-    datasets["train"] = convert_dataset_to_list_of_dicts(load_dataset_split(args, "train", take_n))
-    datasets["validation"] = convert_dataset_to_list_of_dicts(load_dataset_split(args, "validation", take_n))
+    if args.dataset_name is None or args.dataset_config is None:
+        raise ValueError("dataset_name and dataset_config must be provided")
+
+    datasets["train"] = convert_dataset_to_list_of_dicts(
+        load_dataset_split(args.dataset_name, args.dataset_config, "train", take_n=take_n)
+    )
+    if args.do_eval:
+        validation_dataset = load_dataset_split(args.dataset_name, args.dataset_config, "validation", take_n=take_n)
+        datasets["validation"] = convert_dataset_to_list_of_dicts(validation_dataset)
 
     return datasets
 

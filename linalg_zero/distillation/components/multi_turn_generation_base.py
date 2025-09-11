@@ -212,6 +212,9 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             strict=True,
         )
 
+        # Log potential truncation
+        self._check_generation_truncation(statistics, active_indices)
+
         parser = XMLParser()
         seeded_messages: list[str | None] = []
         for msg in messages:
@@ -222,7 +225,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         # The parsed messages may contain `None`s if the LLM didn't generate a message.
         contexts = [conversations[idx] for idx in active_indices]
-        parsed_active_msgs = self.extract_structured_output(list(seeded_messages), contexts=contexts)
+        parsed_active_msgs = self.extract_output(list(seeded_messages), contexts=contexts)
 
         # Inject hint for failed messages to guide next turn (no immediate extra LLM call)
         diagnostics: dict[int, tuple[str, str]] = {}
@@ -252,6 +255,19 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             full_parsed_messages[active_idx] = parsed_msg
 
         return conversations, new_active_indices, statistics, full_parsed_messages, diagnostics
+
+    def _check_generation_truncation(self, statistics: tuple[Any, ...], active_indices: list[int]) -> None:
+        """Check and log potential generation truncation based on token statistics."""
+        generation_kwargs = self.llm.get_generation_kwargs()
+        max_new_tokens = generation_kwargs["max_new_tokens"]
+        if max_new_tokens is not None:
+            for i, stats in enumerate(statistics):
+                output_tokens = stats["output_tokens"]
+                if output_tokens == max_new_tokens:
+                    self._logger.warning(
+                        f"Generation may have been truncated at max_new_tokens={max_new_tokens} "
+                        f"for conversation {active_indices[i]} (output_tokens={output_tokens})"
+                    )
 
     def _inject_hints(
         self,
@@ -287,7 +303,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             return "empty generation"
         parser = XMLParser()
         msg = parser.ensure_think_prefix(msg) or ""
-        analysis = analyze_message_in_context(parser, context, msg, tool_names=set(self.library))
+        analysis = analyze_message_in_context(parser, context, message=msg, tool_names=set(self.library))
 
         # Syntax checks
         if analysis["unclosed"]["think"]:
@@ -433,9 +449,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         return results, statistics
 
-    def extract_structured_output(
-        self, messages: list[str | None], contexts: list[list[dict]]
-    ) -> list[ThoughtSchema | None]:
+    def extract_output(self, messages: list[str | None], contexts: list[list[dict]]) -> list[ThoughtSchema | None]:
         """Extract the structured output from the messages."""
         result: list[ThoughtSchema | None] = []
         for ctx, message in zip(contexts, messages, strict=True):
@@ -447,7 +461,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             try:
                 parsed: ThoughtSchema | None = None
                 if self.structured_output:
-                    parsed = ThoughtSchema.model_validate_json(message)
+                    parsed = self.extract_structured_output(message, context=ctx)
                 else:
                     parsed = self.extract_non_structured_output(message, context=ctx)
                 if parsed is None:
@@ -458,26 +472,49 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 result.append(placeholder)
         return result
 
-    def extract_non_structured_output(self, message: str, context: list[dict]) -> ThoughtSchema | None:
-        """Extract the non-structured output from the messages."""
+    def extract_structured_output(self, message: str, context: list[dict]) -> ThoughtSchema | None:
+        """Extract output from messages that enforce structured output."""
         parser = XMLParser()
-        analysis = analyze_message_in_context(parser, context, message, tool_names=set(self.library))
+        try:
+            result = ThoughtSchema.model_validate_json(message)
+        except ValidationError:
+            return None
+
+        # Enforce is_valid_think_then_tool_or_answer
+        if result.tool_call is None and result.final_answer is None:
+            return None
+
+        # Enforce answer_policy_valid
+        if result.final_answer:
+            prev_is_tool_response = parser.is_last_msg_tool_call(context)
+
+            if not prev_is_tool_response:
+                return None
+
+        tool_call = result.tool_call
+        answer = result.final_answer
+
+        # If both a tool and an answer appear, treat this as a tool-call step
+        # and ignore the answer for this turn. In the unstructured setting,
+        # is_valid_think_then_tool_or_answer enforces that tool_call and answer
+        # can never be both present at the same time.
+        if tool_call is not None and answer is not None:
+            result.completed = False
+            result.final_answer = None
+
+        return result
+
+    def extract_non_structured_output(self, message: str, context: list[dict]) -> ThoughtSchema | None:
+        """Extract output from messages that do not enforce structured output."""
+        parser = XMLParser()
+        analysis = analyze_message_in_context(parser, context, message=message, tool_names=set(self.library))
 
         if self.strict_format and not bool(analysis["is_valid_think_then_tool_or_answer"]):
-            return ThoughtSchema(
-                thought="",
-                tool_call=None,
-                final_answer=None,
-                completed=False,
-            )
+            return None
 
         if analysis["has_answer"] and not bool(analysis["answer_policy_valid"]):
-            return ThoughtSchema(
-                thought="",
-                tool_call=None,
-                final_answer=None,
-                completed=False,
-            )
+            return None
+
         thought = analysis["thought"] or ""
 
         # Enforce a single tool call per turn: take only the last tool block
@@ -489,18 +526,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 arguments=dict(tool_info["arguments"]),
             )
 
-        # If both a tool and an answer appear, treat this as a tool-call step
-        # and ignore the answer for this turn.
+        # Mark completion based on presence of answer
         answer = analysis["answer"]
-        if tool_call is not None and answer is not None:
-            return ThoughtSchema(
-                thought=thought,
-                tool_call=tool_call,
-                final_answer=None,
-                completed=False,
-            )
-
-        # Otherwise, mark completion based on presence of answer
         return ThoughtSchema(
             thought=thought,
             tool_call=tool_call,

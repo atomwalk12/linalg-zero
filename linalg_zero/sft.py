@@ -10,8 +10,7 @@ import datasets
 from linalg_zero.config.data import ScriptArguments, SFTConfig
 from linalg_zero.distillation.utils import load_datasets_for_sft
 from linalg_zero.sft.callbacks import get_callbacks
-from linalg_zero.sft.model_utils import get_model, get_tokenizer
-from linalg_zero.sft.wandb_logging import init_wandb_training
+from linalg_zero.sft.utils import get_model, get_tokenizer, init_wandb_training
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
@@ -53,7 +52,7 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
     # Load dataset, tokenizer, and model #
     ######################################
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
-    dataset = load_datasets_for_sft(script_args, take_n=script_args.take_n, do_eval=training_args.do_eval)
+    dataset = load_datasets_for_sft(script_args)
 
     if not isinstance(dataset, datasets.DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")

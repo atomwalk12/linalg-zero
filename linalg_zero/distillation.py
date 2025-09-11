@@ -24,7 +24,7 @@ from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
-def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig, take_n: int | None) -> None:
+def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig) -> None:  # noqa: C901
     ################################
     # Initialize and load datasets #
     ################################
@@ -55,7 +55,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
     # Load dataset splits and LLM clients
     llm, _ = create_llm_clients(server, args, ThoughtSchema)
-    dataset = load_datasets_for_distillation(args, take_n=take_n)
+    dataset = load_datasets_for_distillation(args)
     for split_name, split_ds in dataset.items():
         logger.info(f"Loaded {len(split_ds)} examples for split '{split_name}'")
 
@@ -104,27 +104,27 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     ############################
     # Run the validation split #
     ############################
+    if args.do_eval:
+        with Pipeline("validation-generation-pipeline").ray() as pipeline:
+            multi_turn_generator = MultiTurnWithToolUseGenerator(
+                name="multi_turn_generator",
+                llm=llm,
+                dataset=dataset["validation"],
+                batch_size=args.input_batch_size,
+                n_turns=args.n_turns,
+                system_prompt=get_math_system_prompt(),
+                library=available_functions,
+            )
 
-    with Pipeline("validation-generation-pipeline").ray() as pipeline:
-        multi_turn_generator = MultiTurnWithToolUseGenerator(
-            name="multi_turn_generator",
-            llm=llm,
-            dataset=dataset["validation"],
-            batch_size=args.input_batch_size,
-            n_turns=args.n_turns,
-            system_prompt=get_math_system_prompt(),
-            library=available_functions,
-        )
+            val_distiset: Distiset = pipeline.run(
+                parameters={
+                    multi_turn_generator.name: {"llm": {"generation_kwargs": generation_kwargs}},
+                },
+                use_cache=args.use_cache,
+                dataset_batch_size=args.input_batch_size,
+            )
 
-        val_distiset: Distiset = pipeline.run(
-            parameters={
-                multi_turn_generator.name: {"llm": {"generation_kwargs": generation_kwargs}},
-            },
-            use_cache=args.use_cache,
-            dataset_batch_size=args.input_batch_size,
-        )
-
-    distiset["default"]["validation"] = val_distiset["default"]["train"]
+        distiset["default"]["validation"] = val_distiset["default"]["train"]
 
     cleanup()
     logger.info("Generation complete!")
@@ -148,28 +148,26 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             client=argilla_client,
             private=args.private,
         )
-
-        create_argilla_dataset(
-            dataset_name=f"{args.argilla_output_dataset}-validation",
-            distiset_data=distiset["default"]["validation"],
-            client=argilla_client,
-            private=args.private,
-        )
+        if args.do_eval:
+            create_argilla_dataset(
+                dataset_name=f"{args.argilla_output_dataset}-validation",
+                distiset_data=distiset["default"]["validation"],
+                client=argilla_client,
+                private=args.private,
+            )
 
     if args.hf_output_dataset:
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")
-        push_datasets_to_huggingface(distiset, args.hf_output_dataset, args.private)
+        push_datasets_to_huggingface(distiset, args)
 
 
 if __name__ == "__main__":
-    take_n = None
     if "--config" not in argv:
         argv.append("--config")
         argv.append("linalg_zero/config/distillation/vllm_debug.yaml")
-        take_n = 12
 
     # Parse configuration from YAML file stored in the --config argument
     parser = TrlParser(dataclass_types=[DistillationConfig, VllmServerConfig])
     (distillation_config, backend_config) = parser.parse_args_and_config()
 
-    main(distillation_config, backend_config, take_n)
+    main(distillation_config, backend_config)

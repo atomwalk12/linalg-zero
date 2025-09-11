@@ -161,7 +161,7 @@ module = [
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["linalg_zero.distillation.utils", "linalg_zero.distillation.scripts.push_debug_dataset", "linalg_zero.sft.model_utils", "linalg_zero.grpo.datagen", "linalg_zero.grpo.process_dataset", "linalg_zero.distillation.run"]
+module = ["linalg_zero.distillation.utils", "linalg_zero.distillation.scripts.push_debug_dataset", "linalg_zero.sft.model_utils", "linalg_zero.grpo.datagen", "linalg_zero.grpo.process_dataset", "linalg_zero.distillation.run", "linalg_zero.sft.utils"]
 disable_error_code = ["attr-defined"]
 
 [[tool.mypy.overrides]]
@@ -323,3 +323,4 @@ reportUnknownMemberType = false
 reportMissingTypeStubs = false
 reportAttributeAccessIssue = false
 reportUnusedExpression = false
+reportAssignmentType = false

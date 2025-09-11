@@ -22,6 +22,23 @@ def is_using_deepspeed() -> bool:
     )
 
 
+def init_wandb_training(training_args: SFTConfig) -> None:
+    """Initialize Weights & Biases for training logging."""
+    try:
+        # Set environment variables for wandb
+        if training_args.wandb_entity is not None:
+            os.environ["WANDB_ENTITY"] = training_args.wandb_entity
+        if training_args.wandb_project is not None:
+            os.environ["WANDB_PROJECT"] = training_args.wandb_project
+        if training_args.wandb_run_group is not None:
+            os.environ["WANDB_RUN_GROUP"] = training_args.wandb_run_group
+
+        logger.info("Set wandb environment variables from training args")
+
+    except Exception:
+        logger.exception("Failed to initialize wandb environment")
+
+
 def get_tokenizer(model_args: ModelConfig, training_args: SFTConfig) -> PreTrainedTokenizer:
     """Get the tokenizer for the model."""
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(

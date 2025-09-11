@@ -22,6 +22,16 @@ class XMLParser:
         """Helper function to extract tool messages from a completion."""
         return [msg for msg in completion if msg["role"] == "tool"]
 
+    def is_last_msg_tool_call(self, messages: list[dict]) -> bool:
+        prev_is_tool_response = False
+        for prev in reversed(messages):
+            if prev.get("role") == "system":
+                continue
+            if prev.get("role") == "tool":
+                prev_is_tool_response = True
+            break
+        return prev_is_tool_response
+
     def extract_last_answer(self, message: str) -> str | None:
         """Extract answer content from <answer> tags.
 
@@ -292,19 +302,10 @@ def analyze_message_in_context(
     """
     result = analyze_message(parser, message, tool_names=tool_names)
 
-    # Determine adjacency policy for answers: previous message should be a tool message
-    prev_is_tool_response = False
-    for prev in reversed(context):
-        if prev.get("role") == "system":
-            continue
-        if isinstance(prev, dict) and prev.get("role") == "tool":
-            prev_is_tool_response = True
-            break
-        break
+    prev_is_tool_response = parser.is_last_msg_tool_call(context)
 
     has_answer = bool(result["has_answer"])
-    answer_allowed = bool(prev_is_tool_response)
 
-    result["answer_allowed"] = answer_allowed
-    result["answer_policy_valid"] = (not has_answer) or answer_allowed
+    result["answer_allowed"] = prev_is_tool_response
+    result["answer_policy_valid"] = (not has_answer) or prev_is_tool_response
     return result

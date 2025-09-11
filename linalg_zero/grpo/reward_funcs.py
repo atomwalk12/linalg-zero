@@ -1,4 +1,4 @@
-from linalg_zero.grpo.verifiers.xml_parser import XMLParser
+from linalg_zero.grpo.verifiers.xml_parser import XMLParser, analyze_message
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.types import LibTypes
 
@@ -21,11 +21,8 @@ def reward_response_format(parser: XMLParser, completion: list[dict] | str, grou
     else:
         message = completion
 
-    # Check format adheres to the expected format
-    if parser.is_valid_think_then_answer(message):
-        return 1.0
-
-    return 0.0
+    analysis = analyze_message(parser, message)
+    return 1.0 if analysis["is_valid_think_then_answer"] else 0.0
 
 
 def reward_final_answer(parser: XMLParser, completion: list[dict] | str, ground_truth: LibTypes) -> float:
@@ -39,8 +36,9 @@ def reward_final_answer(parser: XMLParser, completion: list[dict] | str, ground_
     else:
         message = completion
 
-    answer = parser.extract_answer(message)
-    target = parse_string(answer) if answer is not None else None
+    analysis = analyze_message(parser, message)
+    answer = analysis["answer"]
+    target = parse_string(answer) if answer else None
     if target is None:
         return 0.0
     return 1.0 if verify_answers(ground_truth, target) else 0.0
