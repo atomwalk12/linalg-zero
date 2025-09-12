@@ -1,14 +1,14 @@
-from linalg_zero.grpo.verifiers.xml_parser import XMLParser, analyze_message
+from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.types import LibTypes
 
 
-def reward_tool_output(tool_output: LibTypes, ground_truth: LibTypes) -> float:
+def reward_tool_output(*, ground_truth: LibTypes, tool_output: LibTypes) -> float:
     """Reward function that checks if the tool output matches the ground truth."""
     return 1.0 if verify_answers(ground_truth, tool_output) else 0.0
 
 
-def reward_response_format(parser: XMLParser, completion: list[dict] | str, ground_truth: LibTypes) -> float:
+def reward_response_format(parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str) -> float:
     if isinstance(completion, list):
         # Extract the last assistant message to score during a user-assistant interaction
         # Malformed tool are not penalized here, but during execution in `LinalgZeroTool`
@@ -21,11 +21,11 @@ def reward_response_format(parser: XMLParser, completion: list[dict] | str, grou
     else:
         message = completion
 
-    analysis = analyze_message(parser, message)
+    analysis = parser.analyze_message(message)
     return 1.0 if analysis["is_valid_think_then_answer"] else 0.0
 
 
-def reward_final_answer(parser: XMLParser, completion: list[dict] | str, ground_truth: LibTypes) -> float:
+def reward_final_answer(parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str) -> float:
     """Reward function that checks if the completion answer matches the ground truth."""
     if isinstance(completion, list):
         assistant_messages = parser.get_assistant_messages(completion)
@@ -36,7 +36,7 @@ def reward_final_answer(parser: XMLParser, completion: list[dict] | str, ground_
     else:
         message = completion
 
-    analysis = analyze_message(parser, message)
+    analysis = parser.analyze_message(message)
     answer = analysis["answer"]
     target = parse_string(answer) if answer else None
     if target is None:

@@ -9,32 +9,32 @@ class TestGetToolRewardE2E:
 
     def test_matching_float_values(self):
         """Test reward when float values match exactly."""
-        score, metadata = get_tool_reward(3.14, 3.14)
+        score, metadata = get_tool_reward(ground_truth=3.14, tool_output=3.14)
         assert score == 1.0
         assert metadata["reward_tool_output"] is True
 
     def test_non_matching_float_values(self):
         """Test reward when float values don't match."""
-        score, metadata = get_tool_reward(3.14, 2.71)
+        score, metadata = get_tool_reward(ground_truth=3.14, tool_output=2.71)
         assert score == 0.0
         assert metadata["reward_tool_output"] is True
 
     def test_matching_integer_values(self):
         """Test reward when integer values match."""
-        score, metadata = get_tool_reward(42, 42)
+        score, metadata = get_tool_reward(ground_truth=42, tool_output=42)
         assert score == 1.0
         assert metadata["reward_tool_output"] is True
 
     def test_non_matching_integer_values(self):
         """Test reward when integer values don't match."""
-        score, metadata = get_tool_reward(42, 24)
+        score, metadata = get_tool_reward(ground_truth=42, tool_output=24)
         assert score == 0.0
         assert metadata["reward_tool_output"] is True
 
     def test_matching_list_values(self):
         """Test reward when list values match."""
         matrix = [[1.0, 2.0], [3.0, 4.0]]
-        score, metadata = get_tool_reward(matrix, matrix)
+        score, metadata = get_tool_reward(ground_truth=matrix, tool_output=matrix)
         assert score == 1.0
         assert metadata["reward_tool_output"] is True
 
@@ -42,46 +42,46 @@ class TestGetToolRewardE2E:
         """Test reward when list values don't match."""
         matrix1 = [[1.0, 2.0], [3.0, 4.0]]
         matrix2 = [[5.0, 6.0], [7.0, 8.0]]
-        score, metadata = get_tool_reward(matrix1, matrix2)
+        score, metadata = get_tool_reward(ground_truth=matrix1, tool_output=matrix2)
         assert score == 0.0
         assert metadata["reward_tool_output"] is True
 
     def test_string_representations_of_numbers(self):
         """Test with string representations that should match numerically."""
         # Test with actual numeric types instead of strings
-        score, metadata = get_tool_reward(42, 42.0)
+        score, metadata = get_tool_reward(ground_truth=42, tool_output=42.0)
         assert score == 1.0
         assert metadata["reward_tool_output"] is True
 
         # Test with same types
-        score, metadata = get_tool_reward(42, 42)
+        score, metadata = get_tool_reward(ground_truth=42, tool_output=42)
         assert score == 1.0
         assert metadata["reward_tool_output"] is True
 
     def test_mathematical_expressions(self):
         """Test with mathematical expressions that evaluate to the same value."""
         # Direct numeric comparison since strings aren't parsed for math expressions
-        score, metadata = get_tool_reward(4, 4)
+        score, metadata = get_tool_reward(ground_truth=4, tool_output=4)
         assert score == 1.0
         assert metadata["reward_tool_output"] is True
 
     def test_invalid_mathematical_expressions(self):
         """Test with invalid mathematical expressions."""
         # String inputs that can't be verified should cause exception
-        score, metadata = get_tool_reward("invalid_expr", "42")
+        score, metadata = get_tool_reward(ground_truth="invalid_expr", tool_output="42")
         assert score == 0.0
         assert metadata["reward_tool_output"] is False
 
     def test_empty_values(self):
         """Test with empty values."""
         # String inputs should cause exception
-        score, metadata = get_tool_reward("", "")
+        score, metadata = get_tool_reward(ground_truth="", tool_output="")
         assert score == 0.0
         assert metadata["reward_tool_output"] is False  # Exception expected
 
     def test_none_values(self):
         """Test with None values - should handle gracefully."""
-        score, metadata = get_tool_reward(None, None)
+        score, metadata = get_tool_reward(ground_truth=None, tool_output=None)
 
         assert score == 0.0
         assert metadata["reward_tool_output"] is True
@@ -102,7 +102,7 @@ class TestGetInteractionRewardE2E:
         ]
         ground_truth = 4
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
         assert metadata["reward_final_answer"] is True
@@ -113,7 +113,7 @@ class TestGetInteractionRewardE2E:
         completion = "<think>I need to calculate this</think><answer>42</answer>"
         ground_truth = 42
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
         assert metadata["reward_final_answer"] is True
@@ -124,7 +124,7 @@ class TestGetInteractionRewardE2E:
         completion = [{"role": "assistant", "content": "The answer is 42"}]
         ground_truth = 42
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
         assert metadata["reward_final_answer"] is True
@@ -135,7 +135,7 @@ class TestGetInteractionRewardE2E:
         completion = [{"role": "assistant", "content": "<think>Let me calculate</think><answer>41</answer>"}]
         ground_truth = 42
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.2
         assert metadata["reward_final_answer"] is True
@@ -146,7 +146,7 @@ class TestGetInteractionRewardE2E:
         completion = [{"role": "assistant", "content": "<think>I'm thinking about this problem</think>"}]
         ground_truth = 42
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
         assert metadata["reward_final_answer"] is True
@@ -162,7 +162,7 @@ class TestGetInteractionRewardE2E:
         ]
         ground_truth = 42
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
         assert metadata["reward_final_answer"] is True
@@ -173,7 +173,7 @@ class TestGetInteractionRewardE2E:
         completion = [{"role": "user", "content": "What is 2 + 2?"}, {"role": "tool", "content": "Tool response"}]
         ground_truth = 4
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
         assert metadata["reward_final_answer"] is True
@@ -184,7 +184,7 @@ class TestGetInteractionRewardE2E:
         completion = []
         ground_truth = 42
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
         assert metadata["reward_final_answer"] is True
@@ -195,7 +195,7 @@ class TestGetInteractionRewardE2E:
         completion = [{"invalid_key": "value"}, {"role": "assistant"}]
         ground_truth = 42
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
         assert metadata["reward_final_answer"] is False
@@ -206,7 +206,7 @@ class TestGetInteractionRewardE2E:
         completion = [{"role": "assistant", "content": "<think>Let me calculate</think><answer>4</answer>"}]
         ground_truth = 4
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
         assert metadata["reward_final_answer"] is True
@@ -217,7 +217,7 @@ class TestGetInteractionRewardE2E:
         completion = "<think>I need to calculate</think><answer>42"
         ground_truth = 42
 
-        score, metadata = get_interaction_reward(self.parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         expected_total = 0.0
 
@@ -303,7 +303,7 @@ class TestIntegrationScenarios:
         ground_truth = -2
         parser = XMLParser()
 
-        score, metadata = get_interaction_reward(parser, completion, ground_truth)
+        score, metadata = get_interaction_reward(parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
         assert metadata["reward_final_answer"] is True
@@ -315,7 +315,7 @@ class TestIntegrationScenarios:
         ground_truth_result = [[4.0, 6.0], [10.0, 12.0]]
         tool_output = [[4.0, 6.0], [10.0, 12.0]]
 
-        score, metadata = get_tool_reward(ground_truth_result, tool_output)
+        score, metadata = get_tool_reward(ground_truth=ground_truth_result, tool_output=tool_output)
 
         assert score == 1.0
         assert metadata["reward_tool_output"] is True
@@ -325,7 +325,7 @@ class TestIntegrationScenarios:
         ground_truth_result = [[4.0, 6.0], [10.0, 12.0]]
         wrong_tool_output = [[1.0, 2.0], [3.0, 4.0]]
 
-        score, metadata = get_tool_reward(ground_truth_result, wrong_tool_output)
+        score, metadata = get_tool_reward(ground_truth=ground_truth_result, tool_output=wrong_tool_output)
 
         assert score == 0.0
         assert metadata["reward_tool_output"] is True
@@ -344,7 +344,7 @@ class TestIntegrationScenarios:
         completion = [{"role": "assistant", "content": "<think>Converting to decimal</think><answer>0.5</answer>"}]
         ground_truth = 0.5
 
-        score, metadata = get_interaction_reward(XMLParser(), completion, ground_truth)
+        score, metadata = get_interaction_reward(XMLParser(), ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
         assert metadata["reward_final_answer"] is True
@@ -355,7 +355,7 @@ class TestIntegrationScenarios:
         ground_truth = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
         tool_output = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
 
-        score, metadata = get_tool_reward(ground_truth, tool_output)
+        score, metadata = get_tool_reward(ground_truth=ground_truth, tool_output=tool_output)
 
         assert score == 1.0
         assert metadata["reward_tool_output"] is True
@@ -366,7 +366,7 @@ class TestIntegrationScenarios:
         ground_truth = 0.1 + 0.2
         tool_output = 0.3
 
-        score, metadata = get_tool_reward(ground_truth, tool_output)
+        score, metadata = get_tool_reward(ground_truth=ground_truth, tool_output=tool_output)
 
         assert isinstance(score, (float))
         assert metadata["reward_tool_output"] is True

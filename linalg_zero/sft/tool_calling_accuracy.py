@@ -22,7 +22,6 @@ from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
 from linalg_zero.grpo.verifiers.xml_parser import (
     XMLDiagnostics,
     XMLParser,
-    analyze_message_in_context,
 )
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.sft.tool_evaluation import EvaluationState
@@ -255,8 +254,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
             message = self._generate(model, tokenizer, prompt)
 
-            analysis = analyze_message_in_context(
-                parser,
+            analysis = parser.analyze_message_in_context(
                 context,
                 message=message,
                 tool_names=set(self.library.keys()) if self.library else None,

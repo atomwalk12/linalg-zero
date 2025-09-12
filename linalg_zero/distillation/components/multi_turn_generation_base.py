@@ -13,7 +13,6 @@ from pydantic import Field, PositiveInt, ValidationError
 from linalg_zero.distillation.data import FunctionInvocationInfo, ThoughtSchema
 from linalg_zero.grpo.verifiers.xml_parser import (
     XMLParser,
-    analyze_message_in_context,
 )
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.lib import get_lib
@@ -297,82 +296,6 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         return reasons
 
-    def _diagnose_generation_issue(self, msg: str | None, context: list[dict]) -> str:  # noqa: C901
-        """Heuristic diagnosis of why a generation is unusable to guide recovery."""
-        if msg is None or not str(msg).strip():
-            return "empty generation"
-        parser = XMLParser()
-        msg = parser.ensure_think_prefix(msg) or ""
-        analysis = analyze_message_in_context(parser, context, message=msg, tool_names=set(self.library))
-
-        # Syntax checks
-        if analysis["unclosed"]["think"]:
-            return f"opened {THINK_OPEN} without matching {THINK_CLOSE}"
-
-        if analysis["unclosed"]["answer"]:
-            return f"opened {ANSWER_OPEN} without matching {ANSWER_CLOSE}"
-
-        if analysis["unclosed"]["tool_call"]:
-            return f"opened {TOOL_CALL_OPEN} without matching {TOOL_CALL_CLOSE}"
-
-        if analysis["unopened"]["think"]:
-            return f"closed {THINK_CLOSE} without matching {THINK_OPEN}"
-
-        if analysis["unopened"]["answer"]:
-            return f"closed {ANSWER_CLOSE} without matching {ANSWER_OPEN}"
-
-        if analysis["unopened"]["tool_call"]:
-            return f"closed {TOOL_CALL_CLOSE} without matching {TOOL_CALL_OPEN}"
-
-        # Policy-level checks
-        if not analysis["has_tool_call"] and not analysis["has_answer"]:
-            return "no tool call and no final answer"
-
-        if (
-            analysis["has_think"]
-            and (analysis["has_tool_call"] or analysis["has_answer"])
-            and not analysis["is_valid_think_then_tool_or_answer"]
-        ):
-            think_n = analysis.get("think_count", 0)
-            tool_n = analysis.get("tool_call_count", 0)
-            answer_n = analysis.get("answer_count", 0)
-            if think_n != 1:
-                return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: expected exactly one {THINK_OPEN} block, found {think_n}"
-            if (tool_n + answer_n) != 1:
-                return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: expected exactly one of {TOOL_CALL_OPEN} or {ANSWER_OPEN}, found {tool_n} {TOOL_CALL_OPEN} and {answer_n} {ANSWER_OPEN}"
-            return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: each tag must be unique"
-
-        if analysis["has_answer"] and not analysis["answer_policy_valid"]:
-            return "final answer emitted without adjacent tool response"
-
-        # Check the think/tool/answer blocks
-        if not analysis["has_think"]:
-            return f"missing {THINK_OPEN} block"
-
-        # Check the tool block
-        if analysis["code_fences_in_last_tool"]:
-            return f"remove code fences from {TOOL_CALL_OPEN} content"
-
-        if analysis["has_tool_call"]:
-            tool = analysis["tool"]
-            if not tool["json_valid"]:
-                return "invalid tool JSON"
-
-            if not isinstance(tool["arguments"], dict):
-                return "invalid tool arguments"
-
-            if tool["name"] not in self.library:
-                return "unknown tool name"
-
-        if not analysis["has_answer"]:
-            return f"no {ANSWER_OPEN} block"
-
-        # Other checks
-        if analysis["stray_content"]:
-            return "content outside allowed tags"
-
-        return "unspecified formatting issue"
-
     def _execute_tool_calls(
         self, conversations: list["ChatType"], active_indices: list[int], parsed_messages: list[ThoughtSchema | None]
     ) -> tuple[list["ChatType"], list[int], dict[int, str], dict[int, int]]:
@@ -507,7 +430,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     def extract_non_structured_output(self, message: str, context: list[dict]) -> ThoughtSchema | None:
         """Extract output from messages that do not enforce structured output."""
         parser = XMLParser()
-        analysis = analyze_message_in_context(parser, context, message=message, tool_names=set(self.library))
+        analysis = parser.analyze_message_in_context(context, message=message, tool_names=set(self.library))
 
         if self.strict_format and not bool(analysis["is_valid_think_then_tool_or_answer"]):
             return None
@@ -534,6 +457,82 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             final_answer=answer,
             completed=answer is not None,
         )
+
+    def _diagnose_generation_issue(self, msg: str | None, context: list[dict]) -> str:  # noqa: C901
+        """Heuristic diagnosis of why a generation is unusable to guide recovery."""
+        if msg is None or not str(msg).strip():
+            return "empty generation"
+        parser = XMLParser()
+        msg = parser.ensure_think_prefix(msg) or ""
+        analysis = parser.analyze_message_in_context(context, message=msg, tool_names=set(self.library))
+
+        # Syntax checks
+        if analysis["unclosed"]["think"]:
+            return f"opened {THINK_OPEN} without matching {THINK_CLOSE}"
+
+        if analysis["unclosed"]["answer"]:
+            return f"opened {ANSWER_OPEN} without matching {ANSWER_CLOSE}"
+
+        if analysis["unclosed"]["tool_call"]:
+            return f"opened {TOOL_CALL_OPEN} without matching {TOOL_CALL_CLOSE}"
+
+        if analysis["unopened"]["think"]:
+            return f"closed {THINK_CLOSE} without matching {THINK_OPEN}"
+
+        if analysis["unopened"]["answer"]:
+            return f"closed {ANSWER_CLOSE} without matching {ANSWER_OPEN}"
+
+        if analysis["unopened"]["tool_call"]:
+            return f"closed {TOOL_CALL_CLOSE} without matching {TOOL_CALL_OPEN}"
+
+        # Policy-level checks
+        if not analysis["has_tool_call"] and not analysis["has_answer"]:
+            return "no tool call and no final answer"
+
+        if (
+            analysis["has_think"]
+            and (analysis["has_tool_call"] or analysis["has_answer"])
+            and not analysis["is_valid_think_then_tool_or_answer"]
+        ):
+            think_n = analysis.get("think_count", 0)
+            tool_n = analysis.get("tool_call_count", 0)
+            answer_n = analysis.get("answer_count", 0)
+            if think_n != 1:
+                return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: expected exactly one {THINK_OPEN} block, found {think_n}"
+            if (tool_n + answer_n) != 1:
+                return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: expected exactly one of {TOOL_CALL_OPEN} or {ANSWER_OPEN}, found {tool_n} {TOOL_CALL_OPEN} and {answer_n} {ANSWER_OPEN}"
+            return f"violates '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure: each tag must be unique"
+
+        if analysis["has_answer"] and not analysis["answer_policy_valid"]:
+            return "final answer emitted without adjacent tool response"
+
+        # Check the think/tool/answer blocks
+        if not analysis["has_think"]:
+            return f"missing {THINK_OPEN} block"
+
+        # Check the tool block
+        if analysis["code_fences_in_last_tool"]:
+            return f"remove code fences from {TOOL_CALL_OPEN} content"
+
+        if analysis["has_tool_call"]:
+            tool = analysis["tool"]
+            if not tool["json_valid"]:
+                return "invalid tool JSON"
+
+            if not isinstance(tool["arguments"], dict):
+                return "invalid tool arguments"
+
+            if tool["name"] not in self.library:
+                return "unknown tool name"
+
+        if not analysis["has_answer"]:
+            return f"no {ANSWER_OPEN} block"
+
+        # Other checks
+        if analysis["stray_content"]:
+            return "content outside allowed tags"
+
+        return "unspecified formatting issue"
 
     def _generate_multi_turn_conversation(  # noqa: C901
         self, inputs: list[dict[str, Any]]

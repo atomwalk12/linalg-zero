@@ -75,7 +75,7 @@ class LinalgZeroInteraction(BaseInteraction):
         ground_truth: LibTypes = instance_data["ground_truth"]
 
         # Compute reward and store metrics for analysis
-        reward, metadata = get_interaction_reward(parser=self.parser, completion=messages, ground_truth=ground_truth)
+        reward, metadata = get_interaction_reward(parser=self.parser, ground_truth=ground_truth, completion=messages)
         self._instance_dict[instance_id]["metadata"] = metadata
 
         # Notice that this function is not used for step-wise progress. It is called

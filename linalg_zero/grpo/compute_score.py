@@ -11,9 +11,9 @@ from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.shared.types import LibTypes
 
 
-def get_tool_reward(ground_truth: LibTypes, tool_output: LibTypes) -> tuple[float, dict]:
+def get_tool_reward(*, ground_truth: LibTypes, tool_output: LibTypes) -> tuple[float, dict]:
     """Computes the reward for a single tool call."""
-    reward_funcs_with_weights: list[tuple[Callable[[LibTypes, LibTypes], float], float]] = [
+    reward_funcs_with_weights: list[tuple[Callable[..., float], float]] = [
         (reward_tool_output, 1.0),
     ]
 
@@ -21,7 +21,7 @@ def get_tool_reward(ground_truth: LibTypes, tool_output: LibTypes) -> tuple[floa
     metadata: dict[str, str | bool] = {}
     for reward_func, weight in reward_funcs_with_weights:
         try:
-            score = reward_func(tool_output, ground_truth)
+            score = reward_func(ground_truth=ground_truth, tool_output=tool_output)
             reward += score * weight
             metadata[reward_func.__name__] = True
         except Exception as e:
@@ -33,13 +33,13 @@ def get_tool_reward(ground_truth: LibTypes, tool_output: LibTypes) -> tuple[floa
 
 
 def get_interaction_reward(
-    parser: XMLParser, completion: list[dict] | str, ground_truth: LibTypes
+    parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str
 ) -> tuple[float, dict]:
     """
     Computes the reward for a single tool_call->tool_response turn. It simulates
     a user that provides feedback based on the tool response.
     """
-    reward_funcs_with_weights: list[tuple[Callable[[XMLParser, list[dict] | str, LibTypes], float], float]] = [
+    reward_funcs_with_weights: list[tuple[Callable[..., float], float]] = [
         (reward_final_answer, 1.0),
         (reward_response_format, 0.2),
     ]
@@ -48,7 +48,7 @@ def get_interaction_reward(
     metadata: dict[str, str | bool] = {}
     for reward_func, weight in reward_funcs_with_weights:
         try:
-            score = reward_func(parser, completion, ground_truth)
+            score = reward_func(parser, ground_truth=ground_truth, completion=completion)
             reward += score * weight
             metadata[reward_func.__name__] = True
         except Exception as e:
@@ -66,6 +66,6 @@ def calc_reward(solution_str: str, ground_truth: str, **kwargs: Any) -> float:
     """
     # TODO[atom]: this is the only place where a json string is expected instead of a primitive type
     parser = XMLParser()
-    parsed: LibTypes = json.loads(ground_truth)
-    reward, _ = get_interaction_reward(parser, solution_str, parsed)
+    parsed_gt: LibTypes = json.loads(ground_truth)
+    reward, _ = get_interaction_reward(parser, ground_truth=parsed_gt, completion=solution_str)
     return reward
