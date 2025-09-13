@@ -15,19 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class EvaluationState:
-    """Tracks evaluation state across turns."""
+    """Tracks minimal evaluation state for clean SFT metrics."""
 
     def __init__(self) -> None:
-        self.total_tool_calls = 0
-        self.malformed_turns = 0
-        self.all_tools_json_valid = True
-        self.all_tools_known = True
-        self.all_tools_exec_success = True
-        self.final_answer_correct = False
         self.has_final_answer = False
-        self.has_any_tool_call = False
-        self.turns_used = 0
-        self.overall_format_valid = True
+        self.reward_response_format = 0.0
+        self.reward_final_answer = 0.0
+        self.total_tool_calls = 0
+        self.successful_tool_calls = 0
 
 
 class DummyConfig:

@@ -6,26 +6,21 @@ Evaluates structural and correctness metrics for tool-use generations on a subse
 
 from __future__ import annotations
 
-import json
+import json as _json
 import random
-import uuid
 from collections.abc import Callable
 from typing import Any
 
 import torch
-from transformers.modeling_utils import PreTrainedModel
-from transformers.tokenization_utils import PreTrainedTokenizer
+from transformers import PreTrainedModel, PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
 from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
-from linalg_zero.grpo.verifiers.xml_parser import (
-    XMLDiagnostics,
-    XMLParser,
-)
-from linalg_zero.grpo.verify import parse_string, verify_answers
+from linalg_zero.grpo.compute_score import get_interaction_reward
+from linalg_zero.grpo.verifiers.xml_parser import XMLParser
+from linalg_zero.grpo.verify import parse_string
 from linalg_zero.sft.tool_evaluation import EvaluationState
-from linalg_zero.shared.system_prompts import THINK_CLOSE, THINK_OPEN
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
@@ -42,27 +37,17 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         eval_dataset: HFDataset,
         library: dict[str, Callable[..., Any]],
         eval_subset: int = 256,
-        multi_turn_subset: int = 64,
         max_new_tokens: int = 1024,
         seed: int = 42,
-        eval_mode: str = "auto",  # 'subset' | 'full' | 'auto'
-        full_eval_every_n_evals: int = 5,
         n_turns: int = 4,
     ) -> None:
-        self.single_turn_subset = eval_subset
-        self.multi_turn_subset = int(multi_turn_subset)
-        self.full_eval_every_n_evals = max(1, int(full_eval_every_n_evals))
+        self.eval_subset = eval_subset
         self.max_new_tokens = max_new_tokens
-
         self.n_turns = int(n_turns)
-        self.eval_mode = eval_mode
         self.eval_dataset = eval_dataset
-        self._single_indices: list[int] | None = None
-        self._multi_indices: list[int] | None = None
+        self._eval_indices: list[int] | None = None
         self.rng = random.Random(seed)
         self._parser = XMLParser()
-        self._diag = XMLDiagnostics(self._parser)
-        self._eval_call_count: int = 0
 
         self.seed = seed
         self.library = library
@@ -78,89 +63,74 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         if not state.is_world_process_zero:
             return
 
-        logger.info(
-            f"Evaluation configuration: single_turn_subset={self.single_turn_subset}, "
-            f"multi_turn_subset={self.multi_turn_subset}, "
-            f"full_eval_every_n_evals={self.full_eval_every_n_evals}, "
-            f"max_new_tokens={self.max_new_tokens}"
-        )
+        logger.info(f"Computing tool-calling metrics on subset={self.eval_subset}...")
 
         model = kwargs.get("model")
         tokenizer = kwargs.get("processing_class")
         if model is None or tokenizer is None:
             return
 
-        do_full = self._determine_evaluation_scope(args)
-        target = "full" if do_full else f"subset={self.single_turn_subset}"
-        logger.info(f"Computing tool-calling metrics on {target}...")
-
         try:
             self._ensure_partitions()
-            single = self._run_single_turn_evaluation(model, tokenizer, do_full, state)
-            if metrics is not None and single:
-                metrics.update(single)
-
-            multi = self._run_multi_turn_evaluation_if_needed(model, tokenizer, state)
-            if metrics is not None and multi:
-                metrics.update({f"multi_{k}": v for k, v in multi.items()})
+            eval_metrics = self._run_unified_evaluation(model, tokenizer)
+            if eval_metrics:
+                self._log_evaluation_metrics(eval_metrics, state, prefix="eval")
+                if metrics is not None:
+                    metrics.update(eval_metrics)
         except Exception:
             logger.exception("Tool-calling evaluation failed")
 
-    def _determine_evaluation_scope(self, args: TrainingArguments) -> bool:
-        """Determine whether to do full evaluation or subset based on mode and strategy."""
-        if self.eval_mode == "full":
-            return True
-        elif self.eval_mode == "subset":
-            return False
-        else:
-            # auto: honor strategy; for steps do subset, and promote to full every N evals
-            eval_strategy = getattr(args, "eval_strategy", getattr(args, "evaluation_strategy", None))
-            if str(eval_strategy) == "epoch":
-                return True
-            else:
-                self._eval_call_count += 1
-                return (self._eval_call_count % self.full_eval_every_n_evals) == 0
-
-    def _run_single_turn_evaluation(
-        self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, do_full: bool, state: TrainerState
-    ) -> dict[str, float]:
-        """Run single-turn evaluation and log results, returning metrics."""
-        if self.eval_dataset is None or not self._single_indices:
-            return {}
-
-        # Single-turn problems need 2 turns (think + tool/answer)
-        metrics = self._compute_metrics(
-            model=model,
-            tokenizer=tokenizer,
-            indices=self._single_indices,
-            sample_size=self.single_turn_subset,
-            n_turns=2,
-            do_full=do_full,
-        )
-        self._log_evaluation_metrics(metrics, state, prefix="eval")
-        return metrics
-
-    def _run_multi_turn_evaluation_if_needed(
-        self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, state: TrainerState
-    ) -> dict[str, float]:
-        """Run multi-turn evaluation if conditions are met and log results, returning metrics."""
-        if not (self._multi_indices and (self._eval_call_count % self.full_eval_every_n_evals == 0)):
-            return {}
+    def _ensure_partitions(self) -> None:
+        if self._eval_indices is not None:
+            return
 
         if self.eval_dataset is None:
+            self._eval_indices = []
+            return
+
+        # Separate single-turn vs multi-turn samples for deterministic mixing
+        single_candidates = []
+        multi_candidates = []
+
+        for i in range(len(self.eval_dataset)):
+            row = self.eval_dataset[int(i)]
+            steps = row["stepwise_ground_truths"]
+            num_steps = 0
+            try:
+                if isinstance(steps, str):
+                    arr = _json.loads(steps)
+                    if isinstance(arr, list):
+                        num_steps = len(arr)
+                elif isinstance(steps, list):
+                    num_steps = len(steps)
+            except Exception:
+                num_steps = 0
+
+            if num_steps <= 1:
+                single_candidates.append(int(i))
+            else:
+                multi_candidates.append(int(i))
+
+        # Create mixed sample: 70% single (fast), 30% multi (reasoning)
+        single_count = min(int(0.7 * self.eval_subset), len(single_candidates))
+        multi_count = min(self.eval_subset - single_count, len(multi_candidates))
+
+        # Deterministic sampling using seeded RNG
+        selected_single = self.rng.sample(single_candidates, single_count) if single_candidates else []
+        selected_multi = self.rng.sample(multi_candidates, multi_count) if multi_candidates else []
+
+        self._eval_indices = selected_single + selected_multi
+
+    def _run_unified_evaluation(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer) -> dict[str, float]:
+        """Run unified evaluation on mixed single/multi-turn samples."""
+        if self.eval_dataset is None or not self._eval_indices:
             return {}
 
-        # Multi-turn always uses subset for performance
-        mt_metrics = self._compute_metrics(
+        return self._compute_metrics(
             model=model,
             tokenizer=tokenizer,
-            indices=self._multi_indices,
-            sample_size=self.multi_turn_subset,
-            n_turns=self.n_turns,
-            do_full=False,
+            indices=self._eval_indices,
         )
-        self._log_evaluation_metrics(mt_metrics, state, prefix="eval_multi")
-        return mt_metrics
 
     def _log_evaluation_metrics(self, metrics: dict[str, float], state: TrainerState, prefix: str = "eval") -> None:
         """Log evaluation metrics to trainer state and logger (Trainer will forward to W&B)."""
@@ -179,58 +149,128 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
         indices: list[int],
-        sample_size: int,
-        n_turns: int,
-        do_full: bool = False,
     ) -> dict[str, float]:
-        """Unified method to compute metrics on any set of indices with configurable parameters."""
+        """Unified method to compute metrics on selected indices with fair turn allocation."""
         model.eval()
 
         if not indices:
             return {}
 
-        n = len(indices)
-        if do_full:
-            selected_indices = list(indices)
-        else:
-            local_rng = random.Random(self.seed)
-            pick = local_rng.sample(indices, k=min(sample_size, n))
-            selected_indices = list(pick)
-
-        samples: list[dict[str, Any]] = [self.eval_dataset[int(i)] for i in selected_indices]
+        # Use pre-selected indices (already mixed and sampled)
+        samples: list[dict[str, Any]] = [self.eval_dataset[int(i)] for i in indices]
 
         if not samples:
             return {}
 
-        # Initialize totals with all unified metrics
-        totals = self.init_metrics()
+        # Initialize totals
+        sum_reward_final = 0.0
+        sum_reward_response_format = 0.0
+        sum_tool_success = 0
+        sum_tool_total = 0
 
         denom = float(len(samples))
         for sample in samples:
             try:
-                metrics = self._evaluate_sample(sample, model, tokenizer, n_turns)
-                for k, v in metrics.items():
-                    totals[k] += v
+                # Determine fair n_turns based on sample complexity
+                steps = sample.get("stepwise_ground_truths", [])
+                num_tool_turns = 0
+                try:
+                    if isinstance(steps, str):
+                        arr = _json.loads(steps)
+                        if isinstance(arr, list):
+                            num_tool_turns = len(arr)
+                    elif isinstance(steps, list):
+                        num_tool_turns = len(steps)
+                except Exception:
+                    num_tool_turns = 0
+
+                # Allocate num_tool_turns + 1 turn for the answer
+                n_turns = num_tool_turns + 1
+
+                state = self._evaluate_sample(sample, model, tokenizer, n_turns)
+                sum_reward_final += float(state.reward_final_answer)
+                sum_reward_response_format += float(state.reward_response_format)
+                sum_tool_success += int(state.successful_tool_calls)
+                sum_tool_total += int(state.total_tool_calls)
             except Exception:
                 logger.debug("Failed evaluating one sample", exc_info=True)
                 continue
 
-        return {k: (v / denom if denom > 0 else 0.0) for k, v in totals.items()}
+        tool_success_rate = (sum_tool_success / sum_tool_total) if sum_tool_total > 0 else 0.0
+        return {
+            "reward_final_answer": (sum_reward_final / denom) if denom > 0 else 0.0,
+            "reward_response_format": (sum_reward_response_format / denom) if denom > 0 else 0.0,
+            "tool_success_rate": tool_success_rate,
+        }
 
     def _build_evaluation_context(self, sample: dict[str, Any]) -> list[dict[str, Any]] | None:
         """Build minimal context: system (optional) + first user message."""
-        messages = sample.get("messages", [])
-        context: list[dict[str, Any]] = []
-        if messages and messages[0].get("role") == "system":
-            context.append(messages[0])
-
-        user_msg = next((m for m in messages if m.get("role") == "user"), None)
-        if user_msg is None:
+        messages = sample.get("messages")
+        if not isinstance(messages, list):
             return None
-        context.append(user_msg)
+        context: list[dict[str, Any]] = []
+
+        # Add system message if present
+        system_msgs = self._parser.get_messages(messages, "system")
+        if system_msgs:
+            context.append(system_msgs[0])
+
+        # Add first user message
+        user_msgs = self._parser.get_messages(messages, "user")
+        if not user_msgs:
+            return None
+        context.append(user_msgs[0])
         return context
 
-    def _run_evaluation_turns(  # noqa: C901
+    def _evaluate_sample(
+        self, sample: dict[str, Any], model: PreTrainedModel, tokenizer: PreTrainedTokenizer, n_turns: int = 1
+    ) -> EvaluationState:
+        """Evaluate a single sample with the model across multiple turns."""
+        context = self._build_evaluation_context(sample)
+        if context is None:
+            return EvaluationState()
+
+        state = self._run_evaluation_turns(context, model, tokenizer, n_turns, sample)
+        return state
+
+    def _generate(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prompt_text: str) -> str:
+        inputs = tokenizer(
+            prompt_text,
+            return_tensors="pt",
+            truncation=True,
+            padding=bool(getattr(tokenizer, "pad_token_id", None)),
+        )
+        if inputs["input_ids"].shape[1] == tokenizer.model_max_length:
+            logger.warning(f"Input truncated to {tokenizer.model_max_length} tokens during tool calling evaluation")
+
+        inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+        with torch.no_grad():
+            pad_id = getattr(tokenizer, "pad_token_id", None) or getattr(tokenizer, "eos_token_id", None)
+
+            outputs = model.generate(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+                max_new_tokens=self.max_new_tokens,
+                do_sample=False,
+                pad_token_id=pad_id,
+            )
+
+        # Extract only the generated tokens (after the input)
+        prompt_length = inputs["input_ids"].shape[1]
+        generated_tokens = outputs[:, prompt_length:]
+
+        # Check if generation was truncated due to max_new_tokens
+        if (
+            generated_tokens.shape[1] == self.max_new_tokens
+            and getattr(tokenizer, "eos_token_id", None) is not None
+            and generated_tokens[0, -1].item() != tokenizer.eos_token_id
+        ):
+            logger.warning(f"Generation may have been truncated at max_new_tokens={self.max_new_tokens}")
+
+        return tokenizer.decode(generated_tokens, skip_special_tokens=True)
+
+    def _run_evaluation_turns(
         self,
         context: list[dict[str, Any]],
         model: PreTrainedModel,
@@ -238,213 +278,84 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         n_turns: int,
         sample: dict[str, Any],
     ) -> EvaluationState:
-        """Run the evaluation loop across multiple turns, preserving exact original logic."""
+        """Run evaluation using simplified GRPO-based conversation processing."""
         state = EvaluationState()
-        parser = self._parser
 
-        for turn in range(n_turns):
-            state.turns_used = turn + 1
-
+        # Multi-turn conversation loop
+        for _ in range(n_turns):
             # Generate assistant response
             prompt = tokenizer.apply_chat_template(context, tokenize=False, add_generation_prompt=True)
             if not isinstance(prompt, str):
-                state.malformed_turns += 1
-                state.overall_format_valid = False
                 break
 
             message = self._generate(model, tokenizer, prompt)
+            context.append({"role": "assistant", "content": message})
 
-            analysis = parser.analyze_message_in_context(
+            # Analyze message using existing GRPO parser
+            analysis = self._parser.analyze_message_in_context(
                 context,
                 message=message,
                 tool_names=set(self.library.keys()) if self.library else None,
             )
 
-            # Extract analyzed properties
-            answer = analysis["answer"]
-            has_tool_call = analysis["has_tool_call"]
-            tool_info = analysis["tool"]
-            turn_format_valid = analysis["is_valid_think_then_tool_or_answer"]
-
-            if not turn_format_valid:
-                state.malformed_turns += 1
-                state.overall_format_valid = False
-                break
-
-            if has_tool_call:
-                state.has_any_tool_call = True
-            if answer is not None:
-                state.has_final_answer = True
-
-            # If we have a final answer, validate it and finish
-            if answer is not None:
-                # Enforce adjacency policy: answer must follow a tool message
-                if not bool(analysis["answer_policy_valid"]):
-                    state.malformed_turns += 1
-                    state.overall_format_valid = False
-                    break
-                if (gt := sample["ground_truth"]) is not None:
-                    try:
-                        gt_parsed = parse_string(gt if isinstance(gt, str) else str(gt))
-                        ans_parsed = parse_string(answer)
-                        state.final_answer_correct = bool(verify_answers(gt_parsed, ans_parsed))
-                    except Exception:
-                        state.final_answer_correct = False
-                break
-
-            # Process tool call using analysis results
-            if has_tool_call:
+            # Update minimal state tracking
+            if analysis["has_tool_call"]:
                 state.total_tool_calls += 1
-
-                # Update tool validity tracking from analysis
-                if not tool_info["json_valid"]:
-                    state.all_tools_json_valid = False
-                    result_text = "ERROR: Invalid JSON in tool call"
+                # Process tool call
+                tool_success = self._process_tool_call(analysis["tool"], context, state, sample)
+                if tool_success:
+                    state.successful_tool_calls += 1
                 else:
-                    # Tool name validation from analysis
-                    if tool_info["name_known"] is False:
-                        state.all_tools_known = False
-                        tool_name = tool_info["name"]
-                        result_text = f"ERROR: Function '{tool_name}' not available"
-                    else:
-                        # Execute valid tool
-                        tool_name = tool_info["name"]
-                        tool_args = tool_info["arguments"]
-                        try:
-                            result = self.library[tool_name](**tool_args)
-                            result_text = str(result)
-                        except Exception as exc:
-                            state.all_tools_exec_success = False
-                            result_text = f"ERROR: {type(exc).__name__}: {exc}"
-
-                # Terminate early on invalid/unknown/failed tool calls to avoid deterministic repeats
-                json_valid = bool(tool_info.get("json_valid"))
-                name_known = tool_info.get("name_known") is not False
-                if (not json_valid) or (not name_known) or ("ERROR:" in result_text):
                     break
 
-                # Append assistant tool_call message and the corresponding tool response
-                tool_name = str(tool_info.get("name", ""))
-                tool_args = tool_info.get("arguments", {})
-                tool_call_id = str(uuid.uuid4())
+            if analysis["answer"] is not None:
+                state.has_final_answer = True
+                break
 
-                # Assistant message with think + tool_calls
-                think_text = analysis.get("thought") or ""
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": f"{THINK_OPEN}{think_text}{THINK_CLOSE}",
-                    "tool_calls": [
-                        {
-                            "id": tool_call_id,
-                            "type": "function",
-                            "function": {
-                                "name": tool_name,
-                                "arguments": json.dumps(tool_args),
-                            },
-                        }
-                    ],
-                }
-                context.append(assistant_msg)
-
-                # Tool response message
-                tool_msg = {
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "name": tool_name,
-                    "content": result_text,
-                }
-                context.append(tool_msg)
-
+        # Calculate conversation-wide metrics using GRPO components
+        self._calculate_conversation_metrics(context, sample, state)
         return state
 
-    def _evaluate_sample(
-        self, sample: dict[str, Any], model: PreTrainedModel, tokenizer: PreTrainedTokenizer, n_turns: int = 1
-    ) -> dict[str, float]:
-        """Evaluate a single sample with the model across multiple turns."""
-        context = self._build_evaluation_context(sample)
-        if context is None:
-            return self.init_metrics()
+    def _process_tool_call(
+        self, tool_info: dict[str, Any], context: list[dict[str, Any]], state: EvaluationState, sample: dict[str, Any]
+    ) -> bool:
+        """Process a single tool call and update context. Returns False if conversation should end."""
+        # Simple tool execution - let GRPO metrics handle detailed evaluation
+        if not tool_info["json_valid"] or not tool_info["name_known"]:
+            return False  # Early termination on invalid calls
 
-        state = self._run_evaluation_turns(context, model, tokenizer, n_turns, sample)
-        return self.init_metrics(state)
+        try:
+            # Execute tool
+            tool_name = tool_info["name"]
+            tool_args = tool_info["arguments"]
+            fn = self.library[tool_name]
+            result = fn(**tool_args)
+            result_text = f"Tool {tool_name} returned: {result}"
+        except Exception as e:
+            result_text = f"ERROR executing {tool_info['name']}: {e!s}"
+            return False  # Early termination on execution errors
 
-    def _generate(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prompt_text: str) -> str:
-        inputs = tokenizer(prompt_text, return_tensors="pt", truncation=True)
-        if inputs["input_ids"].shape[1] == tokenizer.model_max_length:
-            logger.warning(f"Input truncated to {tokenizer.model_max_length} tokens during tool calling evaluation")
-        inputs = {k: v.to(model.device) for k, v in inputs.items()}
-        with torch.no_grad():
-            outputs = model.generate(  # type: ignore[operator]
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                do_sample=False,
-                pad_token_id=tokenizer.eos_token_id,
-                temperature=None,
-                top_p=None,
-                top_k=None,
-            )
-        generated_tokens = outputs[0][inputs["input_ids"].shape[1] :]
+        # Add tool result to conversation
+        context.append({"role": "tool", "content": result_text})
+        return True
 
-        # Check if generation was truncated due to max_new_tokens
-        if len(generated_tokens) == self.max_new_tokens and generated_tokens[-1] != tokenizer.eos_token_id:
-            logger.warning(f"Generation may have been truncated at max_new_tokens={self.max_new_tokens}")
-
-        return tokenizer.decode(generated_tokens, skip_special_tokens=True)
-
-    def _ensure_partitions(self) -> None:
-        if self._single_indices is not None and self._multi_indices is not None:
-            return
-        self._single_indices = []
-        self._multi_indices = []
-        if self.eval_dataset is None:
-            return
-        for i in range(len(self.eval_dataset)):
-            row = self.eval_dataset[int(i)]
-            steps = row.get("stepwise_ground_truths")
-            num_steps = 0
+    def _calculate_conversation_metrics(
+        self, context: list[dict[str, Any]], sample: dict[str, Any], state: EvaluationState
+    ) -> None:
+        """Calculate conversation-wide metrics using GRPO reward functions."""
+        if ground_truth := sample.get("ground_truth"):
             try:
-                if isinstance(steps, str):
-                    import json as _json
+                # Use GRPO's get_interaction_reward for clean conversation-wide metrics
+                gt_parsed = parse_string(ground_truth if isinstance(ground_truth, str) else str(ground_truth))
+                reward, metadata = get_interaction_reward(
+                    parser=self._parser, ground_truth=gt_parsed, completion=context
+                )
 
-                    arr = _json.loads(steps)
-                    if isinstance(arr, list):
-                        num_steps = len(arr)
-                elif isinstance(steps, list):
-                    num_steps = len(steps)
-            except Exception:
-                num_steps = 0
-            if num_steps <= 1:
-                self._single_indices.append(int(i))
-            else:
-                self._multi_indices.append(int(i))
+                # Extract clean metrics from GRPO metadata
+                state.reward_final_answer = float(metadata.get("reward_final_answer", 0.0))
+                state.reward_response_format = float(metadata.get("reward_response_format", 0.0))
 
-    def init_metrics(self, state: EvaluationState | None = None) -> dict[str, float]:
-        """Compute final metrics from evaluation state. Returns empty metrics if state is None."""
-        if state is None:
-            return {
-                "format_valid_rate": 0.0,
-                "tool_call_presence_rate": 0.0,
-                "answer_presence_rate": 0.0,
-                "tool_json_valid_rate": 0.0,
-                "tool_name_known_rate": 0.0,
-                "tool_execution_success_rate": 0.0,
-                "answer_correct_rate": 0.0,
-                "turns_to_success_avg": 0.0,
-                "tool_calls_total_avg": 0.0,
-                "malformed_turns_avg": 0.0,
-            }
-
-        return {
-            "format_valid_rate": 1.0 if state.overall_format_valid else 0.0,
-            "tool_call_presence_rate": 1.0 if state.has_any_tool_call else 0.0,
-            "answer_presence_rate": 1.0 if state.has_final_answer else 0.0,
-            "tool_json_valid_rate": 1.0 if (not state.has_any_tool_call or state.all_tools_json_valid) else 0.0,
-            "tool_name_known_rate": 1.0 if (not state.has_any_tool_call or state.all_tools_known) else 0.0,
-            "tool_execution_success_rate": 1.0
-            if (not state.has_any_tool_call or state.all_tools_exec_success)
-            else 0.0,
-            "answer_correct_rate": 1.0 if state.final_answer_correct else 0.0,
-            "turns_to_success_avg": float(state.turns_used) if state.final_answer_correct else 0.0,
-            "tool_calls_total_avg": float(state.total_tool_calls),
-            "malformed_turns_avg": float(state.malformed_turns),
-        }
+            except Exception as e:
+                logger.debug(f"Failed to calculate conversation metrics: {e}", exc_info=True)
+                state.reward_final_answer = 0.0
+                state.reward_response_format = 0.0
