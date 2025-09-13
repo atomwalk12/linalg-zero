@@ -10,6 +10,7 @@ from linalg_zero.grpo.compute_score import (
     get_interaction_reward,
 )
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
+from linalg_zero.shared.lib import get_lib_fn_names
 from linalg_zero.shared.types import LibTypes
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class LinalgZeroInteraction(BaseInteraction):
 
         # The expected completion output is <think> AND (<tool_call> OR <answer>)
         self.parser = XMLParser()
+        self._tool_names: list[str] = get_lib_fn_names()
 
     async def start_interaction(
         self, instance_id: str | None = None, ground_truth: str | None = None, **kwargs: dict
@@ -68,7 +70,7 @@ class LinalgZeroInteraction(BaseInteraction):
         return should_terminate_sequence, response, reward, metadata
 
     async def calc_reward(self, instance_id: str, **kwargs: dict) -> float:
-        """Calculate reward based on tool execution success."""
+        """Calculate reward based on final answer and response formatting."""
         # Retrieve state
         instance_data = self._instance_dict[instance_id]
         messages = instance_data["messages"]
@@ -81,6 +83,27 @@ class LinalgZeroInteraction(BaseInteraction):
         # Notice that this function is not used for step-wise progress. It is called
         # upon trajectory completion to assert the correctness of the final tool call.
         return reward
+
+    def _diagnose(self, messages: list[dict[str, Any]]) -> str:
+        """Produce a short message stored in metadata for diagnostic purposes."""
+        if not messages:
+            return "empty conversation"
+
+        assistant_msg: str | None = self.parser.get_last_message(messages, role="assistant")
+
+        if assistant_msg is None or not assistant_msg.strip():
+            return "empty generation"
+
+        try:
+            analysis = self.parser.analyze_message_in_context(
+                context=messages,
+                message=assistant_msg,
+                tool_names=self._tool_names,
+            )
+        except Exception:
+            return "unable to analyze output"
+
+        return self.parser.get_analysis_failure_reason(analysis, tool_names=self._tool_names)
 
     async def finalize_interaction(self, instance_id: str, **kwargs: dict) -> None:  # type: ignore[reportIncompatibleMethodOverride]
         del self._instance_dict[instance_id]

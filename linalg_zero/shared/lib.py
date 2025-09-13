@@ -213,6 +213,11 @@ def get_lib() -> dict[str, Callable[..., Any]]:
     }
 
 
+def get_lib_fn_names() -> list[str]:
+    """Return the names of the functions in the library."""
+    return list(get_lib().keys())
+
+
 def get_tools() -> list[dict[str, Any]]:
     """Returns the tool representation of the functions in the library."""
     return [get_json_schema(func) for func in get_lib().values()]

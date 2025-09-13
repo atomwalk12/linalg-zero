@@ -278,7 +278,7 @@ class DistillationConfig:
         metadata={"help": "Stop sequences for generation (each string is a stop token)"},
     )
 
-    do_eval: bool = field(
+    debug_mode: bool = field(
         default=False,
         metadata={"help": "Whether to do evaluation"},
     )

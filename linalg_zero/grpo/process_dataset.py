@@ -13,7 +13,7 @@ from argilla import Dataset
 from verl.tools.schemas import OpenAIFunctionToolSchema
 
 import datasets
-from linalg_zero.shared.lib import get_lib, get_lib_types_list
+from linalg_zero.shared.lib import get_lib_fn_names, get_lib_types_list
 from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_function_schema, push_to_hub
 
@@ -77,7 +77,7 @@ def normalize_dataset_schema(ground_truth: str, stepwise_ground_truths: str) -> 
 
     tool_kwargs = {}
     interaction_kwargs = {}
-    lib_names = get_lib().keys()
+    lib_names = get_lib_fn_names()
 
     for lib_name in lib_names:
         tool_kwargs[lib_name] = {

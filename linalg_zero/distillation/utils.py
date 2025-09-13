@@ -475,7 +475,7 @@ def create_argilla_dataset(
         logger.exception("Failed to create Argilla dataset")
 
 
-def filter_dataset_by_correctness(distiset: Distiset, only_correct: bool = True) -> Distiset:
+def filter_dataset_by_correctness(distiset: Distiset, is_correct: bool = True) -> Distiset:
     """Filter dataset by is_correct flag."""
 
     filtered_distiset = deepcopy(distiset)
@@ -483,7 +483,7 @@ def filter_dataset_by_correctness(distiset: Distiset, only_correct: bool = True)
     for split_name in filtered_distiset["default"]:
         split_data = filtered_distiset["default"][split_name]
         # Keep only correct entries for SFT training if only_correct=True, otherwise keep all
-        filtered_data = split_data.filter(lambda x: x["is_correct"] is True) if only_correct else split_data
+        filtered_data = split_data.filter(lambda x: x["is_correct"] is is_correct)
 
         filtered_distiset["default"][split_name] = filtered_data
 
@@ -507,22 +507,43 @@ def push_to_huggingface(distiset: Distiset, dataset_name: str, private: bool) ->
         logger.exception("Failed to push dataset to Hugging Face Hub")
 
 
+def push_argilla_dataset(argilla_client: rg.Argilla, distiset: Distiset, args: DistillationConfig) -> None:
+    success = filter_dataset_by_correctness(distiset, is_correct=True)
+    if len(success["default"]["train"]) > 0:
+        create_argilla_dataset(
+            dataset_name=f"{args.argilla_output_dataset}",
+            distiset_data=success["default"]["train"],
+            client=argilla_client,
+            private=args.private,
+        )
+    failures = filter_dataset_by_correctness(distiset, is_correct=False)
+    if len(failures["default"]["train"]) > 0:
+        create_argilla_dataset(
+            dataset_name=f"{args.argilla_output_dataset}-failures",
+            distiset_data=failures["default"]["train"],
+            client=argilla_client,
+            private=args.private,
+        )
+
+
 def push_datasets_to_huggingface(distiset: Distiset, args: DistillationConfig) -> None:
     """Push two datasets to Hugging Face: one with all entries and one with only correct entries."""
     assert args.hf_output_dataset is not None  # noqa: S101
     private = args.private
 
     # Push all entries dataset
-    all_entries_name = f"{args.hf_output_dataset}-all"
+    all_entries_name = f"{args.hf_output_dataset}-failures"
     logger.info(f"Pushing dataset with all entries to: {all_entries_name}")
-    all_entries_distiset = filter_dataset_by_correctness(distiset, only_correct=False)
-    push_to_huggingface(all_entries_distiset, all_entries_name, private)
+    all_entries_distiset = filter_dataset_by_correctness(distiset, is_correct=False)
+    if len(all_entries_distiset["default"]["train"]) > 0:
+        push_to_huggingface(all_entries_distiset, all_entries_name, private)
 
     # Push correct entries only dataset
     correct_only_name = args.hf_output_dataset
     logger.info(f"Pushing dataset with correct entries only to: {correct_only_name}")
-    correct_only_distiset = filter_dataset_by_correctness(distiset, only_correct=True)
-    push_to_huggingface(correct_only_distiset, correct_only_name, private)
+    correct_only_distiset = filter_dataset_by_correctness(distiset, is_correct=True)
+    if len(correct_only_distiset["default"]["train"]) > 0:
+        push_to_huggingface(correct_only_distiset, correct_only_name, private)
 
 
 def prepare_dataset_for_sft(distiset: Distiset) -> None:
@@ -654,15 +675,15 @@ def load_datasets_for_distillation(args: DistillationConfig) -> dict[str, list[d
     """Loads train and optionally validation splits as lists of dicts."""
     take_n = args.take_n
     datasets: dict[str, list[dict[str, Any]]] = {}
-    if args.dataset_name is None or args.dataset_config is None:
+    if args.dataset_name is None:
         raise ValueError("dataset_name and dataset_config must be provided")
 
-    datasets["train"] = convert_dataset_to_list_of_dicts(
-        load_dataset_split(args.dataset_name, args.dataset_config, "train", take_n=take_n)
-    )
-    if args.do_eval:
-        validation_dataset = load_dataset_split(args.dataset_name, args.dataset_config, "validation", take_n=take_n)
-        datasets["validation"] = convert_dataset_to_list_of_dicts(validation_dataset)
+    if not args.debug_mode:
+        dataset = load_dataset_split(args.dataset_name, args.dataset_config, "train", take_n=take_n)
+        datasets["train"] = convert_dataset_to_list_of_dicts(dataset)
+    else:
+        failures_dataset = load_dataset_split(f"{args.hf_output_dataset}-failures", args.dataset_config, "train")
+        datasets["train"] = convert_dataset_to_list_of_dicts(failures_dataset)
 
     return datasets
 

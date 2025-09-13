@@ -12,14 +12,14 @@ from linalg_zero.distillation.components.multi_turn_generation import MultiTurnW
 from linalg_zero.distillation.data import ThoughtSchema
 from linalg_zero.distillation.utils import (
     cleanup,
-    create_argilla_dataset,
     create_llm_clients,
     load_datasets_for_distillation,
     print_statistics,
+    push_argilla_dataset,
     push_datasets_to_huggingface,
     save_distiset_to_disk,
 )
-from linalg_zero.shared.lib import get_lib
+from linalg_zero.shared.lib import get_lib_fn_names
 from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_logger, setup_logging
 
@@ -72,7 +72,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
         **enable_thinking,
     }
 
-    available_functions = list(get_lib().keys())
+    available_functions = get_lib_fn_names()
 
     if args.temperature is not None:
         generation_kwargs["temperature"] = args.temperature
@@ -82,7 +82,11 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
         generation_kwargs["stop"] = args.stop
 
     # Run train split first
-    with Pipeline("train-generation-pipeline").ray() as pipeline:
+    pipeline_obj = Pipeline("train-generation-pipeline")
+    if not args.debug_mode:
+        pipeline_obj = pipeline_obj.ray()
+
+    with pipeline_obj as pipeline:
         multi_turn_generator = MultiTurnWithToolUseGenerator(
             name="multi_turn_generator",
             llm=llm,
@@ -97,34 +101,9 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             parameters={
                 multi_turn_generator.name: {"llm": {"generation_kwargs": generation_kwargs}},
             },
-            use_cache=args.use_cache,
+            use_cache=args.use_cache if not args.debug_mode else False,
             dataset_batch_size=args.input_batch_size,
         )
-
-    ############################
-    # Run the validation split #
-    ############################
-    if args.do_eval:
-        with Pipeline("validation-generation-pipeline").ray() as pipeline:
-            multi_turn_generator = MultiTurnWithToolUseGenerator(
-                name="multi_turn_generator",
-                llm=llm,
-                dataset=dataset["validation"],
-                batch_size=args.input_batch_size,
-                n_turns=args.n_turns,
-                system_prompt=get_math_system_prompt(),
-                library=available_functions,
-            )
-
-            val_distiset: Distiset = pipeline.run(
-                parameters={
-                    multi_turn_generator.name: {"llm": {"generation_kwargs": generation_kwargs}},
-                },
-                use_cache=args.use_cache,
-                dataset_batch_size=args.input_batch_size,
-            )
-
-        distiset["default"]["validation"] = val_distiset["default"]["train"]
 
     cleanup()
     logger.info("Generation complete!")
@@ -137,24 +116,9 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     logger.info("Pipeline completed (train):")
     print_statistics(distiset["default"]["train"])
 
-    logger.info("Pipeline completed (validation):")
-    print_statistics(distiset["default"]["validation"])
-
     if argilla_client and args.argilla_output_dataset:
         logger.info(f"Creating Argilla dataset: {args.argilla_output_dataset}")
-        create_argilla_dataset(
-            dataset_name=f"{args.argilla_output_dataset}-train",
-            distiset_data=distiset["default"]["train"],
-            client=argilla_client,
-            private=args.private,
-        )
-        if args.do_eval:
-            create_argilla_dataset(
-                dataset_name=f"{args.argilla_output_dataset}-validation",
-                distiset_data=distiset["default"]["validation"],
-                client=argilla_client,
-                private=args.private,
-            )
+        push_argilla_dataset(argilla_client, distiset, args)
 
     if args.hf_output_dataset:
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")

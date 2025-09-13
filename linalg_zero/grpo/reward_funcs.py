@@ -12,7 +12,7 @@ def reward_response_format(parser: XMLParser, *, ground_truth: LibTypes, complet
     if isinstance(completion, list):
         # Extract the last assistant message to score during a user-assistant interaction
         # Malformed tool are not penalized here, but during execution in `LinalgZeroTool`
-        assistant_messages = parser.get_assistant_messages(completion)
+        assistant_messages = parser.get_messages(completion, role="assistant")
         if not assistant_messages:
             return 0.0
 
@@ -28,7 +28,7 @@ def reward_response_format(parser: XMLParser, *, ground_truth: LibTypes, complet
 def reward_final_answer(parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str) -> float:
     """Reward function that checks if the completion answer matches the ground truth."""
     if isinstance(completion, list):
-        assistant_messages = parser.get_assistant_messages(completion)
+        assistant_messages = parser.get_messages(completion, role="assistant")
         if not assistant_messages:
             return 0.0
 
@@ -46,7 +46,7 @@ def reward_final_answer(parser: XMLParser, *, ground_truth: LibTypes, completion
 
 def reward_num_tool_calls(parser: XMLParser, completion: list[dict]) -> float:
     """Count the number of tool calls in the completion."""
-    num_tool_calls = len(parser.get_tool_messages(completion))
+    num_tool_calls = len(parser.get_messages(completion, role="tool"))
     return float(num_tool_calls)
 
 
@@ -54,7 +54,7 @@ def reward_num_tool_errors(parser: XMLParser, completion: list[dict]) -> float:
     """Count the number of errors in tool messages."""
     num_errors = sum([
         1.0
-        for msg in parser.get_tool_messages(completion)
+        for msg in parser.get_messages(completion, role="tool")
         if (content := msg.get("content")) and "error" in content.lower()
     ])
     return num_errors
@@ -62,7 +62,7 @@ def reward_num_tool_errors(parser: XMLParser, completion: list[dict]) -> float:
 
 def reward_execution_success_rate(parser: XMLParser, completion: list[dict]) -> float:
     """Combines num_tool_calls and num_errors to return execution success rate."""
-    tool_messages = parser.get_tool_messages(completion)
+    tool_messages = parser.get_messages(completion, role="tool")
     num_tool_calls = len(tool_messages)
 
     if num_tool_calls == 0:
