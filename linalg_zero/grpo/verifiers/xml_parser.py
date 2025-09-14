@@ -1,6 +1,8 @@
 import json
 import re
 
+from linalg_zero.distillation.components.models import DIAG_PREFIX
+
 
 class XMLParser:
     # Checks exact format: <think>...</think> followed by <answer>...</answer>
@@ -14,23 +16,19 @@ class XMLParser:
         r"<tool_call>\s*([\s\S]*?)\s*<\/tool_call>$"
     )
 
-    def get_assistant_messages(self, completion: list[dict]) -> list[dict]:
-        """Helper function to extract assistant messages from a completion."""
-        return [msg for msg in completion if msg["role"] == "assistant"]
+    def get_messages(self, completion: list[dict], role: str) -> list[dict]:
+        """Helper function to extract messages of a specific type from a completion."""
+        return [msg for msg in completion if msg["role"] == role]
 
-    def get_tool_messages(self, completion: list[dict]) -> list[dict]:
-        """Helper function to extract tool messages from a completion."""
-        return [msg for msg in completion if msg["role"] == "tool"]
+    def _has_tool_calls(self, context: list[dict]) -> bool:
+        """Check if the context contains any tool calls."""
+        return len(self.get_messages(context, role="tool")) > 0
 
-    def is_last_msg_tool_call(self, messages: list[dict]) -> bool:
-        prev_is_tool_response = False
-        for prev in reversed(messages):
-            if prev.get("role") == "system":
-                continue
-            if prev.get("role") == "tool":
-                prev_is_tool_response = True
-            break
-        return prev_is_tool_response
+    def get_last_message(self, messages: list[dict], role: str) -> str | None:
+        role_messages = self.get_messages(messages, role)
+        if role_messages:
+            return role_messages[-1]["content"]
+        return None
 
     def _extract_last_answer(self, message: str) -> str | None:
         """Extract answer content from <answer> tags.
@@ -40,9 +38,7 @@ class XMLParser:
         stop sequences), return content from after <answer> to end of message.
         """
         contents = self._extract_tag_contents(message, "answer", last_only=True)
-        if contents:
-            return contents[0]
-        return None
+        return contents[0] if contents else None
 
     def _check_format(self, message: str, regex: str, expected_groups: int) -> bool:
         """Check if message matches the expected format with correct number of groups."""
@@ -79,7 +75,7 @@ class XMLParser:
         """Ensure the message starts with a single '<think>' prefix without duplicating it."""
         if message is None:
             return None
-        if message.startswith("<think>"):
+        if message.lstrip().startswith("<think>"):
             return message
         return "<think>" + message
 
@@ -103,27 +99,19 @@ class XMLParser:
         if not message:
             return []
 
-        open_token = f"<{tag}>"
-        close_token = f"</{tag}>"
+        # Lazy search for all tagged blocks in the text
+        pattern = re.compile(rf"<{re.escape(tag)}>\s*(.*?)\s*</{re.escape(tag)}>", re.DOTALL)
+        matches = [m.group(1).strip() for m in pattern.finditer(message)]
 
         if last_only:
-            last_open = message.rfind(open_token)
-            if last_open == -1:
-                return []
-            after_open = message[last_open + len(open_token) :]
-            close_pos = after_open.find(close_token)
-            if close_pos == -1:
-                return []
-            return [after_open[:close_pos].strip()]
+            return matches[-1:] if matches else []
 
-        # Find all properly closed occurrences using a non-greedy regex.
-        # Using DOTALL so content can span multiple lines.
-        pattern = re.compile(rf"<{re.escape(tag)}>\s*(.*?)\s*</{re.escape(tag)}>", re.DOTALL)
-        return [m.group(1).strip() for m in pattern.finditer(message)]
+        return matches
 
-    def _extract_last_tool_call(self, message: str) -> list[str]:
+    def _extract_last_tool_call(self, message: str) -> str | None:
         """Extract <tool_call>...</tool_call> block contents."""
-        return self._extract_tag_contents(message, "tool_call", last_only=True)
+        contents = self._extract_tag_contents(message, "tool_call", last_only=True)
+        return contents[0] if contents else None
 
     def _extract_thought(self, message: str) -> str | None:
         """Extract thought content from properly formed <think></think> tags.
@@ -133,9 +121,6 @@ class XMLParser:
         leading "<think><think>". In such case, we still return the content of
         the last properly closed think block.
         """
-        if not message:
-            return None
-
         contents = self._extract_tag_contents(message, "think", last_only=True)
         return contents[0] if contents else None
 
@@ -143,7 +128,7 @@ class XMLParser:
         self,
         message: str,
         *,
-        tool_names: set[str] | None = None,
+        tool_names: list[str] | None = None,
     ) -> dict:
         """
         Parse a single assistant message and return diagnostics + extracted fields.
@@ -152,12 +137,9 @@ class XMLParser:
         - has_think, has_tool_call, has_answer: bool
         - valid_format: bool (think then tool_call|answer)
         - is_valid_think_then_answer: bool (think then answer)
-        - first_turn_policy_valid: bool | None (if enforce_first_turn_tool)
         - think_count, tool_call_count, answer_count: int
-        - orphan_closing: {think, tool_call, answer}: bool
+        - unopened: {think, tool_call, answer}: bool
         - unclosed: {think, tool_call, answer}: bool
-        - stray_content: bool
-        - code_fences_in_last_tool: bool
         - thought: str | None
         - answer: str | None
         - tool: {
@@ -172,8 +154,7 @@ class XMLParser:
 
         thought = self._extract_thought(message)
         answer = self._extract_last_answer(message)
-        last_tool_block = self._extract_last_tool_call(message)
-        tool_block = last_tool_block[0] if last_tool_block else None
+        tool_block = self._extract_last_tool_call(message)
 
         result: dict = {}
         result["thought"] = thought
@@ -182,10 +163,10 @@ class XMLParser:
         result["has_tool_call"] = tool_block is not None
         result["has_answer"] = bool(answer)
 
-        # Counts
-        result["think_count"] = diagnostics._count_tags(message, "think")
-        result["tool_call_count"] = diagnostics._count_tags(message, "tool_call")
-        result["answer_count"] = diagnostics._count_tags(message, "answer")
+        # Counts of properly closed blocks (uniqueness diagnostics)
+        result["think_count"] = len(self._extract_tag_contents(message, "think"))
+        result["tool_call_count"] = len(self._extract_tag_contents(message, "tool_call"))
+        result["answer_count"] = len(self._extract_tag_contents(message, "answer"))
 
         # Format validity
         result["is_valid_think_then_tool_or_answer"] = self._is_valid_think_then_tool_or_answer(message)
@@ -193,22 +174,23 @@ class XMLParser:
 
         # Structural diagnostics
         result["unopened"] = {
-            "think": diagnostics._has_orphan_closing_tag(message, "think"),
-            "tool_call": diagnostics._has_orphan_closing_tag(message, "tool_call"),
-            "answer": diagnostics._has_orphan_closing_tag(message, "answer"),
+            "think": diagnostics._has_unopened_tag(message, "think"),
+            "tool_call": diagnostics._has_unopened_tag(message, "tool_call"),
+            "answer": diagnostics._has_unopened_tag(message, "answer"),
         }
         result["unclosed"] = {
             "think": diagnostics._has_unclosed_tag(message, "think"),
             "tool_call": diagnostics._has_unclosed_tag(message, "tool_call"),
             "answer": diagnostics._has_unclosed_tag(message, "answer"),
         }
-        result["stray_content"] = diagnostics._has_stray_content_outside_allowed(message)
-        result["code_fences_in_last_tool"] = diagnostics._has_code_fences_in_last_tool(message)
+        # Optional checks for stray content/code fences
+        # result["stray_content"] = diagnostics._has_stray_content_outside_allowed(message)
+        # result["code_fences_in_last_tool"] = diagnostics._has_code_fences_in_last_tool(message)
 
         # Tool parsing
         tool_info: dict = {"json_valid": False, "name": "", "arguments": {}, "name_known": None}
         if tool_block is not None:
-            data, err = _safe_json_loads(tool_block)
+            data = _safe_json_loads(tool_block)
             if (
                 isinstance(data, dict)
                 and isinstance(data.get("name"), str)
@@ -231,7 +213,7 @@ class XMLParser:
         context: list[dict],
         message: str,
         *,
-        tool_names: set[str] | None = None,
+        tool_names: list[str] | None = None,
     ) -> dict:
         """
         Like analyze_message, but also evaluates conversation-level policy:
@@ -243,18 +225,81 @@ class XMLParser:
         - answer_policy_valid: bool (no answer, or answer_allowed)
         """
         result = self.analyze_message(message, tool_names=tool_names)
-
-        prev_is_tool_response = self.is_last_msg_tool_call(context)
-
-        has_answer = bool(result["has_answer"])
-
-        result["answer_allowed"] = prev_is_tool_response
-        result["answer_policy_valid"] = (not has_answer) or prev_is_tool_response
+        result["answer_policy_valid"] = result["is_valid_think_then_answer"] and self.is_answer_policy_valid(
+            context, message
+        )
         return result
+
+    def is_answer_policy_valid(self, context: list[dict], message: str) -> bool:
+        xml_parser = XMLParser()
+        answer = xml_parser._extract_last_answer(message)
+        if not answer:
+            return True
+        skipped_current_assistant = False
+        for prev in reversed(context):
+            role = prev["role"]
+            content = str(prev["content"])
+
+            # If the current assistant message is already included verbatim in context,
+            # skip it once so we only check prior messages for adjacency
+            if not skipped_current_assistant and role == "assistant" and content == message:
+                skipped_current_assistant = True
+                continue
+            if role == "user" and content.lstrip().startswith(f"{DIAG_PREFIX} "):
+                continue
+            return role == "tool"
+        return False
+
+    def get_analysis_failure_reason(self, analysis: dict, tool_names: list[str]) -> str:  # noqa: C901
+        """
+        Get the failure reason for a given analysis. The analysis follows:
+        Syntax → Structure → Content → Format → Fallback
+        """
+        # Uniqueness errors
+        if analysis["think_count"] > 1:
+            return "multiple <think> blocks (nested/repeated)"
+
+        if analysis["tool_call_count"] > 1:
+            return "multiple <tool_call> blocks (nested/repeated)"
+
+        if analysis["answer_count"] > 1:
+            return "multiple <answer> blocks (nested/repeated)"
+
+        if not analysis["has_think"] and not analysis["has_tool_call"] and not analysis["has_answer"]:
+            return "no <think>/<tool_call>/<answer> blocks"
+
+        # Core requirements
+        if not analysis["has_tool_call"] and not analysis["has_answer"]:
+            return "no tool call or answer"
+
+        # Structural errors
+        if not analysis["has_think"]:
+            return "missing <think>"
+
+        # Validate tool internal structure
+        if analysis["has_tool_call"]:
+            tool = analysis["tool"]
+            if not tool["json_valid"]:
+                return "invalid tool JSON"
+            if not isinstance(tool["arguments"], dict):
+                return "invalid tool arguments"
+            name = tool["name"]
+            if tool_names and name not in tool_names:
+                return "unknown tool name"
+
+        # Overall format validation
+        if not analysis["is_valid_think_then_tool_or_answer"]:
+            return "invalid format"
+
+        # Context dependent errors
+        if analysis["has_answer"] and not bool(analysis["answer_policy_valid"]):
+            return "answer without tool response"
+
+        return "unspecified issue"
 
 
 class XMLDiagnostics:
-    """Diagnostic helpers for analyzing malformed generations.
+    """Diagnostic helpers for the analysis of malformed generations.
 
     Separated from XMLParser to keep core parsing/validation lean.
     """
@@ -262,18 +307,15 @@ class XMLDiagnostics:
     def __init__(self, parser: XMLParser):
         self.parser = parser
 
-    def _count_tags(self, message: str, tag: str) -> int:
-        return len(self.parser._extract_tag_contents(message, tag, last_only=False))
-
     def _has_unclosed_tag(self, message: str, tag: str) -> bool:
         assert tag in ["tool_call", "answer", "think"]  # noqa: S101
         if not message:
             return False
         open_token = f"<{tag}>"
         close_token = f"</{tag}>"
-        last_open = message.rfind(open_token)
-        if last_open == -1:
+        if open_token not in message:
             return False
+        last_open = message.rfind(open_token)
         after_open = message[last_open + len(open_token) :]
         return close_token not in after_open
 
@@ -292,7 +334,7 @@ class XMLDiagnostics:
             return False
         return not (self.parser._is_valid_think_then_tool(message) or self.parser._is_valid_think_then_answer(message))
 
-    def _has_orphan_closing_tag(self, message: str, tag: str) -> bool:
+    def _has_unopened_tag(self, message: str, tag: str) -> bool:
         """Return True if a closing </tag> appears without any prior opening <tag>."""
         assert tag in ["tool_call", "answer", "think"]  # noqa: S101
         if not message:
@@ -306,8 +348,8 @@ class XMLDiagnostics:
         return first_open == -1 or first_close < first_open
 
 
-def _safe_json_loads(s: str) -> tuple[dict | None, str | None]:
+def _safe_json_loads(s: str) -> dict | None:
     try:
-        return json.loads(s), None
-    except Exception as e:
-        return None, f"invalid tool JSON: {type(e).__name__}: {e}"
+        return json.loads(s)
+    except Exception:
+        return None

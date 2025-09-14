@@ -11,11 +11,6 @@ import argilla as rg
 from distilabel.distiset import Distiset
 from distilabel.models import OpenAILLM
 from distilabel.models.base_clients.openai import SecretStr
-from distilabel.pipeline import Pipeline, RayPipeline
-from distilabel.steps import StepResources
-from distilabel.steps.tasks import (
-    TextGeneration,
-)
 from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 from distilabel.typing import FormattedInput, GenerateOutput
 from pydantic import BaseModel, NonNegativeInt, PositiveInt
@@ -28,6 +23,12 @@ from linalg_zero.config.data import (
     LlamaCppServerConfig,
     ScriptArguments,
     VllmServerConfig,
+)
+from linalg_zero.distillation.components.models import (
+    DefaultConfig,
+    ModelParameters,
+    ModelType,
+    Qwen3ThinkingConfig,
 )
 from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.shared.lib import get_tools
@@ -96,20 +97,16 @@ class CustomOpenAILLM(OpenAILLM):
 def get_openai_client(
     model: str,
     base_url: str,
+    model_type: ModelType,
     timeout: int = 900,
     retries: int = 3,
     max_new_tokens: int = 8192,
-    temperature: float | None = None,
-    top_p: float | None = None,
+    deterministic: bool = True,
     structured_output: dict[str, Any] | None = None,
 ) -> OpenAILLM:
     generation_kwargs: dict[str, Any] = {"max_new_tokens": max_new_tokens}
-
-    if temperature is not None:
-        generation_kwargs["temperature"] = temperature
-
-    if top_p is not None:
-        generation_kwargs["top_p"] = top_p
+    params: ModelParameters = Qwen3ThinkingConfig() if model_type == ModelType.QWEN3_THINKING else DefaultConfig()
+    generation_kwargs = params.set_recommended_defaults(generation_kwargs, deterministic=deterministic)
 
     return CustomOpenAILLM(
         model=model,
@@ -124,7 +121,7 @@ def get_openai_client(
 
 def create_llm_clients(
     server: LlamaCppServerConfig | VllmServerConfig, args: DistillationConfig, schema: type[BaseModel]
-) -> tuple[OpenAILLM, OpenAILLM]:
+) -> OpenAILLM:
     """Create structured and non-structured LLM clients."""
     base_params: dict[str, Any] = {
         "model": server.model,
@@ -132,14 +129,17 @@ def create_llm_clients(
         "timeout": args.timeout,
         "retries": args.retries,
         "max_new_tokens": args.max_new_tokens,
-        "temperature": args.temperature,
-        "top_p": args.top_p,
+        "model_type": ModelType(args.model_type) if args.model_type is not None else ModelType.QWEN3_THINKING,
+        "deterministic": args.deterministic,
     }
+    if args.structured_output:
+        base_params["structured_output"] = {"schema": schema}
+    else:
+        base_params["structured_output"] = None
 
-    llm = get_openai_client(**base_params, structured_output=None)
-    llm_structured = get_openai_client(**base_params, structured_output={"schema": schema})
+    llm = get_openai_client(**base_params)
 
-    return llm, llm_structured
+    return llm
 
 
 def get_function_schema() -> str:
@@ -151,43 +151,6 @@ def get_function_schema() -> str:
     function_schema = json.dumps(function_definitions, indent=2)
 
     return function_schema
-
-
-def build_generation_pipeline(
-    model: str,
-    base_url: str = "http://localhost:8000/v1",
-    prompt_column: str | None = None,
-    prompt_template: str = "{{ instruction }}",
-    temperature: float | None = None,
-    top_p: float | None = None,
-    max_new_tokens: int = 8192,
-    num_generations: int = 1,
-    input_batch_size: int = 64,
-    client_replicas: int = 1,
-    timeout: int = 900,
-    retries: int = 0,
-) -> Pipeline | RayPipeline:
-    """Builds a pipeline for generation. Prior to this, the function calling pipeline is called."""
-    with Pipeline().ray() as pipeline:
-        _ = TextGeneration(
-            llm=get_openai_client(
-                model=model,
-                base_url=base_url,
-                timeout=timeout,
-                retries=retries,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                top_p=top_p,
-            ),
-            template=prompt_template,
-            input_mappings=({"instruction": prompt_column} if prompt_column is not None else {}),
-            input_batch_size=input_batch_size,
-            num_generations=num_generations,
-            group_generations=True,
-            resources=StepResources(replicas=client_replicas),
-        )
-
-    return pipeline
 
 
 def is_openai_format(messages: Any) -> bool:
@@ -668,7 +631,7 @@ def load_datasets_for_sft(args: ScriptArguments, do_eval: bool = True) -> Datase
         eval_dataset = process_dataset_for_sft(eval_dataset)
         dataset_dict["test"] = eval_dataset
 
-    return DatasetDict(dataset_dict)
+    return DatasetDict(dataset_dict)  # type: ignore[arg-type]
 
 
 def load_datasets_for_distillation(args: DistillationConfig) -> dict[str, list[dict[str, Any]]]:

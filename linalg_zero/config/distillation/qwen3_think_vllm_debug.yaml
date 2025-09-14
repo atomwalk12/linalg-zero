@@ -34,9 +34,8 @@ private: false
 # https://github.com/vllm-project/vllm/blob/main/docs/features/tool_calling.md
 
 model: "Eslzzyl/Qwen3-4B-Thinking-2507-AWQ"
-# model: "Eslzzyl/Qwen3-4B-Instruct-2507-AWQ"
 tool_call_parser: "hermes"
-# reasoning_parser: "qwen3" # "deepseek_r1"
+reasoning_parser: "qwen3" # "deepseek_r1"
 
 #model: "lurker18/Llama_3.1_8B_Instruct_AWQ_4bit"
 #tool_call_parser: "llama3_json"

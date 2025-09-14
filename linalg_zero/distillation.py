@@ -8,6 +8,7 @@ from distilabel.pipeline import Pipeline
 from trl import TrlParser
 
 from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
+from linalg_zero.distillation.components.models import DefaultConfig, ModelType, Qwen3ThinkingConfig
 from linalg_zero.distillation.components.multi_turn_generation import MultiTurnWithToolUseGenerator
 from linalg_zero.distillation.data import ThoughtSchema
 from linalg_zero.distillation.utils import (
@@ -24,11 +25,10 @@ from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
-def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig) -> None:  # noqa: C901
+def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig) -> None:
     ################################
     # Initialize and load datasets #
     ################################
-    enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": True}}}
 
     # Setup the logging and environment variables
     setup_logging(level=logging.INFO, include_timestamp=True)
@@ -54,7 +54,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             logger.warning("Argilla dataset creation will be skipped")
 
     # Load dataset splits and LLM clients
-    llm, _ = create_llm_clients(server, args, ThoughtSchema)
+    llm = create_llm_clients(server, args, ThoughtSchema)
     dataset = load_datasets_for_distillation(args)
     for split_name, split_ds in dataset.items():
         logger.info(f"Loaded {len(split_ds)} examples for split '{split_name}'")
@@ -65,25 +65,22 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
     # Run the pipeline
     logger.info("Running generation pipeline for available splits...")
-    logger.info("Monitor progress in Ray dashboard: http://localhost:8265")
+    enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": True}}}
 
-    generation_kwargs = {
-        "max_new_tokens": args.max_new_tokens,
-        **enable_thinking,
-    }
+    generation_kwargs = {"max_new_tokens": args.max_new_tokens, **enable_thinking}
+    if args.stop is not None:
+        generation_kwargs["stop"] = args.stop
 
     available_functions = get_lib_fn_names()
 
-    if args.temperature is not None:
-        generation_kwargs["temperature"] = args.temperature
-    if args.top_p is not None:
-        generation_kwargs["top_p"] = args.top_p
-    if args.stop is not None:
-        generation_kwargs["stop"] = args.stop
+    # Delegate all sampling defaults to parameters; only determinism toggled by user
+    model_config = Qwen3ThinkingConfig() if args.model_type == ModelType.QWEN3_THINKING else DefaultConfig()
+    model_config.set_recommended_defaults(generation_kwargs, deterministic=args.deterministic)
 
     # Run train split first
     pipeline_obj = Pipeline("train-generation-pipeline")
     if not args.debug_mode:
+        logger.info("Monitor progress in Ray dashboard: http://localhost:8265")
         pipeline_obj = pipeline_obj.ray()
 
     with pipeline_obj as pipeline:

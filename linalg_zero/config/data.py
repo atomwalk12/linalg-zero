@@ -225,13 +225,9 @@ class DistillationConfig:
         metadata={"help": "Template string for formatting prompts"},
     )
 
-    # Generation parameters
-    temperature: float | None = field(
-        metadata={"help": "Temperature for generation"},
-    )
-    top_p: float | None = field(
-        metadata={"help": "Top-p value for generation"},
-    )
+    # Generation parameters (non-defaults first)
+    model_type: str | None = field(metadata={"help": "Model type for generation"})
+    enable_reasoning: bool = field(metadata={"help": "Whether to enable thinking"})
     max_new_tokens: int = field(
         metadata={"help": "Maximum number of new tokens to generate"},
     )
@@ -286,4 +282,14 @@ class DistillationConfig:
     take_n: int | None = field(
         default=None,
         metadata={"help": "Number of examples to take from the dataset."},
+    )
+
+    structured_output: bool = field(
+        default=False,
+        metadata={"help": "Whether to use structured output"},
+    )
+
+    deterministic: bool = field(
+        default=True,
+        metadata={"help": "Make generation deterministic (temperature=0, top_p=1)"},
     )
