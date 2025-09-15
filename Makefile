@@ -80,13 +80,13 @@ gh-deploy: ## Deploy the documentation to GitHub Pages
 	@echo "🚀 Deploying documentation to GitHub Pages"
 	@uv run mkdocs gh-deploy --force
 
-LLAMACPP_CONFIG=linalg_zero/config/distillation/llamacpp_debug.yaml
+LLAMACPP_CONFIG=linalg_zero/config/distillation/llamacpp_qwen3_30b_A3B_instruct.yaml
 VLLM_CONFIG=linalg_zero/config/distillation/vllm_debug.yaml
 
 .PHONY: distillation-llamacpp
 distillation-llamacpp: ## Start the llama.cpp server
 	@echo "🚀 Starting llama.cpp server"
-	@INFERENCE_BACKEND=llamacpp uv run python linalg_zero/distillation/launch_server.py --config $(VLLM_CONFIG)
+	@INFERENCE_BACKEND=llamacpp uv run python linalg_zero/distillation/launch_server.py --config $(LLAMACPP_CONFIG)
 
 .PHONY: distillation-vllm
 distillation-vllm: ## Start the vLLM server

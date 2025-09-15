@@ -134,9 +134,6 @@ class VllmServerConfig:
     model: str = field(
         metadata={"help": "Model name (HuggingFace format)"},
     )
-    quantization: str | None = field(
-        metadata={"help": "Quantization method (awq, gptq, etc.)"},
-    )
 
     # Server parameters
     host: str = field(
@@ -197,6 +194,8 @@ class VllmServerConfig:
         default=None,
         metadata={"help": "Enable chunked prefill to reduce peak prefill memory"},
     )
+
+    # Model parameters
     reasoning_parser: str | None = field(
         default=None,
         metadata={"help": "Reasoning parser to use"},
@@ -242,9 +241,7 @@ class DistillationConfig:
     use_cache: bool = field(
         metadata={"help": "Whether to use cache for the pipeline. This can enable error recovery."},
     )
-    client_replicas: int = field(
-        metadata={"help": "Number of client replicas for parallel processing"},
-    )
+
     timeout: int = field(
         metadata={"help": "Request timeout in seconds"},
     )
@@ -292,4 +289,9 @@ class DistillationConfig:
     deterministic: bool = field(
         default=True,
         metadata={"help": "Make generation deterministic (temperature=0, top_p=1)"},
+    )
+
+    client_replicas: int | None = field(
+        default=None,
+        metadata={"help": "Number of client replicas for parallel processing"},
     )

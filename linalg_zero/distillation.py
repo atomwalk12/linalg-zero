@@ -65,7 +65,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
     # Run the pipeline
     logger.info("Running generation pipeline for available splits...")
-    enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": True}}}
+    enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": args.enable_reasoning}}}
 
     generation_kwargs = {"max_new_tokens": args.max_new_tokens, **enable_thinking}
     if args.stop is not None:
@@ -92,6 +92,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             n_turns=args.n_turns,
             system_prompt=get_math_system_prompt(),
             library=available_functions,
+            model_name=args.model_type,
         )
 
         distiset: Distiset = pipeline.run(
@@ -125,10 +126,10 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 if __name__ == "__main__":
     if "--config" not in argv:
         argv.append("--config")
-        argv.append("linalg_zero/config/distillation/vllm_debug.yaml")
+        argv.append("linalg_zero/config/distillation/llamacpp_qwen3_30b_A3B_instruct.yaml")
 
     # Parse configuration from YAML file stored in the --config argument
-    parser = TrlParser(dataclass_types=[DistillationConfig, VllmServerConfig])
+    parser = TrlParser(dataclass_types=[DistillationConfig, LlamaCppServerConfig])
     (distillation_config, backend_config) = parser.parse_args_and_config()
 
     main(distillation_config, backend_config)

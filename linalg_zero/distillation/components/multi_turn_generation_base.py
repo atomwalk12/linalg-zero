@@ -70,7 +70,6 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         description=f"If true, enforce strict '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure gate in parsing.",
     )
     model_name: str = Field(
-        default=ModelType.QWEN3_THINKING,
         description="The name of the model.",
     )
 
