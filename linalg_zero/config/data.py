@@ -212,9 +212,6 @@ class DistillationConfig:
     dataset_name: str | None = field(
         metadata={"help": "HuggingFace dataset to load"},
     )
-    dataset_config: str | None = field(
-        metadata={"help": "Dataset config to use"},
-    )
 
     # Prompt parameters
     prompt_column: str = field(
@@ -294,4 +291,9 @@ class DistillationConfig:
     client_replicas: int | None = field(
         default=None,
         metadata={"help": "Number of client replicas for parallel processing"},
+    )
+
+    dataset_config: str | None = field(
+        default=None,
+        metadata={"help": "Dataset config to use"},
     )

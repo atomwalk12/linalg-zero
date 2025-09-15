@@ -126,7 +126,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 if __name__ == "__main__":
     if "--config" not in argv:
         argv.append("--config")
-        argv.append("linalg_zero/config/distillation/llamacpp_qwen3_30b_A3B_instruct.yaml")
+        argv.append("linalg_zero/config/distillation/llamacpp_qwen3_32b_instruct.yaml")
 
     # Parse configuration from YAML file stored in the --config argument
     parser = TrlParser(dataclass_types=[DistillationConfig, LlamaCppServerConfig])
