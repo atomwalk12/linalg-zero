@@ -148,3 +148,6 @@ results/
 *_debug.py
 *_debug.sh
 distilabel_cache/
+hf-cache/
+vllm-cache/
+uv-cache/

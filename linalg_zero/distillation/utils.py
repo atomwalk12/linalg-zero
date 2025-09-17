@@ -641,12 +641,13 @@ def load_datasets_for_distillation(args: DistillationConfig) -> dict[str, list[d
     if args.dataset_name is None:
         raise ValueError("dataset_name must be provided")
 
-    if not args.debug_mode:
-        dataset = load_dataset_split(args.dataset_name, args.dataset_config, "train", take_n=take_n)
-        datasets["train"] = convert_dataset_to_list_of_dicts(dataset)
-    else:
-        failures_dataset = load_dataset_split(f"{args.hf_output_dataset}-failures", args.dataset_config, "train")
-        datasets["train"] = convert_dataset_to_list_of_dicts(failures_dataset)
+    # TODO: Remove once done debugging runpod
+    # if not args.debug_mode:
+    dataset = load_dataset_split(args.dataset_name, args.dataset_config, "train", take_n=take_n)
+    datasets["train"] = convert_dataset_to_list_of_dicts(dataset)
+    # else:
+    #     failures_dataset = load_dataset_split(f"{args.hf_output_dataset}-failures", args.dataset_config, "train")
+    #     datasets["train"] = convert_dataset_to_list_of_dicts(failures_dataset)
 
     return datasets
 

@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 
 import argilla as rg
 from distilabel.distiset import Distiset
@@ -88,7 +89,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             llm=llm,
             dataset=dataset["train"],
             batch_size=args.input_batch_size,
-            n_turns=4,
+            n_turns=args.n_turns,
             system_prompt=get_math_system_prompt(),
             library=available_functions,
             model_name=args.model_type,
@@ -122,9 +123,14 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
 
 if __name__ == "__main__":
-    # Check backend type (vllm or llama-cpp)
-    USING_VLLM = os.environ.get("USING_VLLM", "False").lower() == "true"
-    server_config = VllmServerConfig if USING_VLLM else LlamaCppServerConfig
+    if "--config" not in sys.argv:
+        sys.argv.append("--config")
+        sys.argv.append("linalg_zero/config/distillation/vllm_qwen3_32b.yaml")
+        server_config = VllmServerConfig
+    else:
+        # Check backend type (vllm or llama-cpp)
+        USING_VLLM = os.environ.get("USING_VLLM", "False").lower() == "true"
+        server_config = VllmServerConfig if USING_VLLM else LlamaCppServerConfig
 
     # Parse configuration from YAML file stored in the --config argument
     parser = TrlParser(dataclass_types=[DistillationConfig, server_config])
