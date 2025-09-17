@@ -1,6 +1,5 @@
 import logging
 import os
-from sys import argv
 
 import argilla as rg
 from distilabel.distiset import Distiset
@@ -123,10 +122,6 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
 
 if __name__ == "__main__":
-    if "--config" not in argv:
-        argv.append("--config")
-        argv.append("linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml")
-
     # Check backend type (vllm or llama-cpp)
     USING_VLLM = os.environ.get("USING_VLLM", "False").lower() == "true"
     server_config = VllmServerConfig if USING_VLLM else LlamaCppServerConfig
