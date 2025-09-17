@@ -16,9 +16,8 @@ num_generations: 1
 enable_reasoning: true
 
 # Processing parameters
-input_batch_size: 7
+input_batch_size: 24
 use_cache: true
-client_replicas: 1
 timeout: 600
 retries: 2
 
@@ -30,15 +29,17 @@ private: false
 # Server parameters
 model: "Qwen/Qwen3-32B-FP8"
 tool_call_parser: "hermes"
-reasoning_parser: "qwen3"
+reasoning_parser: "qwen3" # or "deepseek_r1"
 
 enable_auto_tool_choice: true
 host: "localhost"
 port: 8000
 
 dtype: "bfloat16"
-kv_cache_dtype: "fp16"
-max_num_seqs: 7
-max_model_len: 8096
-gpu_memory_utilization: 0.9
+kv_cache_dtype: "auto"
+max_num_seqs: 24
+max_model_len: 6000
+gpu_memory_utilization: 0.93
 enable_chunked_prefill: true
+swap_space: 8
+max_num_batched_tokens: 1024
