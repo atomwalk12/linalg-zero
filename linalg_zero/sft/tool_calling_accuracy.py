@@ -16,7 +16,7 @@ from transformers import PreTrainedModel, PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
-from datasets import Dataset as HFDataset  # type: ignore[attr-defined]
+from datasets import Dataset as HFDataset
 from linalg_zero.grpo.compute_score import get_interaction_reward
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import parse_string
