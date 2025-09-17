@@ -78,7 +78,7 @@ def get_model(model_args: ModelConfig, training_args: SFTConfig) -> AutoModelFor
         "device_map": device_map,
         "quantization_config": quantization_config,
     }
-    model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(
+    model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(  # type: ignore[assignment]
         model_args.model_name_or_path,
         **model_kwargs,
     )

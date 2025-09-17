@@ -8,7 +8,7 @@ from distilabel.pipeline import Pipeline
 from trl import TrlParser
 
 from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
-from linalg_zero.distillation.components.models import DefaultConfig, ModelType, Qwen3ThinkingConfig
+from linalg_zero.distillation.components.models import ModelType
 from linalg_zero.distillation.components.multi_turn_generation import MultiTurnWithToolUseGenerator
 from linalg_zero.distillation.data import ThoughtSchema
 from linalg_zero.distillation.utils import (
@@ -74,7 +74,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     available_functions = get_lib_fn_names()
 
     # Delegate all sampling defaults to parameters; only determinism toggled by user
-    model_config = Qwen3ThinkingConfig() if args.model_type == ModelType.QWEN3_THINKING else DefaultConfig()
+    model_config = ModelType(args.model_type).get_model_parameters()
     model_config.set_recommended_defaults(generation_kwargs, deterministic=args.deterministic)
 
     # Run train split first
@@ -89,7 +89,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             llm=llm,
             dataset=dataset["train"],
             batch_size=args.input_batch_size,
-            n_turns=args.n_turns,
+            n_turns=4,
             system_prompt=get_math_system_prompt(),
             library=available_functions,
             model_name=args.model_type,
@@ -99,7 +99,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             parameters={
                 multi_turn_generator.name: {"llm": {"generation_kwargs": generation_kwargs}},
             },
-            use_cache=args.use_cache if not args.debug_mode else False,
+            use_cache=args.use_cache,
             dataset_batch_size=args.input_batch_size,
         )
 
@@ -110,8 +110,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
     ###############################
     # Push the results to the hub #
-    ###############################
-    logger.info("Pipeline completed (train):")
+    ###############################    logger.info("Pipeline completed (train):")
     print_statistics(distiset["default"]["train"])
 
     if argilla_client and args.argilla_output_dataset:
@@ -126,10 +125,10 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 if __name__ == "__main__":
     if "--config" not in argv:
         argv.append("--config")
-        argv.append("linalg_zero/config/distillation/llamacpp_qwen3_32b_instruct.yaml")
+        argv.append("linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml")
 
     # Parse configuration from YAML file stored in the --config argument
-    parser = TrlParser(dataclass_types=[DistillationConfig, LlamaCppServerConfig])
+    parser = TrlParser(dataclass_types=[DistillationConfig, VllmServerConfig])
     (distillation_config, backend_config) = parser.parse_args_and_config()
 
     main(distillation_config, backend_config)

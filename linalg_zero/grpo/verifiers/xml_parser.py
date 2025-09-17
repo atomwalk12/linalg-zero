@@ -1,5 +1,6 @@
 import json
 import re
+from typing import Any
 
 from linalg_zero.distillation.components.models import DIAG_PREFIX
 
@@ -27,7 +28,9 @@ class XMLParser:
     def get_last_message(self, messages: list[dict], role: str) -> str | None:
         role_messages = self.get_messages(messages, role)
         if role_messages:
-            return role_messages[-1]["content"]
+            result = role_messages[-1]["content"]
+            assert isinstance(result, str)  # noqa: S101
+            return result
         return None
 
     def _extract_last_answer(self, message: str) -> str | None:
@@ -247,7 +250,7 @@ class XMLParser:
                 continue
             if role == "user" and content.lstrip().startswith(f"{DIAG_PREFIX} "):
                 continue
-            return role == "tool"
+            return bool(role == "tool")
         return False
 
     def get_analysis_failure_reason(self, analysis: dict, tool_names: list[str]) -> str:  # noqa: C901
@@ -348,8 +351,9 @@ class XMLDiagnostics:
         return first_open == -1 or first_close < first_open
 
 
-def _safe_json_loads(s: str) -> dict | None:
+def _safe_json_loads(s: str) -> dict[str, Any] | None:
     try:
-        return json.loads(s)
+        result = json.loads(s)
+        return result if isinstance(result, dict) else None
     except Exception:
         return None

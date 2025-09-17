@@ -25,10 +25,8 @@ from linalg_zero.config.data import (
     VllmServerConfig,
 )
 from linalg_zero.distillation.components.models import (
-    DefaultConfig,
     ModelParameters,
     ModelType,
-    Qwen3ThinkingConfig,
 )
 from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.shared.lib import get_tools
@@ -97,7 +95,7 @@ class CustomOpenAILLM(OpenAILLM):
 def get_openai_client(
     model: str,
     base_url: str,
-    model_type: ModelType,
+    model_type: str,
     timeout: int = 900,
     retries: int = 3,
     max_new_tokens: int = 8192,
@@ -105,7 +103,7 @@ def get_openai_client(
     structured_output: dict[str, Any] | None = None,
 ) -> OpenAILLM:
     generation_kwargs: dict[str, Any] = {"max_new_tokens": max_new_tokens}
-    params: ModelParameters = Qwen3ThinkingConfig() if model_type == ModelType.QWEN3_THINKING else DefaultConfig()
+    params: ModelParameters = ModelType(model_type).get_model_parameters()
     generation_kwargs = params.set_recommended_defaults(generation_kwargs, deterministic=deterministic)
 
     return CustomOpenAILLM(
@@ -129,7 +127,7 @@ def create_llm_clients(
         "timeout": args.timeout,
         "retries": args.retries,
         "max_new_tokens": args.max_new_tokens,
-        "model_type": ModelType(args.model_type) if args.model_type is not None else ModelType.QWEN3_THINKING,
+        "model_type": args.model_type,
         "deterministic": args.deterministic,
     }
     if args.structured_output:
@@ -550,7 +548,9 @@ def convert_dataset_to_list_of_dicts(dataset: Dataset) -> list[dict[str, Any]]:
     return [dict(zip(dataset_dict.keys(), vals, strict=True)) for vals in zip(*dataset_dict.values(), strict=True)]
 
 
-def load_dataset_split(dataset_name: str, dataset_config: str, split: str, take_n: int | None = None) -> Dataset:
+def load_dataset_split(
+    dataset_name: str, dataset_config: str | None, split: str, take_n: int | None = None
+) -> Dataset:
     """Loads a single dataset split either from the hub or from a local file."""
     logger = get_logger(__name__)
 
@@ -610,8 +610,8 @@ def load_datasets_for_sft(args: ScriptArguments, do_eval: bool = True) -> Datase
     """Loads train and optionally validation splits from separate datasets."""
 
     # Load training dataset
-    if args.dataset_name is None or args.dataset_config is None:
-        raise ValueError("dataset_name and dataset_config must be provided")
+    if args.dataset_name is None:
+        raise ValueError("dataset_name must be provided")
 
     train_dataset = load_dataset_split(args.dataset_name, args.dataset_config, "train", args.take_n)
     train_dataset = process_dataset_for_sft(train_dataset)
@@ -631,7 +631,7 @@ def load_datasets_for_sft(args: ScriptArguments, do_eval: bool = True) -> Datase
         eval_dataset = process_dataset_for_sft(eval_dataset)
         dataset_dict["test"] = eval_dataset
 
-    return DatasetDict(dataset_dict)  # type: ignore[arg-type]
+    return DatasetDict(dataset_dict)
 
 
 def load_datasets_for_distillation(args: DistillationConfig) -> dict[str, list[dict[str, Any]]]:
@@ -639,7 +639,7 @@ def load_datasets_for_distillation(args: DistillationConfig) -> dict[str, list[d
     take_n = args.take_n
     datasets: dict[str, list[dict[str, Any]]] = {}
     if args.dataset_name is None:
-        raise ValueError("dataset_name and dataset_config must be provided")
+        raise ValueError("dataset_name must be provided")
 
     if not args.debug_mode:
         dataset = load_dataset_split(args.dataset_name, args.dataset_config, "train", take_n=take_n)

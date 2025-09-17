@@ -248,7 +248,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         with torch.no_grad():
             pad_id = getattr(tokenizer, "pad_token_id", None) or getattr(tokenizer, "eos_token_id", None)
 
-            outputs = model.generate(
+            outputs = model.generate(  # type: ignore[operator]
                 input_ids=inputs["input_ids"],
                 attention_mask=inputs["attention_mask"],
                 max_new_tokens=self.max_new_tokens,
@@ -295,7 +295,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             analysis = self._parser.analyze_message_in_context(
                 context,
                 message=message,
-                tool_names=set(self.library.keys()) if self.library else None,
+                tool_names=list(self.library.keys()) if self.library else None,
             )
 
             # Update minimal state tracking
@@ -347,9 +347,12 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             try:
                 # Use GRPO's get_interaction_reward for clean conversation-wide metrics
                 gt_parsed = parse_string(ground_truth if isinstance(ground_truth, str) else str(ground_truth))
-                reward, metadata = get_interaction_reward(
-                    parser=self._parser, ground_truth=gt_parsed, completion=context
-                )
+                if gt_parsed is not None:
+                    _reward, metadata = get_interaction_reward(
+                        parser=self._parser, ground_truth=gt_parsed, completion=context
+                    )
+                else:
+                    _reward, metadata = 0.0, {}
 
                 # Extract clean metrics from GRPO metadata
                 state.reward_final_answer = float(metadata.get("reward_final_answer", 0.0))

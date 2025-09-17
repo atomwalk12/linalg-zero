@@ -130,7 +130,7 @@ class LinalgZeroTool(BaseTool):
         return final_reward
 
     def _calculate_stepwise_metrics(
-        self, instance_data: dict, result, step_index: int | None, is_executing: bool
+        self, instance_data: dict, result: Any, step_index: int | None, is_executing: bool
     ) -> dict:
         """Extract stepwise metrics calculation into separate method."""
         stepwise_ground_truth = instance_data.get("stepwise_ground_truth")

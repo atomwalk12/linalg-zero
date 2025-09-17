@@ -22,8 +22,10 @@ DIAG_PREFIX = "[diag]"
 
 
 class ModelType(str, Enum):
-    QWEN3_THINKING = "qwen3-thinking"
     DEFAULT = "default"
+
+    def get_model_parameters(self) -> "ModelParameters":
+        return DefaultConfig()
 
 
 class ModelParameters(ABC):
@@ -87,7 +89,7 @@ class Qwen3ThinkingConfig(ModelParameters):
                             "arguments": json.dumps(message.tool_call.arguments),
                         },
                     }
-                ],  # type: ignore[dict-item]
+                ],
             }
         return None
 
@@ -96,7 +98,17 @@ class DefaultConfig(ModelParameters):
     def set_recommended_defaults(self, generation_kwargs: dict[str, Any], *, deterministic: bool) -> dict[str, Any]:
         if deterministic:
             generation_kwargs["temperature"] = 0.0
-            generation_kwargs["top_p"] = 1.0
+            generation_kwargs["top_p"] = 0.95
+        else:
+            # Recommended non-deterministic defaults for high-quality generations
+            # Aligns with Qwen best practices while remaining backend-agnostic
+            generation_kwargs.setdefault("temperature", 0.6)
+            generation_kwargs.setdefault("top_p", 0.95)
+
+            # Some backends (e.g., vLLM) accept additional sampling params
+            extra_body = generation_kwargs.setdefault("extra_body", {})
+            extra_body.setdefault("top_k", 20)
+            extra_body.setdefault("min_p", 0)
         return generation_kwargs
 
     def append_policy(self) -> bool:
@@ -124,6 +136,6 @@ class DefaultConfig(ModelParameters):
                             "arguments": json.dumps(message.tool_call.arguments),
                         },
                     }
-                ],  # type: ignore[dict-item]
+                ],
             }
         return None

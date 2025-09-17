@@ -1,9 +1,12 @@
+######################
+# DistillationConfig #
+######################
+
 # Dataset parameters
 dataset_name: "atomwalk12/linalgzero"
-debug_mode: false
-dataset_config: null
+debug_mode: True
+take_n: 20
 n_turns: 6
-take_n: 7
 
 # Prompt parameters
 prompt_column: "prompt"
@@ -12,12 +15,11 @@ prompt_template: "{{ instruction }}"
 # Generation parameters
 model_type: "default"
 deterministic: true
-max_new_tokens: 6192
+max_new_tokens: 8192
 num_generations: 1
-enable_reasoning: true
 
 # Processing parameters
-input_batch_size: 3
+input_batch_size: 5
 use_cache: true
 client_replicas: 1
 timeout: 600
@@ -28,23 +30,20 @@ hf_output_dataset: "atomwalk12/linalgzero-distilled-debug"
 argilla_output_dataset: "atomwalk12/linalgzero-distilled-debug"
 private: false
 
-# Server parameters
-model: "Eslzzyl/Qwen3-4B-Thinking-2507-AWQ"
-tool_call_parser: "hermes"
-reasoning_parser: "qwen3"
+########################
+# LlamaCppServerConfig #
+########################
 
-enable_auto_tool_choice: true
-quantization: "awq"
+# Server parameters
 host: "localhost"
 port: 8000
 
-# Memory / performance tuning for 24GB GPU
-dtype: "float16"
-kv_cache_dtype: "fp8"
-max_num_seqs: 1
-gpu_memory_utilization: 0.75
-enforce_eager: true
-swap_space: 4
-max_num_batched_tokens: 2048
-max_model_len: 8096
-enable_chunked_prefill: true
+# Model
+model: "Qwen3-30B-A3B-Thinking-2507-UD-Q5_K_XL.gguf"
+hf_model_repo_id: "unsloth/Qwen3-30B-A3B-Thinking-2507-GGUF"
+hf_pretrained_model_name_or_path: "Qwen/Qwen3-32B"
+enable_reasoning: true
+
+n_gpu_layers: 45
+n_ctx: 8192
+split_mode: 2

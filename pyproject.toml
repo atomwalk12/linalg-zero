@@ -39,7 +39,7 @@ dependencies = [
     "ipykernel>=6.29.5",
     "bitsandbytes>=0.46.1",
     "llama-cpp-python==0.3.13",
-    "vllm>=0.9.2",
+    "vllm>=0.10.2",
     "bs4>=0.0.2",
     "verl>=0.5.0",
     "math-verify>=0.8.0",

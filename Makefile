@@ -81,7 +81,7 @@ gh-deploy: ## Deploy the documentation to GitHub Pages
 	@uv run mkdocs gh-deploy --force
 
 LLAMACPP_CONFIG=linalg_zero/config/distillation/llamacpp_qwen3_32b_instruct.yaml
-VLLM_CONFIG=linalg_zero/config/distillation/vllm_debug.yaml
+VLLM_CONFIG=linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml
 
 .PHONY: distillation-llamacpp
 distillation-llamacpp: ## Start the llama.cpp server
@@ -93,11 +93,15 @@ distillation-vllm: ## Start the vLLM server
 	@echo "🚀 Starting vLLM server"
 	@INFERENCE_BACKEND=vllm uv run python linalg_zero/distillation/launch_server.py --config $(VLLM_CONFIG)
 
+.PHONY: distillation-debug
+distillation-debug: ## Start the vLLM server
+	@echo "🚀 Starting vLLM server"
+	@uv run python linalg_zero/distillation.py --config linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml
 
 .PHONY: distillation
 distillation: ## Run the distillation pipeline using the vllm config
 	@echo "🚀 Running distillation pipeline"
-	@uv run python linalg_zero/distillation.py --config linalg_zero/config/distillation/vllm_debug.yaml
+	@uv run python linalg_zero/distillation.py --config linalg_zero/config/distillation/vllm_qwen3_32b.yaml
 
 # SFT Training Commands
 SFT_CONFIG=linalg_zero/config/sft/sft_debug_config.yaml

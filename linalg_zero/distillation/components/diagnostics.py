@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from linalg_zero.distillation.components.models import DIAG_PREFIX, DefaultConfig, ModelType, Qwen3ThinkingConfig
+from linalg_zero.distillation.components.models import DIAG_PREFIX, ModelType
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 
 
 class Diagnostics:
     def __init__(self, model_type: ModelType) -> None:
-        self.config = Qwen3ThinkingConfig() if model_type == ModelType.QWEN3_THINKING else DefaultConfig()
+        self.config = model_type.get_model_parameters()
         self.diagnostics: list[str] = []
         self.append_assistant = self.config.append_policy()
 
@@ -55,7 +55,7 @@ class Diagnostics:
         *,
         context: list[dict[str, Any]],
         message: str,
-        tool_names: list[str] | None,
+        tool_names: list[str],
     ) -> str | None:
         """Return a conservative hint only for provably true issues.
 
@@ -63,7 +63,7 @@ class Diagnostics:
         """
         parser = XMLParser()
         seeded = parser.ensure_think_prefix(message) or message
-        analysis = parser.analyze_message_in_context(context, message=seeded, tool_names=tool_names or set())
+        analysis = parser.analyze_message_in_context(context, message=seeded, tool_names=tool_names)
 
         reason = parser.get_analysis_failure_reason(analysis, tool_names=tool_names)
         if not reason:

@@ -12,7 +12,7 @@ prompt_column: "prompt"
 prompt_template: "{{ instruction }}"
 
 # Generation parameters
-model_type: "qwen3-thinking"
+model_type: "default"
 deterministic: true
 max_new_tokens: 8192 #  32768
 num_generations: 1

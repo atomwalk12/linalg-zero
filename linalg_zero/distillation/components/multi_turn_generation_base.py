@@ -10,6 +10,7 @@ from distilabel.models.llms.base import LLM
 from pydantic import Field, PositiveInt, ValidationError
 
 from linalg_zero.distillation.components.diagnostics import Diagnostics
+from linalg_zero.distillation.components.models import ModelType
 from linalg_zero.distillation.data import FunctionInvocationInfo, ThoughtSchema
 from linalg_zero.grpo.verifiers.xml_parser import (
     XMLParser,
@@ -27,10 +28,7 @@ if TYPE_CHECKING:
     from distilabel.typing import ChatType
 
 from linalg_zero.distillation.components.models import (
-    DefaultConfig,
     ModelParameters,
-    ModelType,
-    Qwen3ThinkingConfig,
 )
 
 
@@ -86,9 +84,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         return prepared_inputs
 
     def create_assistant_message(self, message: ThoughtSchema) -> dict[str, Any] | None:
-        config: ModelParameters = (
-            Qwen3ThinkingConfig() if self.model_name == ModelType.QWEN3_THINKING else DefaultConfig()
-        )
+        config: ModelParameters = ModelType(self.model_name).get_model_parameters()
         return config.format_assistant_message(message)
 
     def create_tool_message(self, conversation: list["ChatType"], message: dict[str, Any]) -> dict[str, Any]:
@@ -148,7 +144,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     ) -> list[dict[str, Any]]:
         """Prepare the output conversation removing the system prompt if necessary.
         It will return a dictionary with a "messages" key."""
-        diag = Diagnostics(model_type=self.model_name)
+        diag = Diagnostics(model_type=ModelType(self.model_name))
         outputs: list[dict[str, Any]] = []
         for conversation, final_answer, is_correct in zip(conversations, final_answers, success_indices, strict=True):
             if conversation is None:
@@ -183,7 +179,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         Returns a mapping from global sample index to (diagnostic reason, raw message).
         """
         reasons: dict[int, tuple[str, str]] = {}
-        diag = Diagnostics(model_type=self.model_name)
+        diag = Diagnostics(model_type=ModelType(self.model_name))
         for local_idx, parsed in enumerate(parsed_active_msgs):
             if parsed is None or (parsed.tool_call is None and not parsed.completed):
                 global_idx = active_indices[local_idx]
@@ -402,7 +398,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     def extract_non_structured_output(self, message: str, context: list[dict]) -> ThoughtSchema | None:
         """Extract output from messages that do not enforce structured output."""
         parser = XMLParser()
-        analysis = parser.analyze_message_in_context(context, message=message, tool_names=set(self.library))
+        analysis = parser.analyze_message_in_context(context, message=message, tool_names=self.library)
 
         if self.strict_format and not bool(analysis["is_valid_think_then_tool_or_answer"]):
             return None
@@ -443,9 +439,9 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             return "empty generation"
         parser = XMLParser()
         msg = parser.ensure_think_prefix(msg) or ""
-        analysis = parser.analyze_message_in_context(context, message=msg, tool_names=set(self.library))
+        analysis = parser.analyze_message_in_context(context, message=msg, tool_names=self.library)
 
-        return parser.get_analysis_failure_reason(analysis, tool_names=set(self.library))
+        return parser.get_analysis_failure_reason(analysis, tool_names=self.library)
 
     def _generate_multi_turn_conversation(  # noqa: C901
         self, inputs: list[dict[str, Any]]

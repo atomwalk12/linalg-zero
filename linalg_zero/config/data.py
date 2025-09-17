@@ -152,6 +152,10 @@ class VllmServerConfig:
         default=None,
         metadata={"help": "Chat template to use"},
     )
+    quantization: str | None = field(
+        default=None,
+        metadata={"help": "Quantization to use"},
+    )
 
     # Memory / performance tuning parameters
     dtype: str | None = field(
