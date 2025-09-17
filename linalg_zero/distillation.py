@@ -1,7 +1,5 @@
 import logging
 import os
-import sys
-from sys import argv
 
 import argilla as rg
 from distilabel.distiset import Distiset
@@ -9,26 +7,27 @@ from distilabel.pipeline import Pipeline
 from trl import TrlParser
 
 from linalg_zero.config.data import DistillationConfig, LlamaCppServerConfig, VllmServerConfig
+from linalg_zero.distillation.components.models import ModelType
 from linalg_zero.distillation.components.multi_turn_generation import MultiTurnWithToolUseGenerator
 from linalg_zero.distillation.data import ThoughtSchema
 from linalg_zero.distillation.utils import (
     cleanup,
-    create_argilla_dataset,
     create_llm_clients,
-    load_dataset,
-    prepare_dataset_for_sft,
+    load_datasets_for_distillation,
+    print_statistics,
+    push_argilla_dataset,
+    push_datasets_to_huggingface,
+    save_distiset_to_disk,
 )
-from linalg_zero.shared.lib import get_lib
+from linalg_zero.shared.lib import get_lib_fn_names
 from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
 def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConfig) -> None:
-    ################
-    # Initialization
-    ################
-    USING_VLLM = isinstance(server, VllmServerConfig)
-    enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}} if USING_VLLM else {}
+    ################################
+    # Initialize and load datasets #
+    ################################
 
     # Setup the logging and environment variables
     setup_logging(level=logging.INFO, include_timestamp=True)
@@ -53,102 +52,76 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             logger.warning(f"Could not initialize Argilla client: {e}")
             logger.warning("Argilla dataset creation will be skipped")
 
-    ##########################
-    # Load dataset/LLM clients
-    ##########################
-    llm, _ = create_llm_clients(server, args, ThoughtSchema)
-    dataset = load_dataset(args)
-    logger.info(f"Loaded {len(dataset)} examples")
+    # Load dataset splits and LLM clients
+    llm = create_llm_clients(server, args, ThoughtSchema)
+    dataset = load_datasets_for_distillation(args)
+    for split_name, split_ds in dataset.items():
+        logger.info(f"Loaded {len(split_ds)} examples for split '{split_name}'")
 
-    ############################
-    # Build and run the pipeline
-    ############################
-    with Pipeline("generation-pipeline").ray() as pipeline:
-        # Single step: generate multi-turn conversations
+    ##########################
+    # Run the training split #
+    ##########################
+
+    # Run the pipeline
+    logger.info("Running generation pipeline for available splits...")
+    enable_thinking = {"extra_body": {"chat_template_kwargs": {"enable_thinking": args.enable_reasoning}}}
+
+    generation_kwargs = {"max_new_tokens": args.max_new_tokens, **enable_thinking}
+    if args.stop is not None:
+        generation_kwargs["stop"] = args.stop
+
+    available_functions = get_lib_fn_names()
+
+    # Delegate all sampling defaults to parameters; only determinism toggled by user
+    model_config = ModelType(args.model_type).get_model_parameters()
+    model_config.set_recommended_defaults(generation_kwargs, deterministic=args.deterministic)
+
+    # Run train split first
+    pipeline_obj = Pipeline("train-generation-pipeline")
+    if not args.debug_mode:
+        logger.info("Monitor progress in Ray dashboard: http://localhost:8265")
+        pipeline_obj = pipeline_obj.ray()
+
+    with pipeline_obj as pipeline:
         multi_turn_generator = MultiTurnWithToolUseGenerator(
             name="multi_turn_generator",
             llm=llm,
-            dataset=dataset,
+            dataset=dataset["train"],
             batch_size=args.input_batch_size,
-            n_turns=args.n_turns,
-            system_prompt=get_math_system_prompt(summary=False),
-            include_system_prompt=True,
-            thought_schema=ThoughtSchema,
-            library=get_lib(),
+            n_turns=4,
+            system_prompt=get_math_system_prompt(),
+            library=available_functions,
+            model_name=args.model_type,
         )
 
-    # Run the pipeline
-    logger.info("Running generation pipeline...")
-    logger.info(f"Processing {len(dataset)} examples with batch size {args.input_batch_size}")
-    logger.info("Monitor progress in Ray dashboard: http://localhost:8265")
-
-    distiset: Distiset = pipeline.run(
-        parameters={
-            multi_turn_generator.name: {
-                "llm": {"generation_kwargs": {"max_new_tokens": 4096, **enable_thinking, "temperature": 0.0}}
+        distiset: Distiset = pipeline.run(
+            parameters={
+                multi_turn_generator.name: {"llm": {"generation_kwargs": generation_kwargs}},
             },
-        },
-        use_cache=False,
-        dataset_batch_size=args.input_batch_size,
-    )
+            use_cache=args.use_cache,
+            dataset_batch_size=args.input_batch_size,
+        )
 
-    # The run interferes with the logger, this restores its state
     cleanup()
-
-    #############################
-    # Push the results to the hub
-    #############################
     logger.info("Generation complete!")
-    distilabel_data = distiset["default"]["train"]
 
-    total_examples = len(distilabel_data)
+    save_distiset_to_disk(distiset, "results/distiset/")
 
-    # Count successes at each stage
-    math_verify_successes = sum(1 for row in distilabel_data if row["is_correct"])
+    ###############################
+    # Push the results to the hub #
+    ###############################    logger.info("Pipeline completed (train):")
+    print_statistics(distiset["default"]["train"])
 
-    logger.info("Pipeline completed:")
-    logger.info(f"  Math verify successes: {math_verify_successes}/{total_examples}")
+    if argilla_client and args.argilla_output_dataset:
+        logger.info(f"Creating Argilla dataset: {args.argilla_output_dataset}")
+        push_argilla_dataset(argilla_client, distiset, args)
 
     if args.hf_output_dataset:
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")
-
-        try:
-            # Add the tools column to the dataset, required for SFT
-            prepare_dataset_for_sft(distiset)
-
-            # Push to HuggingFace Hub
-            distiset.push_to_hub(
-                args.hf_output_dataset,
-                private=args.private,
-            )
-            logger.info(f"✅ Dataset successfully pushed to: {args.hf_output_dataset}")
-            logger.info(f"   Privacy: {'Private' if args.private else 'Public'}")
-            logger.info(f"   Access URL: https://huggingface.co/datasets/{args.hf_output_dataset}")
-
-            # Create Argilla dataset for annotation if client is available
-            if argilla_client and args.argilla_output_dataset:
-                try:
-                    dataset_data = distiset["default"]["train"]
-                    create_argilla_dataset(
-                        dataset_name=args.argilla_output_dataset, distiset_data=dataset_data, client=argilla_client
-                    )
-                    logger.info("✅ Argilla dataset created successfully")
-                    logger.info(f"   Privacy: {'Private' if args.private else 'Public'}")
-                    logger.info(f"   Access URL: https://{args.argilla_output_dataset.replace('/', '-')}.hf.space")
-                except Exception as e:
-                    logger.warning(f"Failed to create Argilla dataset: {e}")
-
-        except Exception:
-            logger.exception("❌ Error pushing dataset")
-            sys.exit(1)
+        push_datasets_to_huggingface(distiset, args)
 
 
 if __name__ == "__main__":
-    # TODO: remove these lines if not developing locally
-    if "--config" not in argv:
-        argv.append("--config")
-        argv.append("linalg_zero/config/distillation/llamacpp_debug.yaml")
-
     # Check backend type (vllm or llama-cpp)
     USING_VLLM = os.environ.get("USING_VLLM", "False").lower() == "true"
     server_config = VllmServerConfig if USING_VLLM else LlamaCppServerConfig

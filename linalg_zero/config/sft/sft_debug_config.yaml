@@ -13,26 +13,31 @@ lora_target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_p
 lora_task_type: "CAUSAL_LM"
 
 # Data training arguments
-dataset_name: atomwalk12/linalg-debug-distilled
+dataset_name: atomwalk12/linalgzero-distilled-debug
+eval_dataset_name: atomwalk12/linalgzero
 dataset_config: default
+eval_dataset_config: default
+take_n: 4
 dataset_num_proc: 12
 eos_token: <|im_end|>
+eval_max_new_tokens: 2048
 
 # SFT trainer config
 bf16: true
 
 ## Evaluation parameters
 do_eval: true                  # does a final evaluation step at the end of training
-eval_strategy: 'no'            # can be "no","epoch","steps"
-# load_best_model_at_end: true
+eval_strategy: 'steps'         # can be "no","epoch","steps"
+eval_steps: 5                  # run evaluation every N training iterations
+load_best_model_at_end: true
 metric_for_best_model: eval_loss
 greater_is_better: false
 early_stopping_patience: 3
 early_stopping_threshold: 0.0  # Any improvement counts
-save_total_limit: 3
-# callbacks:
-# - tool_calling_accuracy
-# - early_stopping
+save_total_limit: 3            # Keep the 3 most recent checkpoints
+callbacks:
+  - tool_calling_accuracy
+  - early_stopping
 
 ## Training parameters
 gradient_accumulation_steps: 8
@@ -52,7 +57,7 @@ packing: false
 max_grad_norm: 0.2
 max_length: 32768
 max_steps: -1
-num_train_epochs: 5
+num_train_epochs: 100
 output_dir: results/Qwen3-1.7B-Instruct-SFT
 overwrite_output_dir: true
 per_device_eval_batch_size: 1
@@ -60,7 +65,8 @@ per_device_train_batch_size: 2
 push_to_hub: true
 report_to:
 - wandb
-save_strategy: epoch
+save_strategy: steps
+save_steps: 5
 seed: 42
 use_liger_kernel: true
 warmup_ratio: 0.03

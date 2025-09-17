@@ -4,7 +4,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from huggingface_hub import HfApi
+
 from datasets.dataset_dict import DatasetDict
+
+logger = logging.getLogger(__name__)
 
 LLAMA_CPP_DIR = Path(__file__).parent / "distillation" / "llama-cpp" / "models"
 
@@ -13,6 +17,18 @@ def get_config_dir() -> str:
     """Get the path of the config directory"""
     script_dir = Path(__file__).parent.parent
     return str(script_dir / "config")
+
+
+def get_log_file_path() -> str:
+    """
+    Finds and returns the file path of the first FileHandler found in the logger's handlers.
+    Raises ValueError if no FileHandler is found.
+    """
+    logger = logging.getLogger()  # Get root logger
+    for handler in logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            return handler.baseFilename
+    raise ValueError("No FileHandler found in the logger's handlers")
 
 
 def setup_logging(
@@ -50,32 +66,46 @@ def get_libpath() -> Path:
     return Path(__file__).parent / "lib.py"
 
 
-def get_function_schema(summary_only: bool = False) -> str:
-    """Return a string representation of the tool schema. This can be a short list of descriptions or a full schema."""
+def get_function_schema() -> str:
+    """Return a JSON string with the full tool function schemas (sorted by name)."""
     from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 
     libpath_module = load_module_from_path(get_libpath())
     tools = libpath_module.get_tools()
+    # Ensure deterministic order for readability
+    tools = sorted(tools, key=lambda t: t["function"]["name"])
 
-    if summary_only:
-        # Return only the descriptions
-        return "\n".join(
-            f'"{tool_info["function"]["name"]}": {tool_info["function"]["description"]}' for tool_info in tools
-        )
-
+    # For prompts, show only the inner function object (cleaner to read than the wrapper)
     extracted_functions = [tool_info["function"] for tool_info in tools]
     return json.dumps(extracted_functions, indent=2)
 
 
-def push_to_hub(dataset: DatasetDict | dict, hub_dataset_name: str, private: bool = False) -> None:
-    """Push the dataset to Hugging Face Hub."""
+def push_to_hub(
+    dataset: DatasetDict | dict, hub_dataset_name: str, private: bool = False, config_path: str | None = None
+) -> None:
+    """Push the dataset to Hugging Face Hub, optionally including entropy settings."""
 
     if isinstance(dataset, dict):
         dataset = DatasetDict(dataset)
 
     try:
         dataset.push_to_hub(hub_dataset_name, private=private)
-        print(f"Successfully pushed dataset to: https://huggingface.co/datasets/{hub_dataset_name}")
-    except Exception as e:
-        print(f"Failed to push dataset to Hugging Face Hub: {e}")
+        logger.info(f"Successfully pushed dataset to: https://huggingface.co/datasets/{hub_dataset_name}")
+
+        # Upload entropy settings as an additional file if it exists
+        if config_path and Path(config_path).exists():
+            api = HfApi()
+            api.upload_file(
+                path_or_fileobj=config_path,
+                path_in_repo="entropy_settings.json",
+                repo_id=hub_dataset_name,
+                repo_type="dataset",
+            )
+            logger.info(
+                f"Successfully uploaded entropy settings to: https://huggingface.co/datasets/{hub_dataset_name}"
+            )
+        elif config_path:
+            logger.warning(f"Warning: Entropy settings file not found at {config_path}")
+    except Exception:
+        logger.exception("Failed to push dataset to Hugging Face Hub.")
         raise

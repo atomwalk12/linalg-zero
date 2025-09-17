@@ -1,6 +1,4 @@
 import json
-import uuid
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from distilabel.errors import DistilabelUserError
@@ -9,18 +7,34 @@ from distilabel.mixins.runtime_parameters import (
     RuntimeParametersMixin,
 )
 from distilabel.models.llms.base import LLM
-from distilabel.utils.dicts import merge_dicts
 from pydantic import Field, PositiveInt, ValidationError
 
-from linalg_zero.distillation.data import ThoughtSchema
-from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.distillation.components.diagnostics import Diagnostics
+from linalg_zero.distillation.components.models import ModelType
+from linalg_zero.distillation.data import FunctionInvocationInfo, ThoughtSchema
+from linalg_zero.grpo.verifiers.xml_parser import (
+    XMLParser,
+)
+from linalg_zero.grpo.verify import parse_string, verify_answers
+from linalg_zero.shared.lib import get_lib
+from linalg_zero.shared.system_prompts import (
+    ANSWER_OPEN,
+    THINK_OPEN,
+    TOOL_CALL_OPEN,
+)
+from linalg_zero.shared.utils import get_logger
 
 if TYPE_CHECKING:
     from distilabel.typing import ChatType
 
+from linalg_zero.distillation.components.models import (
+    ModelParameters,
+)
+
 
 class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     llm: LLM
+    _logger = get_logger(__name__)
 
     n_turns: PositiveInt = Field(
         description="The number of turns to generate for the conversation.",
@@ -29,16 +43,32 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         default=True,
         description="Whether to include the system prompt used in the generated conversation.",
     )
-    thought_schema: RuntimeParameter[type[ThoughtSchema]] = Field(
-        default=None,
-        description="The schema for the thought process.",
-    )
-    library: dict[str, Callable[..., Any]] = Field(
-        description="The library of functions to use for the tool calls.",
+    library: list[str] = Field(
+        description="The list of function names available for tool calls.",
     )
     system_prompt: RuntimeParameter[str] = Field(
         default=None,
         description="The system prompt to use for the generation.",
+    )
+
+    structured_output: RuntimeParameter[bool] = Field(
+        default=False,
+        description="Whether to use structured output for the generation.",
+    )
+    enable_hint_injection: RuntimeParameter[bool] = Field(
+        default=True,
+        description="If true (and immediate recovery is disabled), inject a user hint about the previous issue to guide the next turn.",
+    )
+    max_diagnostic_messages: RuntimeParameter[int | None] = Field(
+        default=1,
+        description="Maximum number of diagnostic user messages to retain in the conversation (None for unbounded).",
+    )
+    strict_format: RuntimeParameter[bool] = Field(
+        default=True,
+        description=f"If true, enforce strict '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure gate in parsing.",
+    )
+    model_name: str = Field(
+        description="The name of the model.",
     )
 
     def _prepare_inputs_for_instruction_generation(self, inputs: list[dict[str, Any]]) -> list["ChatType"]:
@@ -53,35 +83,13 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         return prepared_inputs
 
-    def create_assistant_message(self, message: ThoughtSchema) -> dict[str, Any]:
-        if message.completed:
-            if message.final_answer is None:
-                raise DistilabelUserError("final_answer cannot be None when completed=True")
-            result = {
-                "role": "assistant",
-                "content": f"<think>{message.thought}</think>\n\n<answer>{message.final_answer}</answer>",
-            }
-        elif message.tool_call is not None:
-            result = {
-                "role": "assistant",
-                "content": "<think>" + message.thought + "</think>",
-                "tool_calls": [
-                    {
-                        "id": str(uuid.uuid4()),
-                        "type": "function",
-                        "function": {
-                            "name": message.tool_call.name,
-                            "arguments": json.dumps(message.tool_call.arguments),
-                        },
-                    }
-                ],  # type: ignore[dict-item]
-            }
-        else:
-            raise DistilabelUserError("Invalid instruction. Must be completed or have a tool call.")
-        return result
+    def create_assistant_message(self, message: ThoughtSchema) -> dict[str, Any] | None:
+        config: ModelParameters = ModelType(self.model_name).get_model_parameters()
+        return config.format_assistant_message(message)
 
     def create_tool_message(self, conversation: list["ChatType"], message: dict[str, Any]) -> dict[str, Any]:
-        # Find the last assistant message with tool calls
+        # NOTE: Find the last assistant message with tool calls. This only works for single-turn tool calls,
+        # if we transition to multiple calls per turn, must match by name or position.
         tool_call_id = None
         for msg in reversed(conversation):
             if msg.get("role") == "assistant" and msg.get("tool_calls"):
@@ -110,22 +118,21 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
             if role == "assistant":
                 if isinstance(message, ThoughtSchema):
-                    try:
-                        formatted_message = self.create_assistant_message(message)
+                    # The possible previous roles are diagnostic user messages or tool messages
+                    last_role = conversation[-1]["role"]
+                    assert last_role in ("user", "tool"), (
+                        f"Invalid last role before assistant generation: '{last_role}'"
+                    )
+
+                    formatted_message = self.create_assistant_message(message)
+                    if formatted_message is not None:
                         conversation.append(formatted_message)
-                    except DistilabelUserError:
-                        # Skip malformed assistant messages - treat as generation failure
-                        continue
                 else:
                     continue
             elif role == "tool":
                 if isinstance(message, dict):
-                    try:
-                        formatted_message = self.create_tool_message(conversation, message)
-                        conversation.append(formatted_message)
-                    except DistilabelUserError:
-                        # Skip malformed tool messages - conversation state is corrupted
-                        continue
+                    formatted_message = self.create_tool_message(conversation, message)
+                    conversation.append(formatted_message)
                 else:
                     continue
             else:
@@ -136,14 +143,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         self, conversations: list["ChatType"], final_answers: list[str], success_indices: list[bool]
     ) -> list[dict[str, Any]]:
         """Prepare the output conversation removing the system prompt if necessary.
-        It will return a dictionary with a "conversation" key.
-
-        Args:
-            conversations: the list of generated conversations.
-
-        Returns:
-            A list of dictionaries containing a "conversation" key.
-        """
+        It will return a dictionary with a "messages" key."""
+        diag = Diagnostics(model_type=ModelType(self.model_name))
         outputs: list[dict[str, Any]] = []
         for conversation, final_answer, is_correct in zip(conversations, final_answers, success_indices, strict=True):
             if conversation is None:
@@ -151,18 +152,51 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
             if len(conversation) == 0:
                 # Something went wrong with the `LLM` and it didn't generate any message
-                outputs.append({"conversation": []})
+                outputs.append({"messages": []})
                 continue
-            if not self.include_system_prompt and conversation[0]["role"] == "system":
-                conversation.pop(0)
 
-            output = {"conversation": conversation, "final_answer": final_answer, "is_correct": is_correct}
+            conv_out = list(conversation)
+
+            # Remove any mid-conversation hint messages
+            conv_out = diag.remove_hint_messages(conv_out)
+
+            # Drop initial system if requested
+            if not self.include_system_prompt and conv_out[0]["role"] == "system":
+                conv_out = conv_out[1:]
+
+            output = {"messages": conv_out, "final_answer": final_answer, "is_correct": is_correct}
             outputs.append(output)
         return outputs
 
+    def _inject_hints(
+        self,
+        conversations: list["ChatType"],
+        active_indices: list[int],
+        parsed_active_msgs: list[ThoughtSchema | None],
+        raw_messages: list[str | None],
+    ) -> dict[int, tuple[str, str]]:
+        """Append a brief user hint to conversations with malformed assistant outputs to guide the next turn.
+        Returns a mapping from global sample index to (diagnostic reason, raw message).
+        """
+        reasons: dict[int, tuple[str, str]] = {}
+        diag = Diagnostics(model_type=ModelType(self.model_name))
+        for local_idx, parsed in enumerate(parsed_active_msgs):
+            if parsed is None or (parsed.tool_call is None and not parsed.completed):
+                global_idx = active_indices[local_idx]
+                conv = conversations[global_idx]
+                raw = raw_messages[local_idx] or ""
+
+                hint = diag.analyze_and_build_hint(context=conv, message=raw, tool_names=self.library)
+                if hint:
+                    reasons[global_idx] = (hint, raw)
+                    diag.apply_hint(conv, hint, max_hints=self.max_diagnostic_messages)
+                    self._logger.info(f"Injected recovery hint for turn {global_idx}: {hint}")
+
+        return reasons
+
     def _generate_conversation_turn(
         self, conversations: list["ChatType"], active_indices: list[int]
-    ) -> tuple[list["ChatType"], list[int], tuple[Any, ...], list[ThoughtSchema | None]]:
+    ) -> tuple[list["ChatType"], list[int], tuple[Any, ...], list[ThoughtSchema | None], dict[int, tuple[str, str]]]:
         # Generate an output for the conversations that are still active
         inputs = []
         for idx in active_indices:
@@ -177,11 +211,23 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         # Extract the single message from the conversation and the statistics in separate lists
         messages, statistics = zip(
             *[(output["generations"][0], output["statistics"]) for output in outputs],
-            strict=True,  # debug(atom)
+            strict=True,
         )
 
+        # Log potential truncation
+        self._check_generation_truncation(statistics, active_indices)
+
+        parser = XMLParser()
+        seeded_messages: list[str | None] = []
+        for msg in messages:
+            if msg is None:
+                seeded_messages.append(None)
+            else:
+                seeded_messages.append(parser.ensure_think_prefix(msg))
+
         # The parsed messages may contain `None`s if the LLM didn't generate a message.
-        parsed_active_msgs = self.extract_structured_output(list(messages), self.thought_schema)
+        contexts = [conversations[idx] for idx in active_indices]
+        parsed_active_msgs = self.extract_output(list(seeded_messages), contexts=contexts)
 
         active_conversations = [conversations[idx] for idx in active_indices]
         updated_conversations = self._append_messages_to_conversations(
@@ -193,10 +239,16 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         for idx, conv in zip(active_indices, updated_conversations, strict=True):
             conversations[idx] = conv
 
+        # Inject hint for failed messages to guide next turn
+        diagnostics: dict[int, tuple[str, str]] = {}
+        if self.enable_hint_injection:
+            diagnostics = self._inject_hints(conversations, active_indices, parsed_active_msgs, list(messages))
+
+        # Keep samples active even if message is None (retry next turn)
         new_active_indices = [
             idx
-            for idx, output, message in zip(active_indices, outputs, parsed_active_msgs, strict=True)
-            if output is not None and message is not None and not message.completed
+            for idx, message in zip(active_indices, parsed_active_msgs, strict=True)
+            if (message is None or not message.completed)
         ]
 
         # Create full-sized array aligned with conversations list
@@ -204,33 +256,59 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         for active_idx, parsed_msg in zip(active_indices, parsed_active_msgs, strict=True):
             full_parsed_messages[active_idx] = parsed_msg
 
-        return conversations, new_active_indices, statistics, full_parsed_messages
+        return conversations, new_active_indices, statistics, full_parsed_messages, diagnostics
+
+    def _check_generation_truncation(self, statistics: tuple[Any, ...], active_indices: list[int]) -> None:
+        """Check and log potential generation truncation based on token statistics."""
+        generation_kwargs = self.llm.get_generation_kwargs()
+        max_new_tokens = generation_kwargs["max_new_tokens"]
+        if max_new_tokens is not None:
+            for i, stats in enumerate(statistics):
+                output_tokens = stats["output_tokens"]
+                if output_tokens == max_new_tokens:
+                    self._logger.warning(
+                        f"Generation may have been truncated at max_new_tokens={max_new_tokens} "
+                        f"for conversation {active_indices[i]} (output_tokens={output_tokens})"
+                    )
 
     def _execute_tool_calls(
         self, conversations: list["ChatType"], active_indices: list[int], parsed_messages: list[ThoughtSchema | None]
-    ) -> tuple[list["ChatType"], list[int], dict[int, str]]:
-        active_conversations = []
-        active_parsed_messages = []
+    ) -> tuple[list["ChatType"], list[int], dict[int, str], dict[int, int]]:
+        # Filter only messages that have a valid tool call to execute
+        exec_indices: list[int] = []
+        exec_messages: list[ThoughtSchema] = []
+        exec_conversations: list[ChatType] = []
         for idx in active_indices:
-            # Use structured output for tool calls
-            active_conversations.append(conversations[idx])
             message = parsed_messages[idx]
-            if message is None:
-                raise DistilabelUserError(f"Message at index {idx} is None, but should never be None at this step")
-            active_parsed_messages.append(message)
+            if message is None or message.tool_call is None:
+                # Skip malformed or tool-less messages; conversation remains active for next turn
+                continue
+            exec_indices.append(idx)
+            exec_messages.append(message)
+            exec_conversations.append(conversations[idx])
 
-        active_results, tool_statistics = self._execute(inputs=active_parsed_messages, active_indices=active_indices)
+        if not exec_indices:
+            return conversations, active_indices, {}, {}
+
+        active_results, tool_statistics = self._execute(inputs=exec_messages, active_indices=exec_indices)
 
         updated_conversations = self._append_messages_to_conversations(
             role="tool",
             messages=active_results,
-            conversations=active_conversations,
+            conversations=exec_conversations,
         )
 
-        for idx, conv in zip(active_indices, updated_conversations, strict=True):
+        for idx, conv in zip(exec_indices, updated_conversations, strict=True):
             conversations[idx] = conv
 
-        return conversations, active_indices, tool_statistics
+        # Determine tool errors by inspecting execution_result content
+        error_counts: dict[int, int] = {}
+        for local_pos, res in enumerate(active_results):
+            if str(res.get("execution_result", "")).startswith("ERROR:"):
+                global_idx = exec_indices[local_pos]
+                error_counts[global_idx] = error_counts.get(global_idx, 0) + 1
+
+        return conversations, active_indices, tool_statistics, error_counts
 
     def _execute(
         self, inputs: list[ThoughtSchema], active_indices: list[int]
@@ -240,7 +318,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         for data, idx in zip(inputs, active_indices, strict=True):
             if data.tool_call is None:
-                raise DistilabelUserError("Tool call is None, but should never be None at this step")
+                # Should not happen due to upstream filtering; skip safely
+                continue
 
             name = data.tool_call.name
             arguments = data.tool_call.arguments
@@ -248,37 +327,136 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             # Track tool call frequency for this specific input
             statistics[idx] = name
 
-            result = self.library[name](**arguments)
-            results.append({"function_name": name, "execution_result": str(result)})
+            try:
+                lib_functions = get_lib()
+                if name not in lib_functions:
+                    results.append({
+                        "function_name": name,
+                        "execution_result": f"ERROR: Function '{name}' not found in library",
+                    })
+                    continue
+
+                result = lib_functions[name](**arguments)
+                results.append({"function_name": name, "execution_result": str(result)})
+            except Exception as exc:
+                # Avoid stopping the pipeline on tool errors; propagate error text
+                results.append({
+                    "function_name": name,
+                    "execution_result": f"ERROR: {type(exc).__name__}: {exc}",
+                })
 
         return results, statistics
 
-    def extract_structured_output(
-        self, messages: list[str | None], schema: type[ThoughtSchema]
-    ) -> list[ThoughtSchema | None]:
+    def extract_output(self, messages: list[str | None], contexts: list[list[dict]]) -> list[ThoughtSchema | None]:
         """Extract the structured output from the messages."""
         result: list[ThoughtSchema | None] = []
-        for message in messages:
+        for ctx, message in zip(contexts, messages, strict=True):
+            # Default placeholder to avoid None entries
+            placeholder = ThoughtSchema(thought="", tool_call=None, final_answer=None, completed=False)
             if message is None:
-                result.append(None)
+                result.append(placeholder)
+                continue
+            parsed: ThoughtSchema | None = None
+            if self.structured_output:
+                parsed, _ = self.extract_structured_output(message, context=ctx)
             else:
-                try:
-                    result.append(schema.model_validate_json(message))
-                except ValidationError:
-                    # The message is malformed, so we skip it
-                    result.append(None)
+                parsed = self.extract_non_structured_output(message, context=ctx)
+            if parsed is None:
+                result.append(placeholder)
+            else:
+                result.append(parsed)
         return result
 
-    def _generate_multi_turn_conversation(
+    def extract_structured_output(self, message: str, context: list[dict]) -> tuple[ThoughtSchema | None, str]:
+        """Extract output from messages that enforce structured output."""
+        parser = XMLParser()
+        try:
+            result = ThoughtSchema.model_validate_json(message)
+        except ValidationError as e:
+            return None, f"malformed JSON: {e!s}"
+
+        # Enforce is_valid_think_then_tool_or_answer
+        if result.tool_call is None and result.final_answer is None:
+            return None, "missing tool_call or final_answer"
+
+        # Enforce answer_policy_valid
+        if result.final_answer is not None and not parser._has_tool_calls(context):
+            return None, "answer without tool response"
+
+        tool_call = result.tool_call
+        answer = result.final_answer
+
+        # If both a tool and an answer appear, treat this as a tool-call step
+        # and ignore the answer for this turn. In the unstructured setting,
+        # is_valid_think_then_tool_or_answer enforces that tool_call and answer
+        # can never be both present at the same time.
+        if tool_call is not None and answer is not None:
+            return None, "both tool_call and final_answer present"
+
+        return result, "ok"
+
+    def extract_non_structured_output(self, message: str, context: list[dict]) -> ThoughtSchema | None:
+        """Extract output from messages that do not enforce structured output."""
+        parser = XMLParser()
+        analysis = parser.analyze_message_in_context(context, message=message, tool_names=self.library)
+
+        if self.strict_format and not bool(analysis["is_valid_think_then_tool_or_answer"]):
+            return None
+
+        if analysis["has_answer"] and not bool(analysis["answer_policy_valid"]):
+            return None
+
+        thought = analysis["thought"] or ""
+
+        # Enforce a single tool call per turn: take only the last tool block
+        tool_call: FunctionInvocationInfo | None = None
+        tool_info = analysis["tool"]
+        if tool_info and tool_info["json_valid"]:
+            tool_call = FunctionInvocationInfo(
+                name=str(tool_info["name"]),
+                arguments=dict(tool_info["arguments"]),
+            )
+
+        # Mark completion based on presence of answer
+        answer = analysis["answer"]
+        return ThoughtSchema(
+            thought=thought,
+            tool_call=tool_call,
+            final_answer=answer,
+            completed=answer is not None,
+        )
+
+    def _diagnose_structured_output(self, msg: str | None, context: list[dict]) -> str:
+        """Heuristic diagnosis of why a generation is unusable to guide recovery."""
+        if msg is None or not str(msg).strip():
+            return "empty generation"
+        _, reason = self.extract_structured_output(msg, context)
+        return reason
+
+    def _diagnose_unstructured_output(self, msg: str | None, context: list[dict]) -> str:
+        """Heuristic diagnosis of why a generation is unusable to guide recovery."""
+        if msg is None or not str(msg).strip():
+            return "empty generation"
+        parser = XMLParser()
+        msg = parser.ensure_think_prefix(msg) or ""
+        analysis = parser.analyze_message_in_context(context, message=msg, tool_names=self.library)
+
+        return parser.get_analysis_failure_reason(analysis, tool_names=self.library)
+
+    def _generate_multi_turn_conversation(  # noqa: C901
         self, inputs: list[dict[str, Any]]
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, int]]]:
         conversations = self._prepare_inputs_for_instruction_generation(inputs)
         # Keep track of the active conversations, as it could happen that for some conversation
         # we can't generate the next turn because the `LLM` returned `None`.
         active_indices = list(range(len(conversations)))
-        stats_gen = []
-        stats_tools = []
+        stats_gen: list[dict[int, Any]] = []
+        stats_tools: list[dict[int, str]] = []
         final_answers: list[str | None] = [None] * len(conversations)
+        malformed_counts: list[int] = [0] * len(conversations)
+        tool_errors_total: list[int] = [0] * len(conversations)
+        diagnostics_reasons: list[list[str]] = [[] for _ in range(len(conversations))]
+        diagnostics_messages: list[list[str]] = [[] for _ in range(len(conversations))]
         for i in range(self.n_turns):
             if not active_indices:
                 break
@@ -287,7 +465,13 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             current_active_indices = active_indices.copy()
 
             # Generate assistant-tool interaction
-            conversations, active_indices, statistics_generation, parsed_messages = self._generate_conversation_turn(
+            (
+                conversations,
+                active_indices,
+                statistics_generation,
+                parsed_messages,
+                diagnostics_map,
+            ) = self._generate_conversation_turn(
                 conversations=conversations,
                 active_indices=active_indices,
             )
@@ -297,40 +481,72 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 message = parsed_messages[idx]
                 if message and message.completed:
                     final_answers[idx] = message.final_answer
+                if message is None:
+                    malformed_counts[idx] += 1
+
+            # Record diagnostics for this turn
+            for idx, (reason, raw) in diagnostics_map.items():
+                diagnostics_reasons[idx].append(f"turn {i}: {reason}")
+                diagnostics_messages[idx].append(raw)
 
             if i == (self.n_turns - 1):
-                statistics = merge_dicts(*[statistics_generation])
-                stats_gen.append(statistics)
+                # Map tuple of stats back to global indices
+                per_turn = dict(zip(current_active_indices, statistics_generation, strict=True))
+                stats_gen.append(per_turn)
                 break
 
             if not active_indices:
                 break
 
-            # Generate assistant message
-            conversations, active_indices, statistics_tools = self._execute_tool_calls(
+            # Generate assistant message; execute only valid tool calls
+            conversations, active_indices, statistics_tools, error_counts = self._execute_tool_calls(
                 conversations=conversations, parsed_messages=parsed_messages, active_indices=active_indices
             )
             stats_tools.append(statistics_tools)
-            stats_gen.append(statistics_generation)
+            per_turn = dict(zip(current_active_indices, statistics_generation, strict=True))
+            stats_gen.append(per_turn)
+            # Log tool errors if any
+            if error_counts:
+                self._logger.warning(f"Tool errors in turn {i}: {error_counts}")
+            for idx, cnt in error_counts.items():
+                tool_errors_total[idx] += cnt
 
         # Convert None values to empty strings instead of None
         final_answers_clean = [answer if answer is not None else "" for answer in final_answers]
         success_indices = self.check_final_answers(final_answers_clean, inputs)
 
-        # Merge the dicts again at the conversation level
-        merged_stats_gen = merge_dicts(*stats_gen)
+        self._logger.info(
+            f"Multi-turn conversation completed. Success rate: {sum(success_indices)}/{len(success_indices)}"
+        )
+
+        # Build per-sample generation stats list aligned to inputs (list of per-turn stats)
+        gen_stats_list: list[list[Any]] = []
+        for i in range(len(inputs)):
+            per_sample_stats = [per_turn[i] for per_turn in stats_gen if i in per_turn]
+            gen_stats_list.append(per_sample_stats)
+
         merged_stats_tools = self.merge_tool_stats(stats_tools, inputs=inputs)
         return (
             self._prepare_conversation_outputs(conversations, final_answers_clean, success_indices),
-            merged_stats_gen,
+            [
+                {
+                    "gen_stats": gen_stats_list[i],
+                    "malformed_turns": malformed_counts[i],
+                    "tool_errors": tool_errors_total[i],
+                    "diagnostics": diagnostics_reasons[i],
+                    "diagnostic_messages": diagnostics_messages[i],
+                }
+                for i in range(len(inputs))
+            ],
             merged_stats_tools,
         )
 
     def check_final_answers(self, final_answers: list[str], inputs: list[dict[str, Any]]) -> list[bool]:
         """Check if the final answers are correct."""
         is_correct = []
-        for answer, _input in zip(final_answers, inputs, strict=True):
-            is_correct.append(verify_answers(answer, _input["ground_truth"]))
+        for _input, lib_result in zip(inputs, final_answers, strict=True):
+            ground_truth = json.loads(_input["ground_truth"])
+            is_correct.append(verify_answers(ground_truth, parse_string(lib_result)))
 
         return is_correct
 
@@ -358,8 +574,15 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 "model_name": self.llm.model_name,
             }
             generation["distilabel_metadata"] = {
-                f"statistics_gen_{self.name}": stats_gen,
-                f"statistics_tools_{self.name}": stats_tools,
+                f"statistics_gen_{self.name}": stats_gen.get("gen_stats", []),
+                f"statistics_tools_{self.name}": stats_tools if isinstance(stats_tools, dict) else {},
+                f"malformed_turns_{self.name}": int(stats_gen.get("malformed_turns", 0) or 0),
+                f"tool_errors_{self.name}": int(stats_gen.get("tool_errors", 0) or 0),
+                f"tool_calls_total_{self.name}": int(
+                    sum(stats_tools.values()) if isinstance(stats_tools, dict) else 0
+                ),
+                f"diagnostics_{self.name}": list(stats_gen.get("diagnostics", [])),
+                f"diagnostic_messages_{self.name}": list(stats_gen.get("diagnostic_messages", [])),
             }
             generations.append(generation)
         return generations

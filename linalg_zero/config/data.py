@@ -9,10 +9,15 @@ class ScriptArguments(trl.ScriptArguments):
     Extended version of ScriptArguments with support for dataset mixtures.
     """
 
-    # Override the dataset_name to make it optional
     dataset_name: str | None = field(
-        default=None, metadata={"help": "Dataset name. Can be omitted if using dataset_mixture."}
+        default=None, metadata={"help": "Training dataset name. Contains chain-of-thought solutions."}
     )
+    eval_dataset_name: str | None = field(
+        default=None, metadata={"help": "Evaluation dataset name. Contains ground-truth solutions only."}
+    )
+    eval_dataset_config: str | None = field(default=None, metadata={"help": "Evaluation dataset config."})
+
+    take_n: int | None = field(default=None, metadata={"help": "Number of examples to take from the dataset."})
 
 
 @dataclass
@@ -54,6 +59,11 @@ class SFTConfig(trl.SFTConfig):
     wandb_run_group: str | None = field(
         default=None,
         metadata={"help": ("The group to store runs under.")},
+    )
+
+    eval_max_new_tokens: int | None = field(
+        default=None,
+        metadata={"help": "Max new tokens for evaluation callbacks (does not affect training)."},
     )
 
 
@@ -124,9 +134,6 @@ class VllmServerConfig:
     model: str = field(
         metadata={"help": "Model name (HuggingFace format)"},
     )
-    quantization: str | None = field(
-        metadata={"help": "Quantization method (awq, gptq, etc.)"},
-    )
 
     # Server parameters
     host: str = field(
@@ -141,8 +148,61 @@ class VllmServerConfig:
     tool_call_parser: str = field(
         metadata={"help": "Tool call parser to use"},
     )
-    chat_template: str = field(
+    chat_template: str | None = field(
+        default=None,
         metadata={"help": "Chat template to use"},
+    )
+    quantization: str | None = field(
+        default=None,
+        metadata={"help": "Quantization to use"},
+    )
+
+    # Memory / performance tuning parameters
+    dtype: str | None = field(
+        default=None,
+        metadata={"help": "Computation dtype for model weights and activations (e.g., float16)"},
+    )
+    kv_cache_dtype: str | None = field(
+        default=None,
+        metadata={"help": "KV cache dtype (auto, fp8, fp8_e4m3, fp8_e5m2)"},
+    )
+    max_model_len: int | None = field(
+        default=None,
+        metadata={"help": "Maximum model context length (tokens)"},
+    )
+    max_num_seqs: int | None = field(
+        default=None,
+        metadata={"help": "Maximum number of concurrent sequences"},
+    )
+    gpu_memory_utilization: float | None = field(
+        default=None,
+        metadata={"help": "Fraction of GPU memory to be used by vLLM (0-1)"},
+    )
+    enforce_eager: bool | None = field(
+        default=None,
+        metadata={"help": "Disable CUDA graphs to reduce memory usage"},
+    )
+    swap_space: int | None = field(
+        default=None,
+        metadata={"help": "CPU swap space in GB per GPU for paging KV cache"},
+    )
+    max_num_batched_tokens: int | None = field(
+        default=None,
+        metadata={"help": "Limit number of tokens processed per batch (prefill)"},
+    )
+    tensor_parallel_size: int | None = field(
+        default=None,
+        metadata={"help": "Tensor parallelism degree"},
+    )
+    enable_chunked_prefill: bool | None = field(
+        default=None,
+        metadata={"help": "Enable chunked prefill to reduce peak prefill memory"},
+    )
+
+    # Model parameters
+    reasoning_parser: str | None = field(
+        default=None,
+        metadata={"help": "Reasoning parser to use"},
     )
 
 
@@ -153,14 +213,8 @@ class DistillationConfig:
     """
 
     # Dataset parameters
-    hf_dataset: str | None = field(
+    dataset_name: str | None = field(
         metadata={"help": "HuggingFace dataset to load"},
-    )
-    hf_dataset_config: str | None = field(
-        metadata={"help": "Dataset config to use"},
-    )
-    hf_dataset_split: str = field(
-        metadata={"help": "Dataset split to use"},
     )
 
     # Prompt parameters
@@ -171,13 +225,9 @@ class DistillationConfig:
         metadata={"help": "Template string for formatting prompts"},
     )
 
-    # Generation parameters
-    temperature: float | None = field(
-        metadata={"help": "Temperature for generation"},
-    )
-    top_p: float | None = field(
-        metadata={"help": "Top-p value for generation"},
-    )
+    # Generation parameters (non-defaults first)
+    model_type: str | None = field(metadata={"help": "Model type for generation"})
+    enable_reasoning: bool = field(metadata={"help": "Whether to enable thinking"})
     max_new_tokens: int = field(
         metadata={"help": "Maximum number of new tokens to generate"},
     )
@@ -192,9 +242,7 @@ class DistillationConfig:
     use_cache: bool = field(
         metadata={"help": "Whether to use cache for the pipeline. This can enable error recovery."},
     )
-    client_replicas: int = field(
-        metadata={"help": "Number of client replicas for parallel processing"},
-    )
+
     timeout: int = field(
         metadata={"help": "Request timeout in seconds"},
     )
@@ -216,4 +264,40 @@ class DistillationConfig:
     # Generation parameters
     n_turns: int = field(
         metadata={"help": "Number of turns to generate"},
+    )
+
+    # Optional stopping sequences (must come after non-default fields)
+    stop: list[str] | None = field(
+        default=None,
+        metadata={"help": "Stop sequences for generation (each string is a stop token)"},
+    )
+
+    debug_mode: bool = field(
+        default=False,
+        metadata={"help": "Whether to do evaluation"},
+    )
+
+    take_n: int | None = field(
+        default=None,
+        metadata={"help": "Number of examples to take from the dataset."},
+    )
+
+    structured_output: bool = field(
+        default=False,
+        metadata={"help": "Whether to use structured output"},
+    )
+
+    deterministic: bool = field(
+        default=True,
+        metadata={"help": "Make generation deterministic (temperature=0, top_p=1)"},
+    )
+
+    client_replicas: int | None = field(
+        default=None,
+        metadata={"help": "Number of client replicas for parallel processing"},
+    )
+
+    dataset_config: str | None = field(
+        default=None,
+        metadata={"help": "Dataset config to use"},
     )

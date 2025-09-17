@@ -8,9 +8,9 @@ from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config, setup_chat_
 
 import datasets
 from linalg_zero.config.data import ScriptArguments, SFTConfig
+from linalg_zero.distillation.utils import load_datasets_for_sft
 from linalg_zero.sft.callbacks import get_callbacks
-from linalg_zero.sft.model_utils import get_model, get_tokenizer, load_dataset
-from linalg_zero.sft.wandb_logging import init_wandb_training
+from linalg_zero.sft.utils import get_model, get_tokenizer, init_wandb_training
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
@@ -52,15 +52,10 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
     # Load dataset, tokenizer, and model #
     ######################################
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
-    dataset = load_dataset(script_args)
+    dataset = load_datasets_for_sft(script_args)
 
     if not isinstance(dataset, datasets.DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
-
-    if training_args.do_eval:
-        # TODO: this is a workaround since we are currently missing the evaluation dataset
-        logger.info(f"Loading eval dataset from {script_args.dataset_name}...")
-        dataset["test"] = dataset["train"]
 
     logger.info("Loading tokenizer...")
     tokenizer = get_tokenizer(model_args, training_args)
@@ -85,7 +80,7 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
         eval_dataset=(dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None),
         processing_class=tokenizer,
         peft_config=get_peft_config(model_args),
-        callbacks=get_callbacks(training_args, model_args),
+        callbacks=get_callbacks(training_args, model_args, script_args, dataset),
     )
 
     #################
