@@ -127,8 +127,12 @@ if __name__ == "__main__":
         argv.append("--config")
         argv.append("linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml")
 
+    # Check backend type (vllm or llama-cpp)
+    USING_VLLM = os.environ.get("USING_VLLM", "False").lower() == "true"
+    server_config = VllmServerConfig if USING_VLLM else LlamaCppServerConfig
+
     # Parse configuration from YAML file stored in the --config argument
-    parser = TrlParser(dataclass_types=[DistillationConfig, VllmServerConfig])
+    parser = TrlParser(dataclass_types=[DistillationConfig, server_config])
     (distillation_config, backend_config) = parser.parse_args_and_config()
 
     main(distillation_config, backend_config)
