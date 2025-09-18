@@ -2,7 +2,7 @@
 dataset_name: "atomwalk12/linalgzero"
 debug_mode: False
 dataset_config: null
-n_turns: 6
+n_turns: 8
 
 # Prompt parameters
 prompt_column: "prompt"
@@ -19,7 +19,7 @@ enable_reasoning: true
 input_batch_size: 24
 use_cache: true
 timeout: 600
-retries: 2
+retries: 5
 
 # Output parameters
 hf_output_dataset: "atomwalk12/linalgzero-distilled"
@@ -29,7 +29,7 @@ private: false
 # Server parameters
 model: "Qwen/Qwen3-32B-FP8"
 tool_call_parser: "hermes"
-reasoning_parser: "qwen3" # or "deepseek_r1"
+reasoning_parser: "qwen3"
 
 enable_auto_tool_choice: true
 host: "localhost"
@@ -38,7 +38,7 @@ port: 8000
 dtype: "bfloat16"
 kv_cache_dtype: "auto"
 max_num_seqs: 24
-max_model_len: 6000
+max_model_len: 24576
 gpu_memory_utilization: 0.93
 enable_chunked_prefill: true
 swap_space: 8

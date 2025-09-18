@@ -40,7 +40,7 @@ port: 8000
 
 # Memory / performance tuning for 24GB GPU
 dtype: "float16"
-kv_cache_dtype: "fp8"
+kv_cache_dtype: "auto"
 max_num_seqs: 1
 gpu_memory_utilization: 0.75
 enforce_eager: true

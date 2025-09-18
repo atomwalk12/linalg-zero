@@ -81,7 +81,7 @@ gh-deploy: ## Deploy the documentation to GitHub Pages
 	@uv run mkdocs gh-deploy --force
 
 LLAMACPP_CONFIG=linalg_zero/config/distillation/llamacpp_qwen3_32b_instruct.yaml
-VLLM_CONFIG=linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml
+VLLM_CONFIG=linalg_zero/config/distillation/vllm_qwen3_32b.yaml
 
 .PHONY: distillation-llamacpp
 distillation-llamacpp: ## Start the llama.cpp server
@@ -91,17 +91,26 @@ distillation-llamacpp: ## Start the llama.cpp server
 .PHONY: distillation-vllm
 distillation-vllm: ## Start the vLLM server
 	@echo "🚀 Starting vLLM server"
-	@INFERENCE_BACKEND=vllm uv run python linalg_zero/distillation/launch_server.py --config $(VLLM_CONFIG)
-
-.PHONY: distillation-debug
-distillation-debug: ## Start the vLLM server
-	@echo "🚀 Starting vLLM server"
-	@uv run python linalg_zero/distillation.py --config linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml
+	@source env.sh
+	@uv run python linalg_zero/distillation/launch_server.py --config ${VLLM_CONFIG}
 
 .PHONY: distillation
 distillation: ## Run the distillation pipeline using the vllm config
 	@echo "🚀 Running distillation pipeline"
-	@uv run python linalg_zero/distillation.py --config linalg_zero/config/distillation/vllm_qwen3_32b.yaml
+	@source env.sh
+	@uv run python linalg_zero/distillation.py --config ${VLLM_CONFIG}
+
+.PHONY: distillation-vllm-local
+distillation-vllm-local: ## Start the vLLM server
+	@echo "🚀 Starting vLLM server"
+	@export USING_VLLM=true INFERENCE_BACKEND=vllm && uv run python linalg_zero/distillation/launch_server.py --config linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml
+
+
+.PHONY: distillation-local
+distillation-debug: ## Start the vLLM server
+	@echo "🚀 Starting vLLM server"
+	@export USING_VLLM=true && uv run python linalg_zero/distillation.py --config linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml
+
 
 # SFT Training Commands
 SFT_CONFIG=linalg_zero/config/sft/sft_debug_config.yaml

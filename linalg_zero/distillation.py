@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 
 import argilla as rg
 from distilabel.distiset import Distiset
@@ -78,7 +77,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     model_config.set_recommended_defaults(generation_kwargs, deterministic=args.deterministic)
 
     # Run train split first
-    pipeline_obj = Pipeline("train-generation-pipeline")
+    pipeline_obj = Pipeline("train-generation-pipeline", cache_dir="./distillation-cache")
     if not args.debug_mode:
         logger.info("Monitor progress in Ray dashboard: http://localhost:8265")
         pipeline_obj = pipeline_obj.ray()
@@ -106,7 +105,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     cleanup()
     logger.info("Generation complete!")
 
-    save_distiset_to_disk(distiset, "results/distiset/")
+    save_distiset_to_disk(distiset, "./results/distiset/")
 
     ###############################
     # Push the results to the hub #
@@ -123,14 +122,9 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 
 
 if __name__ == "__main__":
-    if "--config" not in sys.argv:
-        sys.argv.append("--config")
-        sys.argv.append("linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml")
-        server_config = VllmServerConfig
-    else:
-        # Check backend type (vllm or llama-cpp)
-        USING_VLLM = os.environ.get("USING_VLLM", "False").lower() == "true"
-        server_config = VllmServerConfig if USING_VLLM else LlamaCppServerConfig
+    # Check backend type (vllm or llama-cpp)
+    USING_VLLM = os.environ.get("USING_VLLM", "False").lower() == "true"
+    server_config = VllmServerConfig if USING_VLLM else LlamaCppServerConfig
 
     # Parse configuration from YAML file stored in the --config argument
     parser = TrlParser(dataclass_types=[DistillationConfig, server_config])

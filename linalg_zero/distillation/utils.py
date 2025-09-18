@@ -11,8 +11,10 @@ import argilla as rg
 from distilabel.distiset import Distiset
 from distilabel.models import OpenAILLM
 from distilabel.models.base_clients.openai import SecretStr
+from distilabel.models.llms.utils import prepare_output
 from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
 from distilabel.typing import FormattedInput, GenerateOutput
+from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel, NonNegativeInt, PositiveInt
 from typing_extensions import override
 
@@ -30,7 +32,7 @@ from linalg_zero.distillation.components.models import (
 )
 from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.shared.lib import get_tools
-from linalg_zero.shared.system_prompts import get_math_system_prompt
+from linalg_zero.shared.system_prompts import THINK_CLOSE, THINK_OPEN, get_math_system_prompt
 from linalg_zero.shared.utils import get_libpath, get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -89,6 +91,68 @@ class CustomOpenAILLM(OpenAILLM):
             stop=stop,
             response_format=response_format,
             extra_body=extra_body,
+        )
+
+    def _generations_from_openai_completion_a3b(self, completion: "OpenAIChatCompletion") -> "GenerateOutput":
+        """Get the generations from the OpenAI Chat Completion object.
+
+        Args:
+            completion: the completion object to get the generations from.
+
+        Returns:
+            A list of strings containing the generated responses for the input.
+        """
+        generations = []
+        logprobs = []
+        for choice in completion.choices:
+            if (content := choice.message.content) is None:
+                self._logger.warning(
+                    f"Received no response using OpenAI client (model: '{self.model}')."
+                    f" Finish reason was: {choice.finish_reason}"
+                )
+            generations.append(content)
+            if choice_logprobs := self._get_logprobs_from_chat_completion_choice(choice):
+                logprobs.append(choice_logprobs)
+
+        statistics = self._get_llm_statistics(completion)
+        return prepare_output(
+            generations=generations,
+            input_tokens=statistics["input_tokens"],
+            output_tokens=statistics["output_tokens"],
+            logprobs=logprobs,
+        )
+
+    def _generations_from_openai_completion(self, completion: "OpenAIChatCompletion") -> "GenerateOutput":
+        """Get the generations from the OpenAI Chat Completion object.
+
+        Args:
+            completion: the completion object to get the generations from.
+
+        Returns:
+            A list of strings containing the generated responses for the input.
+        """
+        generations = []
+        logprobs = []
+        for choice in completion.choices:
+            if (content := choice.message.content) is None:
+                self._logger.warning(
+                    f"Received no response using OpenAI client (model: '{self.model}')."
+                    f" Finish reason was: {choice.finish_reason}"
+                )
+            if (reasoning_content := choice.message.reasoning_content) is not None:
+                content = THINK_OPEN + reasoning_content.strip() + THINK_CLOSE + (content or "")
+            else:
+                content = THINK_OPEN + "\n\n" + THINK_CLOSE + (content or "")
+            generations.append(content)
+            if choice_logprobs := self._get_logprobs_from_chat_completion_choice(choice):
+                logprobs.append(choice_logprobs)
+
+        statistics = self._get_llm_statistics(completion)
+        return prepare_output(
+            generations=generations,
+            input_tokens=statistics["input_tokens"],
+            output_tokens=statistics["output_tokens"],
+            logprobs=logprobs,
         )
 
 
