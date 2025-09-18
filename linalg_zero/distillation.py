@@ -125,7 +125,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
 if __name__ == "__main__":
     if "--config" not in sys.argv:
         sys.argv.append("--config")
-        sys.argv.append("linalg_zero/config/distillation/vllm_qwen3_32b.yaml")
+        sys.argv.append("linalg_zero/config/distillation/vllm_qwen3_4b_think.yaml")
         server_config = VllmServerConfig
     else:
         # Check backend type (vllm or llama-cpp)

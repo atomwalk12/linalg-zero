@@ -1,6 +1,6 @@
 # Dataset parameters
 dataset_name: "atomwalk12/linalgzero"
-debug_mode: false
+debug_mode: true
 dataset_config: null
 n_turns: 6
 take_n: 7
@@ -12,7 +12,7 @@ prompt_template: "{{ instruction }}"
 # Generation parameters
 model_type: "default"
 deterministic: true
-max_new_tokens: 6192
+max_new_tokens: 2048
 num_generations: 1
 enable_reasoning: true
 
