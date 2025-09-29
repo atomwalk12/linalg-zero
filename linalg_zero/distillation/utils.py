@@ -8,6 +8,8 @@ from typing import (
 )
 
 import argilla as rg
+from datasets import Dataset, DatasetDict
+from datasets import load_dataset as hf_load_dataset
 from distilabel.distiset import Distiset
 from distilabel.models import OpenAILLM
 from distilabel.models.base_clients.openai import SecretStr
@@ -18,8 +20,6 @@ from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from pydantic import BaseModel, NonNegativeInt, PositiveInt
 from typing_extensions import override
 
-from datasets import Dataset, DatasetDict
-from datasets import load_dataset as hf_load_dataset
 from linalg_zero.config.data import (
     DistillationConfig,
     LlamaCppServerConfig,
@@ -467,7 +467,7 @@ def create_argilla_dataset(
 
     try:
         # Delete existing dataset if it exists to ensure clean reupload
-        _delete_existing_argilla_dataset(client, dataset_name)
+        # _delete_existing_argilla_dataset(client, dataset_name)
 
         # Create dataset with settings
         settings = create_argilla_dataset_settings()
