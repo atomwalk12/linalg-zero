@@ -1,6 +1,206 @@
 # CHANGELOG
 
 
+## v0.3.0 (2025-09-29)
+
+### Bug Fixes
+
+- Normalize grpo dataset schema
+  ([`8590141`](https://github.com/atomwalk12/linalg-zero/commit/8590141149580635669ffcb40b3ad89c09849772))
+
+- **context**: Modify entropy budget validation precision
+  ([`b27d237`](https://github.com/atomwalk12/linalg-zero/commit/b27d2376c8399c491c52ded7bfbf0b838824d306))
+
+- **distillation**: Align parsed_messages size with the conversations size
+  ([`6a0a6bd`](https://github.com/atomwalk12/linalg-zero/commit/6a0a6bd173a48de5036700379c75da4ea51eb6a6))
+
+- this ensures simpler reasoning since the two arrays contain similar data - fix small problems
+  around malformed messages, which are not silently skipped
+
+- **distillation**: Solve accumulation problem with tool-use statistics
+  ([`523f2ec`](https://github.com/atomwalk12/linalg-zero/commit/523f2ecf0156b805bcb1b2d9aa14852de00e5acd))
+
+- **entropy**: Allow data generation using varying precision levels
+  ([`08bbddd`](https://github.com/atomwalk12/linalg-zero/commit/08bbddd6bf699bfa0327381cc24da303afea9dd9))
+
+- **generation**: Add difficulty rating based number of tool calls performed to reach a solution
+  ([`aa2bace`](https://github.com/atomwalk12/linalg-zero/commit/aa2bacea495661d2cbf23117bd751f079e1e3069))
+
+- **generation**: Adjust matrices format and introduce better organization for the difficulty levels
+  ([`00bb08f`](https://github.com/atomwalk12/linalg-zero/commit/00bb08f44a4ac4a6bda4559a7ada28bc73084811))
+
+- **generation**: Fix circular dependency by moving the library types to a separate file
+  ([`33ee32a`](https://github.com/atomwalk12/linalg-zero/commit/33ee32a3e2c26faa7da170b3adba812c1f6661ce))
+
+- **generator**: Use Dirichlet distribution for entropy allocation
+  ([`0a16a52`](https://github.com/atomwalk12/linalg-zero/commit/0a16a52590aa038e3d2780e6378be275bd5e8b1b))
+
+### Documentation
+
+- Improve generated statistics on tool execution
+  ([`7c62398`](https://github.com/atomwalk12/linalg-zero/commit/7c62398a065a2c746dd95ed5b2bd21314b2bab29))
+
+### Features
+
+- Enhance distillation pipeline with new model configurations and diagnostics support
+  ([`0559239`](https://github.com/atomwalk12/linalg-zero/commit/05592398c9be27b9c364643ddc5b88cb19f4cdfe))
+
+- Update distillation configurations
+  ([`b43e149`](https://github.com/atomwalk12/linalg-zero/commit/b43e149a411f3f4587d76fbdd67d135cac91896c))
+
+- **base_generator**: Add ability to redirect arbitrarily matrix component across composition
+  contexts
+  ([`1c57a61`](https://github.com/atomwalk12/linalg-zero/commit/1c57a61ca13327ec2bde9be7539cb5e331452f9f))
+
+- **distillation**: Add base script to run the distillation pipeline
+  ([`2189bb9`](https://github.com/atomwalk12/linalg-zero/commit/2189bb9303c0a2bb84331a81e200d9dae19724bd))
+
+- simplifies the previous approach to use only 1 task for multi-turn conversations
+
+- **generation**: Add entropy allocation using dirichlet distribution
+  ([`03d4bcb`](https://github.com/atomwalk12/linalg-zero/commit/03d4bcb88a8ad7f3c2cb9b6e89da3f30e71e816d))
+
+- **generation**: Add matrix vector multiplication generator
+  ([`a1e0ff1`](https://github.com/atomwalk12/linalg-zero/commit/a1e0ff1c2f44a48aef44d53ec68ffa27f3494788))
+
+- **generation**: Add result verification step involving sympy-primitive conversion
+  ([`07f8d51`](https://github.com/atomwalk12/linalg-zero/commit/07f8d517e886e46821fc6c8fa09a4bba00ab6e78))
+
+- **generation**: Generate a fixed number of examples per class
+  ([`4eb251a`](https://github.com/atomwalk12/linalg-zero/commit/4eb251ac933e708520a46e22ae5f6e9dd47cb113))
+
+- **generator**: Add composition infrastructure to allow mixture of problems
+  ([`d08820b`](https://github.com/atomwalk12/linalg-zero/commit/d08820bfa258f85cb5d533c9ccac5bb26940bcce))
+
+- **generator**: Add constrained matrix generation for composed components
+  ([`76faaf1`](https://github.com/atomwalk12/linalg-zero/commit/76faaf10984ff94b911252147c77c9a41a633512))
+
+- **generator**: Add difficulty data-class for managing difficulty parameters
+  ([`33eae33`](https://github.com/atomwalk12/linalg-zero/commit/33eae3355afb9255f5252eb9c661fecec612130d))
+
+- **generator**: Add frobenius norm generator atomic operation
+  ([`c3c53b7`](https://github.com/atomwalk12/linalg-zero/commit/c3c53b7e6f036f99c8ae142dd0aad25c7113c1b4))
+
+- refactor to differentiate between independent and dependent components - add tests for composing
+  linear-system -> matrix multiplication -> frobenius norm
+
+- **generator**: Add frobenius norm solver
+  ([`7e346b3`](https://github.com/atomwalk12/linalg-zero/commit/7e346b36aad034a14d0a1ac71f6a2f25115a783d))
+
+- **generator**: Add generator for solving linear systems
+  ([`37faf45`](https://github.com/atomwalk12/linalg-zero/commit/37faf45a86b1c0068d19a1391174c1618c7ca77b))
+
+- **generator**: Add integer/rational number generators using on controllable complexity
+  ([`731100f`](https://github.com/atomwalk12/linalg-zero/commit/731100f609c6591a1fe2297ff0c64294195035d2))
+
+- **generator**: Add matrix cofactor generator and related components
+  ([`347e8b3`](https://github.com/atomwalk12/linalg-zero/commit/347e8b3388ae2ed5858a3b78f1fadb2ec15a44ba))
+
+- **generator**: Add matrix inverse generator and related components
+  ([`0154fef`](https://github.com/atomwalk12/linalg-zero/commit/0154fef50dfaa6a31dea0eeb78abd51144eca211))
+
+- **generator**: Add matrix trace generator and related functionality
+  ([`6cee5cd`](https://github.com/atomwalk12/linalg-zero/commit/6cee5cdc31b82b0606f1b3655e3bd592831e2514))
+
+- **generator**: Add matrix transpose generator
+  ([`32eae5c`](https://github.com/atomwalk12/linalg-zero/commit/32eae5cacb8b7472da3a3db7c3e5d890883b7df6))
+
+- **generator**: Add new problem solver for finding matrix determinant
+  ([`c700f05`](https://github.com/atomwalk12/linalg-zero/commit/c700f0537f49b75e59793fbe26aa861d1a36598f))
+
+- **generator**: Add rank generator
+  ([`6fdedf4`](https://github.com/atomwalk12/linalg-zero/commit/6fdedf41ec9437bc3500595fe21c36ca5dc603de))
+
+- **generator**: Add SymPy problem generation base class with context management and template
+  handling
+  ([`c94e860`](https://github.com/atomwalk12/linalg-zero/commit/c94e860ad06ff8298a6fcc1233a3de04521187d3))
+
+- **generator**: Add template engine to help with diverse problem generation
+  ([`d52b4eb`](https://github.com/atomwalk12/linalg-zero/commit/d52b4ebe9844c8ad808feef50fb0cfa64b020060))
+
+- **generator**: Add validation and wrappers for generating dependent components
+  ([`d557dfe`](https://github.com/atomwalk12/linalg-zero/commit/d557dfefbeb2c421d3e9f13bf11612972680622e))
+
+- **generator**: Allow dependencies between components to be referenced across problems
+  ([`ebf0d4a`](https://github.com/atomwalk12/linalg-zero/commit/ebf0d4adc3209be869a7bc88bf51aa2206ee8c7d))
+
+- **generator**: Improve dataset generation with optimized registry and added constraints to integer
+  generation
+  ([`6352e35`](https://github.com/atomwalk12/linalg-zero/commit/6352e35b4550eb65778cdbaa82c8f6f3536d704f))
+
+- **generator**: Improve factory registration API
+  ([`5a13a11`](https://github.com/atomwalk12/linalg-zero/commit/5a13a1144405f9add7b0a9e271871d53448b89e1))
+
+- **generator**: Separate matrix-matrix multiplication from matrix-vector multiplication generators
+  ([`b07e5bb`](https://github.com/atomwalk12/linalg-zero/commit/b07e5bb23a8d709ff46f6bae88380747ec2f7c59))
+
+- **generator**: Simplify component logic by transferring the responsibility to the base class for
+  question/answer generation and verification
+  ([`8f880f5`](https://github.com/atomwalk12/linalg-zero/commit/8f880f5d81232fe2361fac3669d1155adff0d754))
+
+- **grpo**: Add GRPO configuration files and reward functions
+  ([`04557c4`](https://github.com/atomwalk12/linalg-zero/commit/04557c46114c56fb4ad4b7cd91cbf1a3403a763e))
+
+- Added GRPO training scripts and configuration files. - Introduced new linear algebra functions and
+  tools for GRPO. - Implemented dataset preparation and processing for GRPO training. - Added
+  support for multi-turn interactions in training. - Created a comprehensive debug dataset for
+  testing and validation.
+
+- **multi-turn**: Implement multi-turn generation with tool use and verification
+  ([`85f9314`](https://github.com/atomwalk12/linalg-zero/commit/85f93149fc0c45fd00ec9f2d806460b051f68979))
+
+- **templates**: Adjust the templates to ensure a consistent format
+  ([`7cde039`](https://github.com/atomwalk12/linalg-zero/commit/7cde039a9dacaaf417c5e57443ef50290f52db16))
+
+- **verification**: Add checks to ensure generated data is valid
+  ([`af961f8`](https://github.com/atomwalk12/linalg-zero/commit/af961f83090714757b7fe53f889835201c39d02f))
+
+### Refactoring
+
+- Add enum for available problem types
+  ([`ca9bc90`](https://github.com/atomwalk12/linalg-zero/commit/ca9bc903188b9b6ba33d718548b5f24300e58eaa))
+
+- Auto entropy allocation in base class based on difficulty
+  ([`6f56296`](https://github.com/atomwalk12/linalg-zero/commit/6f56296e69e39224017446808ffb56d71a981d4b))
+
+- Centralise using a mixin class the template generation method to ensure consistent generation
+  across all components
+  ([`0b6b3c7`](https://github.com/atomwalk12/linalg-zero/commit/0b6b3c727674fbf6ab319c0196f26a99684789ba))
+
+- Customise question layout
+  ([`d527db0`](https://github.com/atomwalk12/linalg-zero/commit/d527db0befed2da79a2cde57d0d894a05ebb13af))
+
+- Minor tweaks
+  ([`d72ec79`](https://github.com/atomwalk12/linalg-zero/commit/d72ec79e23bf9049262ac05dd1207423f8a9aa35))
+
+- Simplify tool accuracy callback
+  ([`8305221`](https://github.com/atomwalk12/linalg-zero/commit/8305221c2759d9b9df45c2e8c31baf2355b24e15))
+
+- **composition**: Remove unnecessary code
+  ([`50f0258`](https://github.com/atomwalk12/linalg-zero/commit/50f02586d080b4edde21014d09d345d49ef5b959))
+
+- **generator**: Add GenerationConstraints for matrix generation constraints
+  ([`a5f763f`](https://github.com/atomwalk12/linalg-zero/commit/a5f763f0f077345edb400b496f0e148ccd7b5942))
+
+- **generator**: Encapsulate generation parameters in the config
+  ([`b89cabb`](https://github.com/atomwalk12/linalg-zero/commit/b89cabbc62c04fa44041cd5d5c56c1703410af8f))
+
+- **generator**: Improve type safety and update function signatures and imports
+  ([`16cd9ea`](https://github.com/atomwalk12/linalg-zero/commit/16cd9eade56b3f44476af1ea3da0c820c71e6ba3))
+
+- **generator**: Improve type safety and update function signatures and imports
+  ([`39f080e`](https://github.com/atomwalk12/linalg-zero/commit/39f080e4809ed96ed3b72f7a668d2893bdd1d1ef))
+
+- **generator**: Sample entropy in a centralized place within the context
+  ([`d920fcf`](https://github.com/atomwalk12/linalg-zero/commit/d920fcfb1c81241c14eb3118e28df411fa87671a))
+
+- **generator**: Unify problem types and improve entropy management
+  ([`fc309c2`](https://github.com/atomwalk12/linalg-zero/commit/fc309c247ac07d0ed05de3227a275c408db6bfea))
+
+- **generator**: Update matrix operations to use centralized library calls
+  ([`bdd537b`](https://github.com/atomwalk12/linalg-zero/commit/bdd537be0b628b7b8f7f5da5528f0aaed00fa7ab))
+
+
 ## v0.2.0 (2025-08-03)
 
 ### Bug Fixes
