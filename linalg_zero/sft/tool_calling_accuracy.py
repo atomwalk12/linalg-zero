@@ -12,11 +12,11 @@ from collections.abc import Callable
 from typing import Any
 
 import torch
+from datasets import Dataset as HFDataset
 from transformers import PreTrainedModel, PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
-from datasets import Dataset as HFDataset
 from linalg_zero.grpo.compute_score import get_interaction_reward
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import parse_string
@@ -81,6 +81,10 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             logger.exception("Tool-calling evaluation failed")
 
     def _ensure_partitions(self) -> None:
+        """
+        This method ensures that the evaluation dataset is partitioned into
+        a fixed ratio of single-turn and multi-turn samples.
+        """
         if self._eval_indices is not None:
             return
 
@@ -95,16 +99,9 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         for i in range(len(self.eval_dataset)):
             row = self.eval_dataset[int(i)]
             steps = row["stepwise_ground_truths"]
-            num_steps = 0
-            try:
-                if isinstance(steps, str):
-                    arr = _json.loads(steps)
-                    if isinstance(arr, list):
-                        num_steps = len(arr)
-                elif isinstance(steps, list):
-                    num_steps = len(steps)
-            except Exception:
-                num_steps = 0
+
+            arr = _json.loads(steps)
+            num_steps = len(arr)
 
             if num_steps <= 1:
                 single_candidates.append(int(i))
