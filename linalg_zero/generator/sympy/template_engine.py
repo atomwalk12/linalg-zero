@@ -173,11 +173,19 @@ class TemplateEngine:
         This simplifies the creation of question/answer pairs.
         """
 
-        _ = variables.pop("context_info", None)
+        context_info = variables.pop("context_info", None)
+
+        # Derive index of previous step (if any) from context info
+        previous_step: int | None = None
+        if isinstance(context_info, list) and context_info:
+            for record in context_info:
+                # Use the referenced component index when we generate a new label for a prior result
+                if record.get("generate_new") and record.get("source_var") == "result":
+                    previous_step = record.get("source_index")
+                    break
 
         # Use the variables when creating the templates
-        if True:
-            return get_static_templates(question_type, difficulty)
+        return get_static_templates(question_type, difficulty, previous_step)
 
         # NOTE: Uncomment to use dynamic templates
         # variables = self.customise_templates(context_info)

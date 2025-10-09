@@ -236,6 +236,7 @@ class SympyProblemGenerator(ABC):
                     "template_var": var_name,
                 })
             else:
+                raise ValueError(f"Invalid source variable: {source_var_name}")
                 # This shows the exact value from a previous component
                 base_vars[var_name] = value
                 base_vars["context_info"].append({
