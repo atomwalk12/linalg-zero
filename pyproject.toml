@@ -56,6 +56,7 @@ dependencies = [
     "matplotlib>=3.10.6",
     "flashinfer-python>=0.3.1",
     "accelerate>=1.8.1",
+    "seaborn>=0.13.2",
 ]
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)

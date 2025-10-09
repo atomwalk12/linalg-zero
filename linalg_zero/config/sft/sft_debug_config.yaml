@@ -29,24 +29,28 @@ bf16: true
 do_eval: true                  # does a final evaluation step at the end of training
 eval_on_start: true            # does an evaluation step at the start of training
 eval_strategy: 'steps'         # can be "no","epoch","steps"
-eval_steps: 50                 # run evaluation every N training iterations
+eval_steps: 50
 load_best_model_at_end: true
 metric_for_best_model: eval_loss
 greater_is_better: false
-early_stopping_patience: 3
-early_stopping_threshold: 0.01
 save_total_limit: 5
-eval_max_new_tokens: 2048
+eval_max_new_tokens: 4096
+# NOTE: for early stopping:
+#  - early_stopping_patience (3)
+#  - early_stopping_threshold (0.01)
+#  - callback (early_stopping)
+
 callbacks:
   - tool_calling_accuracy
-  - early_stopping
+  - push_to_hub_revision
+
 
 ## Training parameters
-gradient_accumulation_steps: 8
+gradient_accumulation_steps: 16
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: Qwen3-1.7B-Instruct-SFT
+hub_model_id: Qwen2.5-3B-Instruct-SFT
 hub_strategy: every_save
 learning_rate: 2e-5
 log_level: info
@@ -57,13 +61,13 @@ lr_scheduler_kwargs:
   min_lr_rate: 0.1
 packing: false
 max_grad_norm: 0.2
-max_length: 32768
+max_length: 8192
 max_steps: -1
 num_train_epochs: 1               # NOTE: Alternatively 2 if underfitting
-output_dir: results/Qwen3-1.7B-Instruct-SFT
+output_dir: results/Qwen2.5-3B-Instruct-SFT
 overwrite_output_dir: true
-per_device_eval_batch_size: 32
-per_device_train_batch_size: 8
+per_device_eval_batch_size: 4
+per_device_train_batch_size: 4
 push_to_hub: true
 report_to:
 - wandb

@@ -8,7 +8,7 @@ from typing import (
 )
 
 import argilla as rg
-from datasets import Dataset, DatasetDict
+from datasets import Dataset
 from datasets import load_dataset as hf_load_dataset
 from distilabel.distiset import Distiset
 from distilabel.models import OpenAILLM
@@ -23,16 +23,14 @@ from typing_extensions import override
 from linalg_zero.config.data import (
     DistillationConfig,
     LlamaCppServerConfig,
-    ScriptArguments,
     VllmServerConfig,
 )
 from linalg_zero.distillation.components.models import (
     ModelParameters,
     ModelType,
 )
-from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.shared.lib import get_tools
-from linalg_zero.shared.system_prompts import THINK_CLOSE, THINK_OPEN, get_math_system_prompt
+from linalg_zero.shared.system_prompts import THINK_CLOSE, THINK_OPEN
 from linalg_zero.shared.utils import get_libpath, get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -631,71 +629,6 @@ def load_dataset_split(
         if take_n is not None:
             dataset = dataset.select(range(take_n))
         return dataset
-
-
-def process_dataset_for_sft(dataset: Dataset) -> Dataset:
-    """Process a dataset for SFT training by keeping only required columns and parsing messages."""
-    # Preserve minimal columns needed for SFT + optional correctness metrics
-    # "messages" is required; "tools" helps validate tool names; ground truth fields enable answer correctness.
-    keep_columns = [
-        "tools",
-        "messages",
-        "ground_truth",
-        "stepwise_ground_truths",
-    ]
-    dataset = remove_redundant_columns(dataset, keep_columns)
-    if "messages" in dataset.column_names:
-        dataset = dataset.map(lambda x: {"messages": json.loads(x["messages"])})
-    assert isinstance(dataset, Dataset)  # noqa: S101
-    return dataset
-
-
-def add_missing_fields_for_eval(dataset: Dataset) -> Dataset:
-    """Add missing tools and messages fields to evaluation dataset from query field."""
-
-    def add_fields(example: dict[str, Any]) -> dict[str, Any]:
-        # Add tools if missing
-        if "tools" not in example:
-            example["tools"] = get_tools()
-
-        # Add messages if missing, build from query field
-        if "messages" not in example and "query" in example:
-            example["messages"] = json.dumps([
-                {"role": "system", "content": get_math_system_prompt()},
-                {"role": "user", "content": example["query"]},
-            ])
-
-        return example
-
-    return dataset.map(add_fields)
-
-
-def load_datasets_for_sft(args: ScriptArguments, do_eval: bool = True) -> DatasetDict:
-    """Loads train and optionally validation splits from separate datasets."""
-
-    # Load training dataset
-    if args.dataset_name is None:
-        raise ValueError("dataset_name must be provided")
-
-    train_dataset = load_dataset_split(args.dataset_name, args.dataset_config, "train", args.take_n)
-    train_dataset = process_dataset_for_sft(train_dataset)
-
-    dataset_dict = {"train": train_dataset}
-
-    if do_eval:
-        # Load evaluation dataset from separate dataset if specified
-        eval_dataset_name = args.eval_dataset_name
-        eval_dataset_config = args.eval_dataset_config
-
-        if eval_dataset_name is None or eval_dataset_config is None:
-            raise ValueError("eval_dataset_name and eval_dataset_config must be provided when do_eval=True")
-
-        eval_dataset = load_dataset_split(eval_dataset_name, eval_dataset_config, "validation", args.take_n)
-        eval_dataset = add_missing_fields_for_eval(eval_dataset)
-        eval_dataset = process_dataset_for_sft(eval_dataset)
-        dataset_dict["test"] = eval_dataset
-
-    return DatasetDict(dataset_dict)
 
 
 def load_datasets_for_distillation(args: DistillationConfig) -> dict[str, list[dict[str, Any]]]:
