@@ -5,6 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from distilabel.errors import DistilabelUserError
+from distilabel.typing import ChatType
 
 from linalg_zero.distillation.data import ThoughtSchema
 from linalg_zero.shared.system_prompts import (
@@ -93,3 +94,22 @@ class DefaultConfig(ModelParameters):
                 ],
             }
         return None
+
+    def create_tool_message(self, conversation: list[ChatType], message: dict[str, Any]) -> dict[str, Any]:
+        # NOTE: Find the last assistant message with tool calls. This only works for single-turn tool calls,
+        # if we transition to multiple calls per turn, must match by name or position.
+        tool_call_id = None
+        for msg in reversed(conversation):
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                tool_call_id = msg.get("tool_calls", [{}])[0].get("id")
+                break
+
+        if tool_call_id is None:
+            raise DistilabelUserError("No assistant message with tool_calls found for tool response")
+
+        return {
+            "role": "tool",
+            "tool_call_id": tool_call_id,
+            "name": message["function_name"],
+            "content": message["execution_result"],
+        }

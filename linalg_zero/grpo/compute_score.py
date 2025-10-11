@@ -18,15 +18,15 @@ def get_tool_reward(*, ground_truth: LibTypes, tool_output: LibTypes) -> tuple[f
     ]
 
     reward = 0.0
-    metadata: dict[str, str | bool] = {}
+    metadata: dict[str, str | float] = {}
     for reward_func, weight in reward_funcs_with_weights:
         try:
             score = reward_func(ground_truth=ground_truth, tool_output=tool_output)
             reward += score * weight
-            metadata[reward_func.__name__] = True
+            metadata[reward_func.__name__] = score
         except Exception as e:
             # If reward function fails, contribute 0
-            metadata[reward_func.__name__] = False
+            metadata[reward_func.__name__] = 0.0
             metadata[f"{reward_func.__name__}_error"] = str(e)
 
     return reward, metadata
@@ -45,15 +45,15 @@ def get_interaction_reward(
     ]
 
     reward = 0.0
-    metadata: dict[str, str | bool] = {}
+    metadata: dict[str, str | float] = {}
     for reward_func, weight in reward_funcs_with_weights:
         try:
             score = reward_func(parser, ground_truth=ground_truth, completion=completion)
             reward += score * weight
-            metadata[reward_func.__name__] = True
+            metadata[reward_func.__name__] = score
         except Exception as e:
             # If reward function fails, contribute 0
-            metadata[reward_func.__name__] = False
+            metadata[reward_func.__name__] = 0.0
             metadata[f"{reward_func.__name__}_error"] = str(e)
 
     return reward, metadata
