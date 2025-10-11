@@ -20,6 +20,7 @@ dataset_config: default
 eval_dataset_name: atomwalk12/linalgzero
 eval_dataset_config: default
 dataset_num_proc: 12
+dataset_text_field: messages
 eos_token: <|im_end|>
 
 # SFT trainer config
@@ -34,7 +35,7 @@ load_best_model_at_end: true
 metric_for_best_model: eval_loss
 greater_is_better: false
 save_total_limit: 5
-eval_max_new_tokens: 4096
+eval_max_new_tokens: 8192
 # NOTE: for early stopping:
 #  - early_stopping_patience (3)
 #  - early_stopping_threshold (0.01)
@@ -50,7 +51,7 @@ gradient_accumulation_steps: 4
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: Qwen2.5-3B-Instruct-SFT
+hub_model_id: atomwalk12/Qwen2.5-3B-Instruct-SFT
 hub_strategy: every_save
 learning_rate: 2e-5
 log_level: info
