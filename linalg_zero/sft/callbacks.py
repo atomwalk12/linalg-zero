@@ -8,7 +8,6 @@ from trl.data_utils import DatasetDict
 from linalg_zero.config.data import SFTConfig
 from linalg_zero.sft.tool_calling_accuracy import ToolCallingAccuracyCallback
 from linalg_zero.sft.tool_evaluation import PushToHubRevisionCallback
-from linalg_zero.shared.lib import get_lib
 
 CALLBACKS = {
     "push_to_hub_revision": PushToHubRevisionCallback,
@@ -29,9 +28,7 @@ def get_callbacks(
         if callback_name == "tool_calling_accuracy":
             callbacks.append(
                 CALLBACKS[callback_name](
-                    library=get_lib(),
                     eval_dataset=dataset[script_args.dataset_test_split],
-                    max_new_tokens=train_config.eval_max_new_tokens,
                 )
             )
         elif callback_name == "early_stopping":
