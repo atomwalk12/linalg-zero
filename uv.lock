@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
@@ -1647,7 +1647,7 @@ wheels = [
 
 [[package]]
 name = "ipykernel"
-version = "6.30.0"
+version = "7.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appnope", marker = "sys_platform == 'darwin'" },
@@ -1665,9 +1665,9 @@ dependencies = [
     { name = "tornado" },
     { name = "traitlets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/38/27/9e6e30ed92f2ac53d29f70b09da8b2dc456e256148e289678fa0e825f46a/ipykernel-6.30.0.tar.gz", hash = "sha256:b7b808ddb2d261aae2df3a26ff3ff810046e6de3dfbc6f7de8c98ea0a6cb632c", size = 165125, upload-time = "2025-07-21T10:36:09.259Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/81/50e62d30cee8e3035bcd46eb1e8768366df135240c0061846c7421ffcd06/ipykernel-7.0.0.tar.gz", hash = "sha256:06aef83f27adbce00b23345aa70f749f907dc4ac6f4a41fe7bf5f780dc506225", size = 173513, upload-time = "2025-10-13T11:23:53.977Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1f/3d/00813c3d9b46e3dcd88bd4530e0a3c63c0509e5d8c9eff34723ea243ab04/ipykernel-6.30.0-py3-none-any.whl", hash = "sha256:fd2936e55c4a1c2ee8b1e5fa6a372b8eecc0ab1338750dee76f48fa5cca1301e", size = 117264, upload-time = "2025-07-21T10:36:06.854Z" },
+    { url = "https://files.pythonhosted.org/packages/52/20/99c49012535eec8ec797d049dec4f89c1d49b6793fa2f53e6e918f4d901f/ipykernel-7.0.0-py3-none-any.whl", hash = "sha256:28793cecaa6a669e3be80eb6d24803202388b6a955929b0a4e13404d8c92062b", size = 118921, upload-time = "2025-10-13T11:23:51.747Z" },
 ]
 
 [[package]]
@@ -5327,11 +5327,6 @@ resolution-markers = [
 dependencies = [
     { name = "setuptools", version = "79.0.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and platform_machine == 'aarch64') or (python_full_version >= '3.12' and sys_platform != 'linux')" },
     { name = "setuptools", version = "80.9.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.12' and platform_machine == 'aarch64') or (python_full_version < '3.12' and sys_platform != 'linux')" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/76/04/d54d3a6d077c646624dc9461b0059e23fd5d30e0dbe67471e3654aec81f9/triton-3.3.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:fad99beafc860501d7fcc1fb7045d9496cbe2c882b1674640304949165a916e7", size = 156441993, upload-time = "2025-04-09T20:27:25.107Z" },
-    { url = "https://files.pythonhosted.org/packages/3c/c5/4874a81131cc9e934d88377fbc9d24319ae1fb540f3333b4e9c696ebc607/triton-3.3.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3161a2bf073d6b22c4e2f33f951f3e5e3001462b2570e6df9cd57565bdec2984", size = 156528461, upload-time = "2025-04-09T20:27:32.599Z" },
-    { url = "https://files.pythonhosted.org/packages/11/53/ce18470914ab6cfbec9384ee565d23c4d1c55f0548160b1c7b33000b11fd/triton-3.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b68c778f6c4218403a6bd01be7484f6dc9e20fe2083d22dd8aef33e3b87a10a3", size = 156504509, upload-time = "2025-04-09T20:27:40.413Z" },
 ]
 
 [[package]]
