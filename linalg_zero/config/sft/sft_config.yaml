@@ -1,3 +1,6 @@
+# Script arguments
+debug: false
+
 # Model arguments
 model_name_or_path: Qwen/Qwen2.5-3B-Instruct
 model_revision: main

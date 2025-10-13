@@ -81,7 +81,8 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
     dataset = hf_load_dataset(script_args.dataset_name, script_args.dataset_config)
 
     # Optional, for debugging
-    dataset = get_small_dataset(dataset)
+    if script_args.debug:
+        dataset = get_small_dataset(dataset)
 
     if not isinstance(dataset, DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
