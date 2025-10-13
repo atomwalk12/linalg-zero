@@ -234,8 +234,7 @@ class XMLParser:
         return result
 
     def is_answer_policy_valid(self, context: list[dict], message: str) -> bool:
-        xml_parser = XMLParser()
-        answer = xml_parser._extract_last_answer(message)
+        answer = self._extract_last_answer(message)
         if not answer:
             return True
         skipped_current_assistant = False

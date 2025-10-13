@@ -21,6 +21,7 @@ from linalg_zero.distillation.data import FunctionInvocationInfo, ThoughtSchema
 from linalg_zero.grpo.compute_score import get_interaction_reward
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import parse_string
+from linalg_zero.sft.diagnostics import DiagnosticTracker
 from linalg_zero.sft.tool_evaluation import EvaluationState
 from linalg_zero.shared.lib import get_lib, get_lib_fn_names
 from linalg_zero.shared.utils import get_logger
@@ -40,6 +41,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         self.library = get_lib()
         self._parser = XMLParser()
         self.model_config = DefaultConfig()
+        self._metric_defined = False
 
     def on_evaluate(
         self,
@@ -74,7 +76,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             if metrics is not None:
                 metrics.update(eval_metrics)
 
-        # Log per-sample distributions for better W&B visualization
+        # Log per-sample distributions
         if per_sample_rewards:
             self._log_per_sample_distributions(per_sample_rewards, state)
 
@@ -95,19 +97,22 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             logger.debug("No active wandb run, skipping per-sample logging")
             return
 
+        # Define metric only once per run
+        if not self._metric_defined:
+            wandb.define_metric("eval_samples/*", step_metric="eval_samples/sample_idx")
+            self._metric_defined = True
+
         # Log each sample individually to create multiple data points
         for metric_name, values in per_sample_rewards.items():
-            for reward_value in values:
+            for i, reward_value in enumerate(values):
                 wandb.log(
                     {
+                        "eval_samples/sample_idx": i,  # x-axis for these series
+                        "eval_samples/global_step": state.global_step,  # auxiliary info
                         f"eval_samples/{metric_name}": float(reward_value),
-                        "eval_samples/global_step": state.global_step,
                     },
-                    commit=False,
+                    commit=True,
                 )
-
-        # Commit all the batched logs at once
-        wandb.log({}, commit=True)
 
     def _compute_metrics(
         self,
@@ -125,62 +130,26 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         # Evaluate all samples in the eval dataset
         samples: list[dict[str, Any]] = [dataset[i] for i in range(len(dataset))]
 
-        # Initialize totals and per-sample lists
-        sum_reward_final = 0.0
-        sum_reward_response_format = 0.0
-        sum_reward_interaction = 0.0
-        per_sample_final: list[float] = []
-        per_sample_format: list[float] = []
-        per_sample_interaction: list[float] = []
+        # Initialize metrics tracker
+        tracker = DiagnosticTracker()
 
-        denom = float(len(samples))
         pbar = tqdm(samples, desc="Evaluating tool calling", unit="sample", disable=False)
         for sample in pbar:
             # Determine fair n_turns based on sample complexity
             steps = sample["stepwise_ground_truths"]
             arr = _json.loads(steps)
             num_tool_turns = len(arr)
-
-            # Allocate num_tool_turns + 1 turn for the answer
             n_turns = num_tool_turns + 1
 
+            # Run evaluation and update tracker
             state = self._run_evaluation_turns(model, tokenizer, sample, n_turns, max_new_tokens)
-            reward_final = float(state.reward_final_answer)
-            reward_format = float(state.reward_response_format)
-            reward_interaction = float(state.reward_interaction)
+            tracker.update(state)
 
-            sum_reward_final += reward_final
-            sum_reward_response_format += reward_format
-            sum_reward_interaction += reward_interaction
-            per_sample_final.append(reward_final)
-            per_sample_format.append(reward_format)
-            per_sample_interaction.append(reward_interaction)
+            # Update progress bar
+            pbar.set_postfix({"turns": n_turns, **tracker.get_progress_info()})
 
-            # Update progress bar with running averages
-            current_count = pbar.n + 1  # +1 because we just processed this sample
-            avg_final = sum_reward_final / current_count
-            avg_format = sum_reward_response_format / current_count
-            avg_interaction = sum_reward_interaction / current_count
-            pbar.set_postfix({
-                "turns": n_turns,
-                "reward_final": f"{avg_final:.3f}",
-                "reward_format": f"{avg_format:.3f}",
-                "reward_total": f"{avg_interaction:.3f}",
-            })
-
-        aggregated_metrics = {
-            "reward_final_answer": (sum_reward_final / denom) if denom > 0 else 0.0,
-            "reward_response_format": (sum_reward_response_format / denom) if denom > 0 else 0.0,
-            "reward_interaction": (sum_reward_interaction / denom) if denom > 0 else 0.0,
-        }
-
-        per_sample_rewards = {
-            "reward_final_answer": per_sample_final,
-            "reward_response_format": per_sample_format,
-            "reward_interaction": per_sample_interaction,
-        }
-
-        return aggregated_metrics, per_sample_rewards
+        # Get all metrics from tracker
+        return tracker.get_aggregated_metrics(), tracker.get_per_sample_rewards()
 
     def _generate(
         self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prompt_text: str, max_new_tokens: int
@@ -238,21 +207,37 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         context = list(sample["messages"])
 
         # Multi-turn conversation loop
-        for _ in range(n_turns):
+        for turn_idx in range(n_turns):
+            state.turns_taken = turn_idx + 1
+
             # Generate assistant response
             prompt = tokenizer.apply_chat_template(context, tokenize=False, add_generation_prompt=True)
             if not isinstance(prompt, str):
+                state.early_stop_reason = "prompt_format_error"
                 break
 
             output = self._generate(model, tokenizer, prompt, max_new_tokens)
             message = self.extract_non_structured_output(output, context)
 
+            # Track if at least one turn had valid format
+            if message is not None:
+                state.format_valid = True
+
             # Check if message extraction worked
             if message is None:
+                state.early_stop_reason = "extraction_failed"
                 break
 
-            if message.fi is None and message.tool_call is None:
+            if message.final_answer is None and message.tool_call is None:
+                state.early_stop_reason = "no_action"
                 break
+
+            # Track diagnostic info
+            if message.tool_call is not None:
+                state.tool_parse_success = True
+
+            if message.final_answer is not None:
+                state.answer_attempted = True
 
             self.add_message("assistant", context, message)
 
@@ -263,6 +248,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
             if message.final_answer is not None:
                 state.has_final_answer = True
+                state.early_stop_reason = "final_answer_provided"
                 break
 
         # Calculate state based on conversation history
