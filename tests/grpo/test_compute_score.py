@@ -11,32 +11,32 @@ class TestGetToolRewardE2E:
         """Test reward when float values match exactly."""
         score, metadata = get_tool_reward(ground_truth=3.14, tool_output=3.14)
         assert score == 1.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0
 
     def test_non_matching_float_values(self):
         """Test reward when float values don't match."""
         score, metadata = get_tool_reward(ground_truth=3.14, tool_output=2.71)
         assert score == 0.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 0.0
 
     def test_matching_integer_values(self):
         """Test reward when integer values match."""
         score, metadata = get_tool_reward(ground_truth=42, tool_output=42)
         assert score == 1.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0
 
     def test_non_matching_integer_values(self):
         """Test reward when integer values don't match."""
         score, metadata = get_tool_reward(ground_truth=42, tool_output=24)
         assert score == 0.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 0.0
 
     def test_matching_list_values(self):
         """Test reward when list values match."""
         matrix = [[1.0, 2.0], [3.0, 4.0]]
         score, metadata = get_tool_reward(ground_truth=matrix, tool_output=matrix)
         assert score == 1.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0
 
     def test_non_matching_list_values(self):
         """Test reward when list values don't match."""
@@ -44,47 +44,47 @@ class TestGetToolRewardE2E:
         matrix2 = [[5.0, 6.0], [7.0, 8.0]]
         score, metadata = get_tool_reward(ground_truth=matrix1, tool_output=matrix2)
         assert score == 0.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 0.0
 
     def test_string_representations_of_numbers(self):
         """Test with string representations that should match numerically."""
         # Test with actual numeric types instead of strings
         score, metadata = get_tool_reward(ground_truth=42, tool_output=42.0)
         assert score == 1.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0
 
         # Test with same types
         score, metadata = get_tool_reward(ground_truth=42, tool_output=42)
         assert score == 1.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0
 
     def test_mathematical_expressions(self):
         """Test with mathematical expressions that evaluate to the same value."""
         # Direct numeric comparison since strings aren't parsed for math expressions
         score, metadata = get_tool_reward(ground_truth=4, tool_output=4)
         assert score == 1.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0
 
     def test_invalid_mathematical_expressions(self):
         """Test with invalid mathematical expressions."""
         # String inputs that can't be verified should cause exception
         score, metadata = get_tool_reward(ground_truth="invalid_expr", tool_output="42")
         assert score == 0.0
-        assert metadata["reward_tool_output"] is False
+        assert metadata["reward_tool_output"] == 0.0
 
     def test_empty_values(self):
         """Test with empty values."""
         # String inputs should cause exception
         score, metadata = get_tool_reward(ground_truth="", tool_output="")
         assert score == 0.0
-        assert metadata["reward_tool_output"] is False  # Exception expected
+        assert metadata["reward_tool_output"] == 0.0  # Exception expected
 
     def test_none_values(self):
         """Test with None values - should handle gracefully."""
         score, metadata = get_tool_reward(ground_truth=None, tool_output=None)
 
         assert score == 0.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 0.0
 
 
 class TestGetInteractionRewardE2E:
@@ -105,8 +105,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 1.0
+        assert metadata["reward_response_format"] == 1.0
 
     def test_perfect_response_string_format(self):
         """Test with perfect response in string format."""
@@ -116,8 +116,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 1.0
+        assert metadata["reward_response_format"] == 1.0
 
     def test_correct_answer_wrong_format(self):
         """Test with correct answer but wrong format."""
@@ -127,8 +127,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 0.0
+        assert metadata["reward_response_format"] == 0.0
 
     def test_wrong_answer_correct_format(self):
         """Test with wrong answer but correct format."""
@@ -138,8 +138,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.2
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 0.0
+        assert metadata["reward_response_format"] == 1.0
 
     def test_partial_format_with_think_only(self):
         """Test with only think tags, no answer tags."""
@@ -149,8 +149,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 0.0
+        assert metadata["reward_response_format"] == 0.0
 
     def test_multiple_assistant_messages(self):
         """Test with multiple assistant messages - should use the last one."""
@@ -165,8 +165,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 1.0
+        assert metadata["reward_response_format"] == 1.0
 
     def test_no_assistant_messages(self):
         """Test with no assistant messages in completion."""
@@ -176,8 +176,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 0.0
+        assert metadata["reward_response_format"] == 0.0
 
     def test_empty_completion_list(self):
         """Test with empty completion list."""
@@ -187,8 +187,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 0.0
+        assert metadata["reward_response_format"] == 0.0
 
     def test_malformed_completion_structure(self):
         """Test with malformed completion structure."""
@@ -198,8 +198,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 0.0
-        assert metadata["reward_final_answer"] is False
-        assert metadata["reward_response_format"] is False
+        assert metadata["reward_final_answer"] == 0.0
+        assert metadata["reward_response_format"] == 0.0
 
     def test_mathematical_expression_in_answer(self):
         """Test with mathematical expression that should be evaluated."""
@@ -209,8 +209,8 @@ class TestGetInteractionRewardE2E:
         score, metadata = get_interaction_reward(self.parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 1.0
+        assert metadata["reward_response_format"] == 1.0
 
     def test_truncated_response(self):
         """Test with truncated response (missing closing tags)."""
@@ -222,8 +222,8 @@ class TestGetInteractionRewardE2E:
         expected_total = 0.0
 
         assert score == expected_total
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 0.0
+        assert metadata["reward_response_format"] == 0.0
 
 
 class TestCalcRewardE2E:
@@ -306,8 +306,8 @@ class TestIntegrationScenarios:
         score, metadata = get_interaction_reward(parser, ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 1.0
+        assert metadata["reward_response_format"] == 1.0
 
     def test_tool_calculation_verification(self):
         """Test tool output verification scenario."""
@@ -318,7 +318,7 @@ class TestIntegrationScenarios:
         score, metadata = get_tool_reward(ground_truth=ground_truth_result, tool_output=tool_output)
 
         assert score == 1.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0
 
     def test_wrong_tool_calculation(self):
         """Test scenario with wrong tool calculation."""
@@ -328,7 +328,7 @@ class TestIntegrationScenarios:
         score, metadata = get_tool_reward(ground_truth=ground_truth_result, tool_output=wrong_tool_output)
 
         assert score == 0.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 0.0
 
     def test_complete_problem_solving_flow(self):
         """Test complete problem solving flow with calc_reward."""
@@ -347,8 +347,8 @@ class TestIntegrationScenarios:
         score, metadata = get_interaction_reward(XMLParser(), ground_truth=ground_truth, completion=completion)
 
         assert score == 1.2
-        assert metadata["reward_final_answer"] is True
-        assert metadata["reward_response_format"] is True
+        assert metadata["reward_final_answer"] == 1.0
+        assert metadata["reward_response_format"] == 1.0
 
     def test_complex_nested_data_structures(self):
         """Test with complex nested data structures (3D matrices)."""
@@ -358,7 +358,7 @@ class TestIntegrationScenarios:
         score, metadata = get_tool_reward(ground_truth=ground_truth, tool_output=tool_output)
 
         assert score == 1.0
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0
 
     def test_floating_point_precision_issues(self):
         """Test handling of floating point precision issues."""
@@ -369,4 +369,4 @@ class TestIntegrationScenarios:
         score, metadata = get_tool_reward(ground_truth=ground_truth, tool_output=tool_output)
 
         assert isinstance(score, (float))
-        assert metadata["reward_tool_output"] is True
+        assert metadata["reward_tool_output"] == 1.0

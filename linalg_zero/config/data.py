@@ -19,6 +19,8 @@ class ScriptArguments(trl.ScriptArguments):
 
     take_n: int | None = field(default=None, metadata={"help": "Number of examples to take from the dataset."})
 
+    debug: bool = field(default=False, metadata={"help": "Enable debugging mode (e.g. load smaller dataset)."})
+
 
 @dataclass
 class SFTConfig(trl.SFTConfig):
