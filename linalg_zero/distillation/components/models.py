@@ -5,6 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from distilabel.errors import DistilabelUserError
+from distilabel.typing import ChatType
 
 from linalg_zero.distillation.data import ThoughtSchema
 from linalg_zero.shared.system_prompts import (
@@ -46,52 +47,6 @@ class ModelParameters(ABC):
     def append_policy(self) -> bool:
         """Return whether to append the assistant message to the conversation."""
         pass
-
-
-class Qwen3ThinkingConfig(ModelParameters):
-    def set_recommended_defaults(self, generation_kwargs: dict[str, Any], *, deterministic: bool) -> dict[str, Any]:
-        # Deterministic vs recommended sampling per Qwen3 Thinking model card
-        if deterministic:
-            generation_kwargs["temperature"] = 0.0
-            generation_kwargs["top_p"] = 1.0
-        else:
-            generation_kwargs["temperature"] = 0.6
-            generation_kwargs["top_p"] = 0.95
-
-            extra_body = generation_kwargs.setdefault("extra_body", {})
-            extra_body.setdefault("top_k", 20)
-            extra_body.setdefault("min_p", 0)
-        return generation_kwargs
-
-    def append_policy(self) -> bool:
-        """Return whether to append the assistant message to the conversation."""
-        return False
-
-    def format_assistant_message(self, message: ThoughtSchema) -> dict[str, Any] | None:
-        # Qwen3 Thinking best practice: do NOT include <think> content in history
-        if message.completed:
-            if message.final_answer is None:
-                raise DistilabelUserError("final_answer cannot be None when completed=True")
-            return {
-                "role": "assistant",
-                "content": f"{ANSWER_OPEN}{message.final_answer}{ANSWER_CLOSE}",
-            }
-        if message.tool_call is not None:
-            return {
-                "role": "assistant",
-                "content": "",
-                "tool_calls": [
-                    {
-                        "id": str(uuid.uuid4()),
-                        "type": "function",
-                        "function": {
-                            "name": message.tool_call.name,
-                            "arguments": json.dumps(message.tool_call.arguments),
-                        },
-                    }
-                ],
-            }
-        return None
 
 
 class DefaultConfig(ModelParameters):
@@ -139,3 +94,22 @@ class DefaultConfig(ModelParameters):
                 ],
             }
         return None
+
+    def create_tool_message(self, conversation: list[ChatType], message: dict[str, Any]) -> dict[str, Any]:
+        # NOTE: Find the last assistant message with tool calls. This only works for single-turn tool calls,
+        # if we transition to multiple calls per turn, must match by name or position.
+        tool_call_id = None
+        for msg in reversed(conversation):
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                tool_call_id = msg.get("tool_calls", [{}])[0].get("id")
+                break
+
+        if tool_call_id is None:
+            raise DistilabelUserError("No assistant message with tool_calls found for tool response")
+
+        return {
+            "role": "tool",
+            "tool_call_id": tool_call_id,
+            "name": message["function_name"],
+            "content": message["execution_result"],
+        }

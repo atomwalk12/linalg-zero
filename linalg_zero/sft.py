@@ -1,17 +1,43 @@
+import json
 import logging
 import os
 import sys
 
 import transformers
+from datasets import DatasetDict
+from datasets.utils.logging import set_verbosity
 from transformers.trainer_utils import get_last_checkpoint, set_seed
 from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config, setup_chat_format
 
-import datasets
 from linalg_zero.config.data import ScriptArguments, SFTConfig
-from linalg_zero.distillation.utils import load_datasets_for_sft
+from linalg_zero.distillation.utils import hf_load_dataset
+from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.sft.callbacks import get_callbacks
 from linalg_zero.sft.utils import get_model, get_tokenizer, init_wandb_training
 from linalg_zero.shared.utils import get_logger, setup_logging
+
+
+def strip_to_first_two_messages(example):
+    """Keep only first 2 messages (system+user) from messages field."""
+    messages = json.loads(example["messages"]) if isinstance(example["messages"], str) else example["messages"]
+    example["messages"] = messages[:2]
+    return example
+
+
+def get_small_dataset(dataset: DatasetDict) -> DatasetDict:
+    # Strip test dataset to only first 2 messages (system+user)
+    dataset["test"] = dataset["train"].map(strip_to_first_two_messages)
+    keep_columns = [
+        "tools",
+        "messages",
+        "ground_truth",
+        "stepwise_ground_truths",
+    ]
+    dataset["train"] = remove_redundant_columns(dataset["train"], keep_columns)
+    dataset["test"] = remove_redundant_columns(dataset["test"], keep_columns)
+    dataset["test"] = dataset["test"].select(range(20))
+
+    return dataset
 
 
 def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: ModelConfig) -> None:  # noqa: C901
@@ -28,7 +54,7 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
     # Adjust script logging level based on the node logging level (main process or replica)
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
-    datasets.utils.logging.set_verbosity(log_level)
+    set_verbosity(log_level)
     transformers.utils.logging.set_verbosity(log_level)
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
@@ -52,9 +78,13 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
     # Load dataset, tokenizer, and model #
     ######################################
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
-    dataset = load_datasets_for_sft(script_args)
+    dataset = hf_load_dataset(script_args.dataset_name, script_args.dataset_config)
 
-    if not isinstance(dataset, datasets.DatasetDict):
+    # Optional, for debugging
+    if script_args.debug:
+        dataset = get_small_dataset(dataset)
+
+    if not isinstance(dataset, DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
 
     logger.info("Loading tokenizer...")

@@ -255,39 +255,6 @@ class TemplateInspector:
         return results
 
 
-def test_inspect_all_templates():
-    """Generate and display all template samples for manual inspection."""
-
-    inspector = TemplateInspector()
-    all_samples = inspector.generate_all_samples()
-
-    print("\n" + "=" * 80)
-    print("TEMPLATE INSPECTION REPORT")
-    print("=" * 80)
-
-    for problem_key, samples in all_samples.items():
-        print(f"\n\n--- {problem_key} ---")
-        print(f"Total templates: {len(samples)}")
-
-        for i, sample in enumerate(samples):
-            print(f"\n  Template {i + 1}/{len(samples)}:")
-
-            if sample.get("is_composite", False):
-                print("    Type: COMPOSITE PROBLEM")
-                print(f"    Generated Question: {sample['generated_question_text']}")
-                print(f"    Answer: {sample['question'].answer}")
-            elif "error" in sample:
-                print(f"    ERROR: {sample['error']}")
-            else:
-                print("    Type: TEMPLATE-BASED PROBLEM")
-                print(f"    Template String: {sample['selected_template'].template_string}")
-                print(f"    Required Variables: {sample['selected_template'].required_variables}")
-                print(f"    Generated Question: {sample['question'].question}")
-                print(f"    Answer: {sample['question'].answer}")
-
-            print(f"    Is Independent: {sample['is_independent']}")
-
-
 def test_inspect_specific_problem_type():
     """Example of inspecting a specific problem type in detail."""
 
@@ -344,10 +311,3 @@ def test_generate_sample_questions():
 
         except Exception as e:
             print(f"Error generating question: {e}")
-
-
-if __name__ == "__main__":
-    # Run the inspection when called directly
-    test_inspect_all_templates()
-    # test_inspect_specific_problem_type()
-    # test_generate_sample_questions()

@@ -4,9 +4,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from huggingface_hub import HfApi
-
 from datasets.dataset_dict import DatasetDict
+from huggingface_hub import HfApi
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +101,7 @@ def push_to_hub(
                 repo_type="dataset",
             )
             logger.info(
-                f"Successfully uploaded entropy settings to: https://huggingface.co/datasets/{hub_dataset_name}"
+                f"✅ Successfully uploaded entropy settings to: https://huggingface.co/datasets/{hub_dataset_name}"
             )
         elif config_path:
             logger.warning(f"Warning: Entropy settings file not found at {config_path}")

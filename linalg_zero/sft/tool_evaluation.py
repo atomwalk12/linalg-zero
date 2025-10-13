@@ -15,14 +15,20 @@ logger = logging.getLogger(__name__)
 
 
 class EvaluationState:
-    """Tracks minimal evaluation state for clean SFT metrics."""
+    """Tracks evaluation state with both primary metrics and diagnostics."""
 
     def __init__(self) -> None:
         self.has_final_answer = False
         self.reward_response_format = 0.0
         self.reward_final_answer = 0.0
-        self.total_tool_calls = 0
-        self.successful_tool_calls = 0
+        self.reward_interaction = 0.0
+
+        self.format_valid = False
+        self.tool_parse_success = False
+        self.answer_attempted = False
+        self.turns_taken = 0
+        self.truncated = False
+        self.early_stop_reason: str | None = None
 
 
 class DummyConfig:
