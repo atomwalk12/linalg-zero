@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 import torch
 from datasets import DatasetDict
@@ -7,6 +8,7 @@ from datasets import load_dataset as hf_load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from trl import ModelConfig, get_kbit_device_map, get_quantization_config
+from unsloth import FastLanguageModel
 
 from linalg_zero.config.data import ScriptArguments, SFTConfig
 
@@ -51,6 +53,35 @@ def get_tokenizer(model_args: ModelConfig, training_args: SFTConfig) -> PreTrain
         tokenizer.chat_template = training_args.chat_template
 
     return tokenizer
+
+
+def get_unsloth_model(
+    model_args: ModelConfig, training_args: SFTConfig
+) -> tuple[FastLanguageModel, PreTrainedTokenizer]:
+    """Get the model"""
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name="unsloth/Qwen3-4B-Base",
+        max_seq_length=training_args.max_seq_length,
+        load_in_4bit=False,
+        fast_inference=True,
+        max_lora_rank=model_args.lora_r,
+        gpu_memory_utilization=0.9,
+    )
+
+    model = FastLanguageModel.get_peft_model(
+        model,
+        r=model_args.lora_r,
+        lora_alpha=model_args.lora_r * 2,
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        use_gradient_checkpointing="unsloth",
+        random_state=3407,
+    )
+
+    if training_args.chat_template_path is not None:
+        template_path = Path(training_args.chat_template_path)
+        tokenizer.chat_template = template_path.read_text()
+
+    return model, tokenizer
 
 
 def get_model(model_args: ModelConfig, training_args: SFTConfig) -> AutoModelForCausalLM:

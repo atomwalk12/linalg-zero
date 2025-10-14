@@ -57,6 +57,7 @@ dependencies = [
     "flashinfer-python>=0.3.1",
     "wandb>=0.21.0",
     "tqdm>=4.67.1",
+    "unsloth>=2025.10.1",
 ]
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)
