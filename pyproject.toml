@@ -29,7 +29,7 @@ dependencies = [
     #"pynvml>=12.0.0",
     #"ray>=2.47.1",
     "transformers==4.55.2",
-    "trl==0.19.1",
+    "trl==0.22.2",
     "fastapi>=0.116.1",
     "pydantic-settings>=2.10.1",
     "sse-starlette>=2.4.1",
@@ -57,7 +57,9 @@ dependencies = [
     "flashinfer-python>=0.3.1",
     "wandb>=0.21.0",
     "tqdm>=4.67.1",
-    "unsloth>=2025.10.1",
+    "unsloth==2025.10.3",
+    "unsloth-zoo==2025.10.3",
+    "triton>=3.3.0",
 ]
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)
