@@ -184,12 +184,11 @@ disable_error_code = ["no-any-return", "unused-ignore"]
 [[tool.mypy.overrides]]
 module = [
     "linalg_zero.distillation.launch_server",
-    "linalg_zero.sft.scripts.prepare_sft_dataset",
 ]
 disable_error_code = ["list-item"]
 
 [[tool.mypy.overrides]]
-module = "linalg_zero.grpo.unsloth.train"
+module = "linalg_zero.sft.train"
 disable_error_code = ["list-item", "union-attr", "operator", "arg-type"]
 
 

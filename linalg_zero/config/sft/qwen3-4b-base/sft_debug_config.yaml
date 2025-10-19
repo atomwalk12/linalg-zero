@@ -84,5 +84,5 @@ save_steps: 50
 seed: 42
 use_liger_kernel: false     # Supported only for Llama, Mistral, Mixtral, and Gemma models
 warmup_ratio: 0.03
-chat_template_path: linalg_zero/grpo/unsloth/chat_templates/Qwen/Qwen3-4B-Base.jinja
+chat_template_path: linalg_zero/sft/chat_templates/Qwen/Qwen3-4B-Base.jinja
 optim: adamw_torch_fused
