@@ -58,7 +58,7 @@ def get_tokenizer(model_args: ModelConfig, training_args: SFTRunConfig) -> PreTr
 
 
 def get_unsloth_model(
-    model_args: SFTModelConfig, training_args: SFTRunConfig, trl_training_args: SFTConfig
+    model_args: SFTModelConfig, training_args: SFTRunConfig, trl_training_args: SFTConfig, use_vllm=False
 ) -> tuple[FastLanguageModel, PreTrainedTokenizer]:
     """Fetch the model and optimizer."""
 
@@ -68,9 +68,9 @@ def get_unsloth_model(
         load_in_4bit=model_args.load_in_4bit,
         load_in_8bit=model_args.load_in_8bit,
         max_lora_rank=model_args.lora_r,
-        # enforce_eager=True,
-        # fast_inference=True,
-        # gpu_memory_utilization=training_args.gpu_memory_utilization,
+        enforce_eager=model_args.enforce_eager,
+        fast_inference=use_vllm,
+        gpu_memory_utilization=training_args.gpu_memory_utilization,
     )
 
     model = FastLanguageModel.get_peft_model(

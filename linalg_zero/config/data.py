@@ -78,7 +78,7 @@ class SFTRunConfig:
     )
 
     gpu_memory_utilization: float | None = field(
-        default=0.9, metadata={"help": "Fraction of GPU memory to be used by vLLM (0-1)"}
+        default=0.95, metadata={"help": "Fraction of GPU memory to be used by vLLM (0-1)"}
     )
 
 
