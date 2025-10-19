@@ -64,19 +64,23 @@ dependencies = [
 
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)
 [tool.deptry]
-exclude = ["linalg_zero/grpo/verl/", ".venv"]
+exclude = [
+    "linalg_zero/grpo/verl/",
+    ".venv",
+    "unsloth_compiled_cache/",
+]
 
 [tool.deptry.per_rule_ignores]
 # DEP002: defined as a dependency but not used in the codebase
 DEP002 = [
     "starlette", "sse-starlette", "starlette-context", "pydantic-settings", "uvicorn", "llama-cpp-python", "vllm",
     "bs4", "verl", "ipykernel", "bitsandbytes", "fastapi", "anyio", "instructor", "outlines", "pydantic",
-    "liger-kernel", "deepspeed", "flashinfer-python"
+    "liger-kernel", "deepspeed", "flashinfer-python", "triton", "unsloth-zoo"
 ]
 # There are some problems installing torch directly, however it is being made available as a transient dependency.
 # DEP003: imported but it is a transient dependency
 DEP003 = [
-    "torch", "openai"
+    "torch", "openai", "pandas", "safetensors"
 ]
 
 [tool.uv]
@@ -165,6 +169,7 @@ module = [
     "math_verify.*",
     "verl.*",
     "argilla.*",
+    "unsloth.*",
 ]
 ignore_missing_imports = true
 
@@ -175,6 +180,18 @@ disable_error_code = ["attr-defined"]
 [[tool.mypy.overrides]]
 module = ["linalg_zero.grpo.verify", "linalg_zero.grpo.linalg_zero_interaction"]
 disable_error_code = ["no-any-return", "unused-ignore"]
+
+[[tool.mypy.overrides]]
+module = [
+    "linalg_zero.distillation.launch_server",
+    "linalg_zero.sft.scripts.prepare_sft_dataset",
+]
+disable_error_code = ["list-item"]
+
+[[tool.mypy.overrides]]
+module = "linalg_zero.grpo.unsloth.train"
+disable_error_code = ["list-item", "union-attr", "operator", "arg-type"]
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

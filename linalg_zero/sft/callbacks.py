@@ -5,7 +5,7 @@ from transformers.trainer_callback import (
 from trl import ModelConfig, ScriptArguments
 from trl.data_utils import DatasetDict
 
-from linalg_zero.config.data import SFTConfig
+from linalg_zero.config.data import SFTRunConfig
 from linalg_zero.sft.tool_calling_accuracy import ToolCallingAccuracyCallback
 from linalg_zero.sft.tool_evaluation import PushToHubRevisionCallback
 
@@ -17,7 +17,7 @@ CALLBACKS = {
 
 
 def get_callbacks(
-    train_config: SFTConfig, model_config: ModelConfig, script_args: ScriptArguments, dataset: DatasetDict
+    train_config: SFTRunConfig, model_config: ModelConfig, script_args: ScriptArguments, dataset: DatasetDict
 ) -> list[TrainerCallback]:
     callbacks = []
     for callback_name in train_config.callbacks:

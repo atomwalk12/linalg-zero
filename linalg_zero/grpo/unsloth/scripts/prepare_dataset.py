@@ -1,6 +1,7 @@
 import json
 import logging
 from argparse import ArgumentParser
+from typing import Any
 
 from datasets import Dataset, DatasetDict, DownloadMode, load_dataset
 
@@ -41,19 +42,19 @@ def process_dataset(dataset: DatasetDict) -> DatasetDict:
     ]
 
     # Add missing columns (messages & tools)
-    def ensure_messages(example):
+    def ensure_messages(example: dict[str, Any]) -> dict[str, Any]:
         example["messages"] = [
             {"role": "system", "content": get_math_system_prompt(include_examples=False)},
             {"role": "user", "content": example["query"]},
         ]
         return example
 
-    def ensure_tools(example):
+    def ensure_tools(example: dict[str, Any]) -> dict[str, Any]:
         if "tools" not in example or example["tools"] is None:
             example["tools"] = get_tools()
         return example
 
-    def parse_messages(example):
+    def parse_messages(example: dict[str, Any]) -> dict[str, Any]:
         """Convert messages from JSON string to array"""
         example["messages"] = json.loads(example["messages"])
         return example

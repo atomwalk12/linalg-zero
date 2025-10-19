@@ -9,7 +9,7 @@ from trl import ModelConfig, TrlParser
 
 from linalg_zero.config.data import (
     ScriptArguments,
-    SFTConfig,
+    SFTRunConfig,
 )
 from linalg_zero.distillation.utils import load_dataset_split
 from linalg_zero.grpo.process_dataset import remove_redundant_columns
@@ -127,7 +127,7 @@ if "--config" not in sys.argv:
     sys.argv.append("--config")
     sys.argv.append("./config/sft/sft_debug_config.yaml")
 
-parser = TrlParser((ScriptArguments, SFTConfig, ModelConfig))
+parser = TrlParser([ScriptArguments, SFTRunConfig, ModelConfig])
 script_args, training_args, model_args = parser.parse_args_and_config()
 
 dataset = load_datasets_for_sft(script_args)

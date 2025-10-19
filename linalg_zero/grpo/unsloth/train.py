@@ -1,48 +1,31 @@
-import json
-import logging
 import os
+
+os.environ["UNSLOTH_VLLM_STANDBY"] = "1"
+import unsloth  # noqa: I001, F401
+import logging
 import sys
+from typing import Any
 
 import transformers
-from datasets import DatasetDict
+from datasets import DatasetDict, load_dataset
 from datasets.utils.logging import set_verbosity
 from transformers.trainer_utils import get_last_checkpoint, set_seed
-from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config, setup_chat_format
+from trl.scripts.utils import TrlParser
+from trl.trainer.sft_config import SFTConfig
+from trl.trainer.sft_trainer import SFTTrainer
 
 from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
-from linalg_zero.distillation.utils import hf_load_dataset
-from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.sft.callbacks import get_callbacks
-from linalg_zero.sft.utils import get_model, get_tokenizer, init_wandb_training
+from linalg_zero.sft.utils import get_unsloth_model, init_wandb_training
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
-def strip_to_first_two_messages(example):
-    """Keep only first 2 messages (system+user) from messages field."""
-    messages = json.loads(example["messages"]) if isinstance(example["messages"], str) else example["messages"]
-    example["messages"] = messages[:2]
-    return example
-
-
-def get_small_dataset(dataset: DatasetDict) -> DatasetDict:
-    # Strip test dataset to only first 2 messages (system+user)
-    dataset["test"] = dataset["train"].map(strip_to_first_two_messages)
-    keep_columns = [
-        "tools",
-        "messages",
-        "ground_truth",
-        "stepwise_ground_truths",
-    ]
-    dataset["train"] = remove_redundant_columns(dataset["train"], keep_columns)
-    dataset["test"] = remove_redundant_columns(dataset["test"], keep_columns)
-    dataset["test"] = dataset["test"].select(range(20))
-
-    return dataset
-
-
-def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: ModelConfig) -> None:  # noqa: C901
+def main(  # noqa: C901
+    script_args: ScriptArguments, training_args: SFTRunConfig, trl_training_args: SFTConfig, model_args: SFTModelConfig
+) -> None:
     """Main training function."""
-    set_seed(training_args.seed)
+    # Reproducibility
+    set_seed(trl_training_args.seed)
 
     #################
     # Setup logging #
@@ -52,7 +35,7 @@ def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: 
     logger = get_logger(__name__)
 
     # Adjust script logging level based on the node logging level (main process or replica)
-    log_level = training_args.get_process_log_level()
+    log_level = trl_training_args.get_process_log_level()
     logger.setLevel(log_level)
     set_verbosity(log_level)
     transformers.utils.logging.set_verbosity(log_level)
@@ -62,50 +45,48 @@ def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: 
     logger.info(f"Model parameters: {model_args}")
     logger.info(f"Script parameters: {script_args}")
     logger.info(f"Training parameters: {training_args}")
+    logger.info(f"TRL training parameters: {trl_training_args}")
 
     # Check for last checkpoint
     last_checkpoint = None
-    if os.path.isdir(training_args.output_dir):
-        last_checkpoint = get_last_checkpoint(training_args.output_dir)
-    if last_checkpoint is not None and training_args.resume_from_checkpoint is None:
+    if trl_training_args.output_dir and os.path.isdir(trl_training_args.output_dir):
+        last_checkpoint = get_last_checkpoint(trl_training_args.output_dir)
+    if last_checkpoint is not None and trl_training_args.resume_from_checkpoint is None:
         logger.info(f"Checkpoint detected, resuming training at {last_checkpoint}")
 
     # Initialize wandb if requested
-    if training_args.report_to and "wandb" in training_args.report_to:
+    if trl_training_args.report_to and "wandb" in trl_training_args.report_to:
         init_wandb_training(training_args)
 
     ######################################
     # Load dataset, tokenizer, and model #
     ######################################
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
-    dataset = hf_load_dataset(script_args.dataset_name, script_args.dataset_config)
+    dataset = load_dataset(script_args.dataset_name, script_args.dataset_config)
 
     if not isinstance(dataset, DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
 
-    logger.info("Loading tokenizer...")
-    tokenizer = get_tokenizer(model_args, training_args)
+    # Model, tokenizer, dataset
+    logger.info("Loading model and tokenizer...")
+    model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args)
 
-    logger.info("Loading model...")
-    model = get_model(model_args, training_args)
+    def ensure_text(x: dict[str, Any]) -> dict[str, Any]:
+        x["text"] = tokenizer.apply_chat_template(x["messages"], tokenize=False)
+        return x
 
-    # Setup chat format if no template provided
-    if tokenizer.chat_template is None:
-        logger.warning("No chat template provided, defaulting to ChatML for tool use compatibility.")
-        model, tokenizer = setup_chat_format(model, tokenizer, format="chatml")
+    dataset = dataset.map(ensure_text)
 
     ##############################
     # Initialize the SFT Trainer #
     ##############################
     logger.info("Initializing SFT Trainer...")
-
     trainer = SFTTrainer(
         model=model,
-        args=training_args,
-        train_dataset=dataset[script_args.dataset_train_split],
-        eval_dataset=(dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None),
         processing_class=tokenizer,
-        peft_config=get_peft_config(model_args),
+        train_dataset=dataset[script_args.dataset_train_split],
+        eval_dataset=(dataset[script_args.dataset_test_split] if trl_training_args.eval_strategy != "no" else None),
+        args=trl_training_args,
         callbacks=get_callbacks(training_args, model_args, script_args, dataset),
     )
 
@@ -114,8 +95,8 @@ def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: 
     #################
     logger.info("*** Starting Training ***")
     checkpoint = None
-    if training_args.resume_from_checkpoint is not None:
-        checkpoint = training_args.resume_from_checkpoint
+    if trl_training_args.resume_from_checkpoint is not None:
+        checkpoint = trl_training_args.resume_from_checkpoint
     elif last_checkpoint is not None:
         checkpoint = last_checkpoint
 
@@ -144,8 +125,8 @@ def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: 
         # to avoid unbounded generation in the transformers `pipeline()` function
         if trainer.model is not None and trainer.model.generation_config is not None:
             trainer.model.generation_config.eos_token_id = tokenizer.eos_token_id
-        trainer.save_model(training_args.output_dir)
-        logger.info(f"Model saved to {training_args.output_dir}")
+        trainer.save_model(trl_training_args.output_dir)
+        logger.info(f"Model saved to {trl_training_args.output_dir}")
 
         # Save everything else on main process
         kwargs = {
@@ -157,7 +138,7 @@ def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: 
             # Restore k,v cache for fast inference
             if trainer.model is not None:
                 trainer.model.config.use_cache = True
-                trainer.model.config.save_pretrained(training_args.output_dir)  # type: ignore[reportCallIssue]
+                trainer.model.config.save_pretrained(trl_training_args.output_dir)
 
     except Exception:
         logger.exception("Failed to save model")
@@ -166,7 +147,7 @@ def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: 
     ############
     # Evaluate #
     ############
-    if training_args.do_eval:
+    if trl_training_args.do_eval:
         logger.info("*** Evaluation ***")
         try:
             metrics = trainer.evaluate()
@@ -181,7 +162,7 @@ def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: 
     ###############
     # Push to hub #
     ###############
-    if training_args.push_to_hub:
+    if trl_training_args.push_to_hub:
         logger.info("*** Pushing to Hub ***")
         try:
             trainer.push_to_hub(**kwargs)
@@ -196,7 +177,7 @@ if __name__ == "__main__":
         sys.argv.append("--config")
         sys.argv.append("linalg_zero/config/sft/qwen3-4b-base/sft_debug_config.yaml")
 
-    parser = TrlParser((ScriptArguments, SFTRunConfig, SFTModelConfig))
-    script_args, training_args, model_args = parser.parse_args_and_config()
+    parser = TrlParser([ScriptArguments, SFTRunConfig, SFTConfig, SFTModelConfig])
+    script_args, training_args, trl_training_args, model_args = parser.parse_args_and_config()
 
-    main(script_args, training_args, model_args)
+    main(script_args, training_args, trl_training_args, model_args)

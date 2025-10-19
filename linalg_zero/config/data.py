@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
 
-import trl
+from trl.scripts.utils import ScriptArguments as ScriptArgs
+from trl.trainer.model_config import ModelConfig
 
 
 @dataclass
-class ScriptArguments(trl.ScriptArguments):
+class ScriptArguments(ScriptArgs):
     """
     Extended version of ScriptArguments with support for dataset mixtures.
     """
@@ -16,17 +17,20 @@ class ScriptArguments(trl.ScriptArguments):
         default=None, metadata={"help": "Evaluation dataset name. Contains ground-truth solutions only."}
     )
     eval_dataset_config: str | None = field(default=None, metadata={"help": "Evaluation dataset config."})
-
     take_n: int | None = field(default=None, metadata={"help": "Number of examples to take from the dataset."})
-
-    debug: bool = field(default=False, metadata={"help": "Enable debugging mode (e.g. load smaller dataset)."})
 
 
 @dataclass
-class SFTConfig(trl.SFTConfig):
+class SFTModelConfig(ModelConfig):
+    enforce_eager: bool | None = field(default=None, metadata={"help": "Whether to enforce eager execution."})
+
+
+@dataclass
+class SFTRunConfig:
     early_stopping_patience: int = field(
         default=3, metadata={"help": "The number of epochs to wait before early stopping."}
     )
+
     early_stopping_threshold: float = field(
         default=0.0, metadata={"help": "Minimum improvement required to reset patience counter."}
     )
@@ -66,6 +70,15 @@ class SFTConfig(trl.SFTConfig):
     eval_max_new_tokens: int | None = field(
         default=None,
         metadata={"help": "Max new tokens for evaluation callbacks (does not affect training)."},
+    )
+
+    max_seq_length: int | None = field(
+        default=None,
+        metadata={"help": "Max sequence length for evaluation callbacks (does not affect training)."},
+    )
+
+    gpu_memory_utilization: float | None = field(
+        default=0.9, metadata={"help": "Fraction of GPU memory to be used by vLLM (0-1)"}
     )
 
 
