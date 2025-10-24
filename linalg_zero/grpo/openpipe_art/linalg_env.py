@@ -107,6 +107,7 @@ class LinAlgEnvironment(Env):
 
         self.task_index = task_index
         self.current_task = self.tasks[task_index]
+        assert self.current_task is not None  # noqa: S101
 
         # Reset all environment state
         self._reset_episode_state()

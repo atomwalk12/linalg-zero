@@ -5,7 +5,7 @@ Self-contained without external dependencies.
 
 import random
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from hashlib import sha256
 from typing import Any
 
@@ -20,7 +20,7 @@ from .base_types import (
 )
 
 ToHashable = str | int | float | dict[str, "ToHashable"] | list["ToHashable"] | set["ToHashable"]
-Hashable = str | int | float | tuple["Hashable"] | tuple[tuple[str, "Hashable"]]
+Hashable = str | int | float | tuple["Hashable", ...] | tuple[tuple[str, "Hashable"], ...]
 
 
 def to_hashable(item: ToHashable) -> Hashable:
@@ -45,7 +45,7 @@ class Tool(ABC):
 
     @staticmethod
     @abstractmethod
-    def invoke(data: dict[str, Any], **kwargs) -> str:
+    def invoke(data: dict[str, Any], **kwargs: Any) -> str:
         """Invoke the tool with given data and arguments."""
         pass
 
@@ -78,7 +78,7 @@ class UserStrategy(ABC):
 class SimpleUserStrategy(UserStrategy):
     """Simple user strategy that provides basic responses."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.total_cost = 0.0
         self.current_instruction = ""
 
@@ -106,8 +106,8 @@ class Env:
     def __init__(
         self,
         data_load_func: Callable[[], dict[str, Any]],
-        tools: list[type[Tool]],
-        tasks: list[Task],
+        tools: Sequence[type[Tool]],
+        tasks: Sequence[Task],
         wiki: str = "",
         rules: list[str] | None = None,
         user_strategy: UserStrategy | None = None,
@@ -118,8 +118,8 @@ class Env:
         self.data = data_load_func()
         self.tools_map: dict[str, type[Tool]] = {tool.get_info()["function"]["name"]: tool for tool in tools}
         self.tools_info = [tool.get_info() for tool in tools]
-        self.terminate_tools = []
-        self.tasks = tasks
+        self.terminate_tools: list[str] = []
+        self.tasks = list(tasks)  # Convert to list for internal use
         if task_index is not None:
             self.task_index = task_index
         else:
@@ -152,8 +152,11 @@ class Env:
         """Process action and return response."""
         self.actions.append(action)
 
+        if self.task is None:
+            raise ValueError("Cannot step without an active task")
+
         info = EnvInfo(task=self.task)
-        reward = 0
+        reward = 0.0
         done = False
 
         if action.name == RESPOND_ACTION_NAME:

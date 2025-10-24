@@ -6,11 +6,11 @@ import pytest
 
 from linalg_zero.grpo.openpipe_art.base_types import Action
 from linalg_zero.grpo.openpipe_art.data_types import RunConfig
-from linalg_zero.grpo.openpipe_art.linalg_env import create_linalg_environment
+from linalg_zero.grpo.openpipe_art.linalg_env import LinAlgEnvironment, create_linalg_environment
 
 
 @pytest.fixture
-def config():
+def config() -> RunConfig:
     """Create a test configuration."""
     return RunConfig(
         model_provider="test",
@@ -23,12 +23,12 @@ def config():
 
 
 @pytest.fixture
-def env(config):
+def env(config: RunConfig) -> LinAlgEnvironment:
     """Create a test environment."""
     return create_linalg_environment(config)
 
 
-def test_environment_creation(env):
+def test_environment_creation(env: LinAlgEnvironment) -> None:
     """Test that we can create the environment successfully."""
     assert env is not None
     assert len(env.tasks) > 0
@@ -47,7 +47,7 @@ def test_environment_creation(env):
         assert tool_name in env.tools_map
 
 
-def test_environment_reset(env):
+def test_environment_reset(env: LinAlgEnvironment) -> None:
     """Test environment reset functionality."""
     # Reset with first task
     reset_response = env.reset(task_index=0)
@@ -60,7 +60,7 @@ def test_environment_reset(env):
     assert len(env.tool_call_history) == 0
 
 
-def test_tool_execution(env):
+def test_tool_execution(env: LinAlgEnvironment) -> None:
     """Test tool execution."""
     # Reset environment first
     env.reset(task_index=0)
@@ -77,7 +77,7 @@ def test_tool_execution(env):
     assert len(env.tool_call_history) == 1
 
 
-def test_matrix_transpose_tool(env):
+def test_matrix_transpose_tool(env: LinAlgEnvironment) -> None:
     """Test matrix transpose tool specifically."""
     env.reset(task_index=0)
 
@@ -90,7 +90,7 @@ def test_matrix_transpose_tool(env):
     assert env.get_step_count() == 1
 
 
-def test_state_management(env):
+def test_state_management(env: LinAlgEnvironment) -> None:
     """Test state management functionality."""
     env.reset(task_index=0)
 
@@ -114,7 +114,7 @@ def test_state_management(env):
     assert isinstance(matrices, dict)
 
 
-def test_max_steps_limit(env):
+def test_max_steps_limit(env: LinAlgEnvironment) -> None:
     """Test that environment respects max steps limit."""
     env.reset(task_index=0)
     env.set_max_steps(2)  # Set very low limit for testing
@@ -131,7 +131,7 @@ def test_max_steps_limit(env):
     assert "Maximum steps" in response2.observation
 
 
-def test_invalid_tool_call(env):
+def test_invalid_tool_call(env: LinAlgEnvironment) -> None:
     """Test handling of invalid tool calls."""
     env.reset(task_index=0)
 
@@ -143,7 +143,7 @@ def test_invalid_tool_call(env):
     assert not response.done
 
 
-def test_tool_error_handling(env):
+def test_tool_error_handling(env: LinAlgEnvironment) -> None:
     """Test handling of tool execution errors."""
     env.reset(task_index=0)
 
@@ -159,7 +159,7 @@ def test_tool_error_handling(env):
     assert not response.done
 
 
-def test_intermediate_results_storage(env):
+def test_intermediate_results_storage(env: LinAlgEnvironment) -> None:
     """Test that intermediate results are stored correctly."""
     env.reset(task_index=0)
 
@@ -174,7 +174,7 @@ def test_intermediate_results_storage(env):
     assert results["latest_determinant"] == "-2.0"
 
 
-def test_multiple_tool_calls(env):
+def test_multiple_tool_calls(env: LinAlgEnvironment) -> None:
     """Test multiple sequential tool calls."""
     env.reset(task_index=0)
 

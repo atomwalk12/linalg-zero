@@ -58,7 +58,7 @@ def get_tokenizer(model_args: ModelConfig, training_args: SFTRunConfig) -> PreTr
 
 
 def get_unsloth_model(
-    model_args: SFTModelConfig, training_args: SFTRunConfig, trl_training_args: SFTConfig, use_vllm=False
+    model_args: SFTModelConfig, training_args: SFTRunConfig, trl_training_args: SFTConfig, use_vllm: bool = False
 ) -> tuple[FastLanguageModel, PreTrainedTokenizer]:
     """Fetch the model and optimizer."""
 
@@ -92,7 +92,7 @@ def get_unsloth_model(
 def get_model(model_args: ModelConfig, training_args: SFTRunConfig) -> AutoModelForCausalLM:
     """Get the model"""
     torch_dtype = (
-        model_args.torch_dtype if model_args.torch_dtype in ["auto", None] else getattr(torch, model_args.torch_dtype)  # type: ignore[arg-type]
+        model_args.torch_dtype if model_args.torch_dtype in ["auto", None] else getattr(torch, model_args.torch_dtype)
     )
     quantization_config = get_quantization_config(model_args)
 
@@ -114,8 +114,8 @@ def get_model(model_args: ModelConfig, training_args: SFTRunConfig) -> AutoModel
         "device_map": device_map,
         "quantization_config": quantization_config,
     }
-    model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(  # type: ignore[assignment]
-        model_args.model_name_or_path,  # type: ignore[arg-type]
+    model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(
+        model_args.model_name_or_path,
         **model_kwargs,
     )
     return model

@@ -25,7 +25,7 @@ class LinAlgTool(Tool):
     """Base class for linear algebra tools."""
 
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs) -> str:
+    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
         """
         Invoke the tool with given data and arguments.
 
@@ -53,7 +53,7 @@ class MatrixTransposeTool(LinAlgTool):
     """Tool wrapper for matrix transpose operation."""
 
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs) -> str:
+    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
         """Calculate matrix transpose."""
         matrix = kwargs.get("matrix")
         if matrix is None:
@@ -72,7 +72,7 @@ class DeterminantTool(LinAlgTool):
     """Tool wrapper for determinant calculation."""
 
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs) -> str:
+    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
         """Calculate matrix determinant."""
         matrix = kwargs.get("matrix")
         if matrix is None:
@@ -91,7 +91,7 @@ class MatrixCofactorTool(LinAlgTool):
     """Tool wrapper for matrix cofactor calculation."""
 
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs) -> str:
+    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
         """Calculate matrix cofactor."""
         matrix = kwargs.get("matrix")
         if matrix is None:
@@ -110,7 +110,7 @@ class FrobeniusNormTool(LinAlgTool):
     """Tool wrapper for Frobenius norm calculation."""
 
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs) -> str:
+    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
         """Calculate Frobenius norm."""
         matrix = kwargs.get("matrix")
         if matrix is None:
@@ -129,7 +129,7 @@ class MatrixRankTool(LinAlgTool):
     """Tool wrapper for matrix rank calculation."""
 
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs) -> str:
+    def invoke(data: dict[str, Any], **kwargs: Any) -> str:
         """Calculate matrix rank."""
         matrix = kwargs.get("matrix")
         if matrix is None:
@@ -148,7 +148,7 @@ class MatrixTraceTool(LinAlgTool):
     """Tool wrapper for matrix trace calculation."""
 
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs) -> str:
+    def invoke(data: dict[str, Any], **kwargs: Any) -> str:
         """Calculate matrix trace."""
         matrix = kwargs.get("matrix")
         if matrix is None:
