@@ -46,6 +46,12 @@ def test_environment_creation(env: LinAlgEnvironment) -> None:
     for tool_name in expected_tools:
         assert tool_name in env.tools_map
 
+    # Check that tasks have the new structure
+    first_task = env.tasks[0]
+    assert hasattr(first_task, "query")
+    assert hasattr(first_task, "ground_truth")
+    assert hasattr(first_task, "stepwise_ground_truths")
+
 
 def test_environment_reset(env: LinAlgEnvironment) -> None:
     """Test environment reset functionality."""
@@ -196,3 +202,61 @@ def test_multiple_tool_calls(env: LinAlgEnvironment) -> None:
     results = env.get_intermediate_results()
     assert "latest_determinant" in results
     assert "latest_matrix_transpose" in results
+
+
+def test_task_loading_and_validation() -> None:
+    """Test task loading and validation functionality."""
+    from linalg_zero.grpo.openpipe_art.linalg_env import create_sample_tasks, validate_task_dataset
+
+    # Test sample task creation
+    tasks = create_sample_tasks()
+    assert len(tasks) > 0
+
+    # Test task validation
+    valid_tasks, errors = validate_task_dataset(tasks)
+    assert len(valid_tasks) == len(tasks)  # Sample tasks should be valid
+    assert len(errors) == 0
+
+    # Test task structure
+    task = tasks[0]
+    assert hasattr(task, "query")
+    assert hasattr(task, "ground_truth")
+    assert hasattr(task, "stepwise_ground_truths")
+
+    # Test validation methods
+    is_valid, task_errors = task.validate()
+    assert is_valid
+    assert len(task_errors) == 0
+
+    # Test matrix extraction
+    matrix_data = task.extract_matrix_data()
+    assert isinstance(matrix_data, dict)
+
+
+def test_environment_with_sample_tasks() -> None:
+    """Test environment creation with sample tasks."""
+    from linalg_zero.grpo.openpipe_art.data_types import RunConfig
+    from linalg_zero.grpo.openpipe_art.linalg_env import create_linalg_environment
+
+    config = RunConfig(
+        model_provider="test",
+        user_model_provider="test",
+        model="test-model",
+        user_model="test-user-model",
+        env="linalg",
+        user_strategy="llm",
+    )
+
+    # Test with sample tasks
+    env = create_linalg_environment(config, use_sample_tasks=True)
+    assert env is not None
+    assert len(env.tasks) > 0
+
+    # Test environment functionality
+    reset_response = env.reset(task_index=0)
+    assert reset_response is not None
+    assert env.current_task is not None
+
+    # Test matrix data extraction
+    matrices = env.get_current_matrices()
+    assert isinstance(matrices, dict)
