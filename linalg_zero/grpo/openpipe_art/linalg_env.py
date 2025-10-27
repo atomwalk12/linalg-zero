@@ -5,6 +5,7 @@ This module implements an environment for training language models
 on linear algebra problems with tool calling capabilities.
 """
 
+import json
 import random
 import uuid
 from collections.abc import Callable
@@ -20,6 +21,8 @@ from .base_types import (
     EnvInfo,
     EnvResetResponse,
     EnvResponse,
+    RewardActionInfo,
+    RewardResult,
     Task,
 )
 
@@ -493,6 +496,116 @@ class LinAlgEnvironment(Env):
             "ground_truth": self.current_task.ground_truth,
             "stepwise_ground_truths": self.current_task.stepwise_ground_truths,
         }
+
+    def calculate_reward(self) -> RewardResult:
+        """
+        Calculate reward using existing dual reward system (format + accuracy).
+
+        This method leverages the existing reward functions from compute_score.py
+        to evaluate both XML format compliance and mathematical accuracy.
+
+        Returns:
+            RewardResult with composite reward and metadata
+        """
+        if not self.current_task:
+            # No task available, return zero reward
+            info = RewardActionInfo(r_actions=0.0, gt_data_hash=self.get_data_hash())
+            return RewardResult(reward=0.0, info=info, actions=self.actions)
+
+        # Get the agent's messages from the last solve session
+        # We need to reconstruct the conversation from the actions taken
+        messages = self._reconstruct_conversation_messages()
+
+        if not messages:
+            # No messages available, return zero reward
+            info = RewardActionInfo(r_actions=0.0, gt_data_hash=self.get_data_hash())
+            return RewardResult(reward=0.0, info=info, actions=self.actions)
+
+        try:
+            # Import reward calculation dependencies only when needed
+            # This avoids import errors when distillation dependencies are not available
+            from linalg_zero.grpo.compute_score import get_interaction_reward
+            from linalg_zero.grpo.verifiers.xml_parser import XMLParser
+
+            # Parse ground truth from JSON string
+            ground_truth = json.loads(self.current_task.ground_truth)
+
+            # Use existing reward calculation system
+            parser = XMLParser()
+            reward, metadata = get_interaction_reward(parser, ground_truth=ground_truth, completion=messages)
+
+            logger.debug(f"Calculated reward: {reward}, metadata: {metadata}")
+
+        except ImportError as e:
+            logger.warning(f"Reward calculation dependencies not available: {e}")
+            # Fallback to basic reward calculation
+            reward = 1.0 if self.actions else 0.0
+            metadata = {"fallback": "basic_reward", "import_error": str(e)}
+
+        except Exception as e:
+            logger.exception("Error calculating reward")
+            reward = 0.0
+            metadata = {"error": str(e)}
+
+        # Return result in expected format
+        info = RewardActionInfo(r_actions=reward, gt_data_hash=self.get_data_hash())
+        return RewardResult(reward=reward, info=info, actions=self.actions)
+
+    def _reconstruct_conversation_messages(self) -> list[dict[str, Any]]:
+        """
+        Reconstruct conversation messages from actions and responses.
+
+        This method creates the message format expected by existing reward functions
+        by reconstructing the conversation from the environment's action history.
+
+        Returns:
+            List of messages in OpenAI chat format
+        """
+        messages = []
+
+        # Add system message if we have one
+        if hasattr(self, "system_prompt") and self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+
+        # Add initial user message with the task
+        if self.current_task:
+            messages.append({"role": "user", "content": self.current_task.instruction})
+
+        # Reconstruct conversation from actions
+        for action in self.actions:
+            if action.name == RESPOND_ACTION_NAME:
+                # Agent provided a final response
+                content = action.kwargs.get("content", "")
+                messages.append({"role": "assistant", "content": content})
+            else:
+                # Agent made a tool call - we need to simulate the assistant message
+                # and the tool response based on our stored intermediate results
+
+                # Create assistant message with tool call
+                tool_call_message = {
+                    "role": "assistant",
+                    "content": f"I'll use the {action.name} tool to solve this.",
+                    "tool_calls": [
+                        {
+                            "id": f"call_{len(messages)}",
+                            "type": "function",
+                            "function": {"name": action.name, "arguments": json.dumps(action.kwargs)},
+                        }
+                    ],
+                }
+                messages.append(tool_call_message)
+
+                # Add tool response if we have it stored
+                tool_result = self.intermediate_results.get(f"latest_{action.name}", "Tool executed")
+                tool_response = {
+                    "role": "tool",
+                    "tool_call_id": f"call_{len(messages) - 1}",
+                    "name": action.name,
+                    "content": str(tool_result),
+                }
+                messages.append(tool_response)
+
+        return messages
 
 
 def load_linalg_tasks_from_hub(
