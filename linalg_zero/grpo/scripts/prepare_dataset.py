@@ -20,15 +20,20 @@ def load_datasets(src_train: str, src_test: str) -> DatasetDict:
     logger.info(f"Loading train dataset from https://huggingface.co/datasets/{src_train}")
     train_dataset = load_dataset(src_train, split="train", download_mode=DownloadMode.FORCE_REDOWNLOAD)
 
-    # Load validation dataset (no solutions)
-    logger.info(f"Loading validation dataset from https://huggingface.co/datasets/{src_test}")
-    test_dataset = load_dataset(src_test, split="validation")
+    # Load base dataset to get validation and test splits
+    logger.info(f"Loading base dataset from https://huggingface.co/datasets/{src_test}")
+    base_dataset = load_dataset(src_test)
 
-    # Prepare results
+    # Extract validation and test splits from the base dataset
+    validation_dataset = base_dataset["validation"]
+    test_dataset = base_dataset["test"]
+
+    # Prepare results with proper three splits
     assert isinstance(train_dataset, Dataset)  # noqa: S101
+    assert isinstance(validation_dataset, Dataset)  # noqa: S101
     assert isinstance(test_dataset, Dataset)  # noqa: S101
 
-    return DatasetDict({"train": train_dataset, "validation": test_dataset})
+    return DatasetDict({"train": train_dataset, "validation": validation_dataset, "test": test_dataset})
 
 
 def fix_think_tags(content: str) -> str:
@@ -77,28 +82,39 @@ def process_dataset_for_grpo(dataset: DatasetDict) -> DatasetDict:
     train_dataset = train_dataset.map(ensure_tools)
 
     # Process validation dataset (no messages, just problems)
-    test_dataset = dataset["validation"]
+    validation_dataset = dataset["validation"]
+    validation_dataset = validation_dataset.map(ensure_tools)
+
+    # Process test dataset (no messages, just problems)
+    test_dataset = dataset["test"]
     test_dataset = test_dataset.map(ensure_tools)
 
-    # Remove unnecessary columns
+    # Remove unnecessary columns from all splits
     strip_cols = set(train_dataset.column_names) - set(keep_columns)
     if strip_cols:
         logger.info(f"Removing columns from train dataset: {strip_cols}")
         train_dataset = train_dataset.remove_columns(list(strip_cols))
 
-    strip_cols = set(test_dataset.column_names) - set(keep_columns)
+    strip_cols = set(validation_dataset.column_names) - set(keep_columns)
     if strip_cols:
         logger.info(f"Removing columns from validation dataset: {strip_cols}")
+        validation_dataset = validation_dataset.remove_columns(list(strip_cols))
+
+    strip_cols = set(test_dataset.column_names) - set(keep_columns)
+    if strip_cols:
+        logger.info(f"Removing columns from test dataset: {strip_cols}")
         test_dataset = test_dataset.remove_columns(list(strip_cols))
 
-    # Ensure the two schemas align
+    # Ensure all schemas align with the train dataset
+    validation_dataset = validation_dataset.cast(train_dataset.features)
     test_dataset = test_dataset.cast(train_dataset.features)
 
-    # Prepare results
+    # Prepare results with all three splits
     assert isinstance(train_dataset, Dataset)  # noqa: S101
+    assert isinstance(validation_dataset, Dataset)  # noqa: S101
     assert isinstance(test_dataset, Dataset)  # noqa: S101
 
-    return DatasetDict({"train": train_dataset, "validation": test_dataset})
+    return DatasetDict({"train": train_dataset, "validation": validation_dataset, "test": test_dataset})
 
 
 def validate_grpo_dataset(dataset: DatasetDict) -> None:
@@ -146,18 +162,19 @@ def validate_grpo_dataset(dataset: DatasetDict) -> None:
     logger.info("*** Dataset validation completed successfully ***")
 
 
-def prepare_debug(train: Dataset, validation: Dataset, dataset_size: int) -> DatasetDict:
+def prepare_debug(train: Dataset, validation: Dataset, test: Dataset, dataset_size: int) -> DatasetDict:
     """Prepare debug dataset with limited size."""
     train = train.select(range(min(dataset_size, len(train))))
     validation = validation.select(range(min(dataset_size, len(validation))))
-    return DatasetDict({"train": train, "validation": validation})
+    test = test.select(range(min(dataset_size, len(test))))
+    return DatasetDict({"train": train, "validation": validation, "test": test})
 
 
 def main(output_repo: str, push_to_hub: bool, debug_mode: bool) -> None:
     """Main processing function for GRPO dataset preparation."""
     # Source datasets
-    train_repo = "atomwalk12/linalgzero-distilled"  # Has solutions
-    test_repo = "atomwalk12/linalgzero"  # No solutions
+    train_repo = "atomwalk12/linalgzero-distilled"  # Has solutions (train split)
+    test_repo = "atomwalk12/linalgzero"  # No solutions (validation and test splits)
 
     logger.info("*** Loading datasets for GRPO training ***")
     dataset = load_datasets(train_repo, test_repo)
@@ -166,7 +183,7 @@ def main(output_repo: str, push_to_hub: bool, debug_mode: bool) -> None:
     if debug_mode:
         size = 60
         logger.info(f"*** Preparing debug dataset (size: {size}) ***")
-        dataset = prepare_debug(dataset["train"], dataset["validation"], dataset_size=size)
+        dataset = prepare_debug(dataset["train"], dataset["validation"], dataset["test"], dataset_size=size)
 
     # Process for GRPO
     logger.info("*** Processing dataset for GRPO training ***")
