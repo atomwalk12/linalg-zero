@@ -4,13 +4,13 @@ user_model_provider: "<placeholder>"
 model: "gpt-4.1"
 user_model: "gpt-4o"
 num_trials: 1
-env: "retail"
+env_name: "retail"
 agent_strategy: "tool-calling"
 temperature: 0.0
-task_split: "test"
+task_split: "train"
 start_index: 0
 end_index: -1
-task_ids: None
+# task_ids: None
 log_dir: "results"
 max_concurrency: 1
 seed: 10
@@ -29,7 +29,7 @@ max_num_steps: 30
 skip_eval: false
 add_shadow_trajectory: false
 messages_only: false
-base_model: "unsloth/Qwen2.5-14B-Instruct"
+base_model: "unsloth/Qwen2.5-3B-Instruct"
 is_multi_gpu: false
 add_no_think: false
 plot_tensors: false
@@ -45,3 +45,7 @@ training_dataset_size: 30
 num_epochs: 50
 train_mode: "sync_rl"
 importance_sampling_level: "token"
+
+# Environment config
+environment_type: "linalg"
+eval_dataset_split: "validation"

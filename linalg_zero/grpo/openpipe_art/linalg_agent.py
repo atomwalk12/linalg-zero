@@ -8,6 +8,7 @@ using tool calling capabilities and model inference.
 import json
 from typing import Any
 
+from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_logger
 
 from .base_types import RESPOND_ACTION_NAME, Action, SolveResult
@@ -37,9 +38,9 @@ class LinAlgAgent(Agent):
         tools_info: list[dict[str, Any]],
         model: str,
         provider: str,
+        system_prompt: str,
         temperature: float = 0.0,
         max_retries: int = 3,
-        system_prompt: str | None = None,
         art_model: Any = None,
     ):
         """
@@ -59,7 +60,7 @@ class LinAlgAgent(Agent):
         self.provider = provider
         self.temperature = temperature
         self.max_retries = max_retries
-        self.system_prompt = system_prompt or self._get_default_system_prompt()
+        self.system_prompt = system_prompt
         self.art_model = art_model
 
         # Initialize model client based on provider
@@ -127,36 +128,6 @@ class LinAlgAgent(Agent):
         """Ensure Anthropic client is initialized, raise if not."""
         if self.model_client is None:
             raise RuntimeError("Anthropic client not initialized")
-
-    def _get_default_system_prompt(self) -> str:
-        """Get the default system prompt for linear algebra problem solving."""
-        # Try to use the existing system prompt from shared module
-        try:
-            from linalg_zero.shared.system_prompts import get_math_system_prompt
-
-            return get_math_system_prompt()
-        except ImportError:
-            logger.warning("Could not import system prompt from shared module, using fallback")
-
-        # Fallback system prompt
-        tools_description = self._format_tools_for_prompt()
-        return f"""You are a mathematical assistant specialized in linear algebra.
-You have access to various mathematical tools for matrix operations.
-
-When solving problems:
-1. Think step by step about the problem
-2. Use the available tools to perform calculations
-3. Format your response using XML tags:
-   - Use <think>...</think> for your reasoning (no calculations inside)
-   - Use <tool_call>{{"name": "tool_name", "arguments": {{"param": "value"}}}}</tool_call> for tool calls
-   - Use <answer>result</answer> for your final numerical answer
-4. Never include both <tool_call> and <answer> in the same response
-5. Show your work clearly and provide accurate results
-
-Available tools:
-{tools_description}
-
-Use these tools to solve linear algebra problems accurately."""
 
     def _format_tools_for_prompt(self) -> str:
         """Format available tools for inclusion in system prompt."""
@@ -654,7 +625,7 @@ Use these tools to solve linear algebra problems accurately."""
         logger.info(f"Added {len(new_tools_info)} new tools. Total tools: {len(self.tools_info)}")
 
         # Update system prompt to include new tools
-        self.system_prompt = self._get_default_system_prompt()
+        self.system_prompt = get_math_system_prompt(include_examples=False)
 
     def get_available_tools(self) -> list[str]:
         """
@@ -730,6 +701,7 @@ def create_linalg_agent(
     return LinAlgAgent(
         tools_info=tools_info,
         model=model,
+        system_prompt=get_math_system_prompt(include_examples=False),
         provider=provider,
         temperature=temperature,
         art_model=art_model,
