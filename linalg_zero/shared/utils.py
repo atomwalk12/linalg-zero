@@ -1,8 +1,10 @@
+import importlib
 import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from datasets.dataset_dict import DatasetDict
 from huggingface_hub import HfApi
@@ -10,6 +12,8 @@ from huggingface_hub import HfApi
 logger = logging.getLogger(__name__)
 
 LLAMA_CPP_DIR = Path(__file__).parent / "distillation" / "llama-cpp" / "models"
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 def get_config_dir() -> str:
@@ -65,10 +69,17 @@ def get_libpath() -> Path:
     return Path(__file__).parent / "lib.py"
 
 
+def load_module_from_path(path: str) -> "ModuleType":
+    """Loads a python module from a given path."""
+    spec = importlib.util.spec_from_file_location("module.name", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def get_function_schema() -> str:
     """Return a JSON string with the full tool function schemas (sorted by name)."""
-    from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
-
+    # TODO: verify loaded functions
     libpath_module = load_module_from_path(get_libpath())
     tools = libpath_module.get_tools()
     # Ensure deterministic order for readability
