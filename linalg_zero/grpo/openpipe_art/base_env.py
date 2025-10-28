@@ -5,14 +5,12 @@ Self-contained without external dependencies.
 
 import random
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from hashlib import sha256
 from typing import Any
 
 from .base_types import (
-    RESPOND_ACTION_NAME,
     Action,
-    EnvInfo,
     EnvResetResponse,
     EnvResponse,
     RewardResult,
@@ -100,12 +98,11 @@ class SimpleUserStrategy(UserStrategy):
         return self.total_cost
 
 
-class Env:
+class Env(ABC):
     """Base environment class."""
 
     def __init__(
         self,
-        data_load_func: Callable[[], dict[str, Any]],
         tools: Sequence[type[Tool]],
         tasks: Sequence[Task],
         wiki: str = "",
@@ -114,8 +111,6 @@ class Env:
         task_index: int | None = None,
     ) -> None:
         super().__init__()
-        self.data_load_func = data_load_func
-        self.data = data_load_func()
         self.tools_map: dict[str, type[Tool]] = {tool.get_info()["function"]["name"]: tool for tool in tools}
         self.tools_info = [tool.get_info() for tool in tools]
         self.terminate_tools: list[str] = []
@@ -130,71 +125,22 @@ class Env:
         self.user = user_strategy or SimpleUserStrategy()
         self.actions: list[Action] = []
 
-    def reset(self, task_index: int | None = None) -> EnvResetResponse:
+    @abstractmethod
+    async def reset(self, task_index: int | None = None) -> EnvResetResponse:
         """Reset environment with new task."""
-        if task_index is None:
-            task_index = random.randint(0, len(self.tasks) - 1) if self.tasks else 0
-        self.task_index = task_index
-        self.data = self.data_load_func()
-        self.task = self.tasks[task_index] if self.tasks else None
-        self.actions = []
+        pass
 
-        if self.task:
-            initial_observation = self.user.reset(instruction=self.task.instruction)
-            return EnvResetResponse(observation=initial_observation, info=EnvInfo(task=self.task, source="user"))
-        else:
-            return EnvResetResponse(
-                observation="No tasks available",
-                info=EnvInfo(task=Task(user_id="", actions=[], instruction="", outputs=[]), source="system"),
-            )
-
-    def step(self, action: Action) -> EnvResponse:
+    @abstractmethod
+    async def step(self, action: Action) -> EnvResponse:
         """Process action and return response."""
-        self.actions.append(action)
-
-        if self.task is None:
-            raise ValueError("Cannot step without an active task")
-
-        info = EnvInfo(task=self.task)
-        reward = 0.0
-        done = False
-
-        if action.name == RESPOND_ACTION_NAME:
-            observation = self.user.step(action.kwargs["content"])
-            info.source = "user"
-            done = "###STOP###" in observation
-        elif action.name in self.tools_map:
-            try:
-                observation = self.tools_map[action.name].invoke(data=self.data, **action.kwargs)
-            except Exception as e:
-                observation = f"Error: {e}"
-            info.source = action.name
-            if action.name in self.terminate_tools:
-                done = True
-        else:
-            observation = f"Unknown action {action.name}"
-            info.source = action.name
-
-        if done:
-            reward_res = self.calculate_reward()
-            reward = reward_res.reward
-            info.reward_info = reward_res
-            info.user_cost = self.user.get_total_cost()
-
-        return EnvResponse(observation=observation, reward=reward, done=done, info=info)
+        pass
 
     def get_data_hash(self) -> str:
         """Get hash of current data state."""
-        return consistent_hash(to_hashable(self.data))
+        # Return empty hash since data is passed directly to tools
+        return consistent_hash(to_hashable({}))
 
+    @abstractmethod
     def calculate_reward(self) -> RewardResult:
         """Calculate reward for current episode."""
-        # Basic reward calculation - can be overridden by subclasses
-        reward = 1.0
-        actions = [action for action in self.task.actions if action.name != RESPOND_ACTION_NAME] if self.task else []
-
-        from .base_types import RewardActionInfo
-
-        info = RewardActionInfo(r_actions=1.0, gt_data_hash=self.get_data_hash())
-
-        return RewardResult(reward=reward, info=info, actions=actions)
+        pass

@@ -8,7 +8,6 @@ on linear algebra problems with tool calling capabilities.
 import json
 import random
 import uuid
-from collections.abc import Callable
 from typing import Any
 
 from linalg_zero.grpo.openpipe_art.data_types import LinearAlgebraTrainingConfig, RunConfig
@@ -83,39 +82,6 @@ class LinAlgTask(Task):
 
         return json.loads(self.stepwise_ground_truths)
 
-    def extract_matrix_data(self) -> dict[str, list[list[float]]]:
-        """
-        Extract matrix data from the query string.
-
-        This method parses the query to find matrix definitions like:
-        "matrix A = [[1, 2], [3, 4]]"
-
-        Returns:
-            Dictionary mapping matrix names to their values
-        """
-        import re
-
-        matrix_data = {}
-
-        # Pattern to match matrix definitions in queries
-        # Matches: "matrix A = [[1, 2], [3, 4]]" or "A = [[1, 2], [3, 4]]"
-        matrix_pattern = r"(?:matrix\s+)?([A-Z])\s*=\s*(\[\[.*?\]\])"
-
-        matches = re.findall(matrix_pattern, self.query)
-
-        for matrix_name, matrix_str in matches:
-            try:
-                # Safely evaluate the matrix string
-                import ast
-
-                matrix_value = ast.literal_eval(matrix_str)
-                matrix_data[matrix_name] = matrix_value
-            except (ValueError, SyntaxError):
-                # If parsing fails, skip this matrix
-                continue
-
-        return matrix_data
-
 
 class LinAlgEnvironment(Env):
     """
@@ -130,7 +96,6 @@ class LinAlgEnvironment(Env):
         tools: list[type[Tool]],
         tasks: list[LinAlgTask],
         config: RunConfig,
-        data_load_func: Callable[[], dict[str, Any]] | None = None,
         wiki: str = "",
         rules: list[str] | None = None,
     ):
@@ -141,13 +106,9 @@ class LinAlgEnvironment(Env):
             tools: List of tool classes for mathematical operations
             tasks: List of linear algebra tasks
             config: Run configuration
-            data_load_func: Function to load environment data
             wiki: Wiki information (optional)
             rules: List of environment rules (optional)
         """
-        # Default data loader if none provided
-        if data_load_func is None:
-            data_load_func = lambda: {}
 
         # Default rules if none provided
         if rules is None:
@@ -159,7 +120,6 @@ class LinAlgEnvironment(Env):
 
         # Initialize parent class
         super().__init__(
-            data_load_func=data_load_func,
             tools=tools,
             tasks=tasks,
             wiki=wiki,
@@ -176,7 +136,7 @@ class LinAlgEnvironment(Env):
         self.episode_step_count: int = 0
         self.max_steps: int = getattr(config, "max_num_steps", 30)
 
-    def reset(self, task_index: int | None = None) -> EnvResetResponse:
+    async def reset(self, task_index: int | None = None) -> EnvResetResponse:
         """
         Reset the environment with a new task.
 
@@ -197,14 +157,6 @@ class LinAlgEnvironment(Env):
         # Reset all environment state
         self._reset_episode_state()
 
-        # Load fresh data
-        self.data = self.data_load_func()
-
-        # Add task-specific matrix data to environment data
-        if self.current_task:
-            matrix_data = self.current_task.extract_matrix_data()
-            self.data.update(matrix_data)
-
         # Generate session ID for tracking
         self.session_id = str(uuid.uuid4())
 
@@ -221,7 +173,7 @@ class LinAlgEnvironment(Env):
         self.episode_step_count = 0
         self.session_id = None
 
-    def step(self, action: Action) -> EnvResponse:
+    async def step(self, action: Action) -> EnvResponse:
         """
         Process an agent action and return the environment response.
 
@@ -254,7 +206,7 @@ class LinAlgEnvironment(Env):
         elif action.name in self.tools_map:
             # Agent is calling a mathematical tool
             try:
-                observation = self.tools_map[action.name].invoke(data=self.data, **action.kwargs)
+                observation = self.tools_map[action.name].invoke(**action.kwargs)
                 # Store intermediate result for potential use in reward calculation
                 self._store_intermediate_result(action.name, observation, action.kwargs)
                 self.tool_call_history.append(action)
@@ -314,11 +266,12 @@ class LinAlgEnvironment(Env):
         """
         Get the current matrices available in the environment.
 
+        Note: This method returns empty dict because matrices are passed
+        directly to tools through their arguments, not stored in environment.
+
         Returns:
-            Dictionary mapping matrix names to their values
+            Empty dictionary (matrices are passed directly to tools)
         """
-        if self.current_task:
-            return self.current_task.extract_matrix_data()
         return {}
 
     def get_tool_call_history(self) -> list[Action]:
@@ -403,7 +356,7 @@ class LinAlgEnvironment(Env):
             "problem_type": getattr(self.current_task, "problem_type", "unknown"),
             "difficulty_level": getattr(self.current_task, "difficulty_level", 1),
             "expected_outputs": self.current_task.outputs,
-            "matrix_data_keys": list(self.current_task.extract_matrix_data().keys()),
+            "matrix_data_keys": [],  # Matrices passed directly to tools, not stored in env
             "ground_truth": self.current_task.ground_truth,
             "stepwise_ground_truths": self.current_task.stepwise_ground_truths,
         }

@@ -2,11 +2,14 @@
 Linear Algebra Agent for GRPO training.
 
 This module implements an agent that can solve linear algebra problems
-using tool calling capabilities and model inference.
+using tool calling capabilities following the tau-bench pattern.
 """
 
 import json
 from typing import Any
+
+from litellm import acompletion
+from litellm.types.utils import ModelResponse
 
 from linalg_zero.shared.system_prompts import get_math_system_prompt
 from linalg_zero.shared.utils import get_logger
@@ -20,7 +23,9 @@ logger = get_logger(__name__)
 class Agent:
     """Abstract base class for agents - self-contained interface."""
 
-    def solve(self, env: LinAlgEnvironment, task_index: int | None = None, max_num_steps: int = 30) -> SolveResult:
+    async def solve(
+        self, env: LinAlgEnvironment, task_index: int | None = None, max_num_steps: int = 30
+    ) -> SolveResult:
         """Solve a task in the given environment."""
         raise NotImplementedError
 
@@ -29,8 +34,7 @@ class LinAlgAgent(Agent):
     """
     Linear algebra agent that solves mathematical problems using tool calling.
 
-    This agent extends the self-contained Agent interface and integrates with
-    the existing model infrastructure to solve linear algebra problems step-by-step.
+    This agent follows the tau-bench pattern for model integration and tool calling.
     """
 
     def __init__(
@@ -40,192 +44,134 @@ class LinAlgAgent(Agent):
         provider: str,
         system_prompt: str,
         temperature: float = 0.0,
-        max_retries: int = 3,
         art_model: Any = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
     ):
         """
-        Initialize the LinAlgAgent.
+        Initialize the LinAlgAgent following tau-bench patterns.
 
         Args:
             tools_info: List of available tool information dictionaries
             model: Model name/identifier for inference
             provider: Model provider (e.g., "openai", "anthropic", "local", "art")
+            system_prompt: System prompt for the agent
             temperature: Sampling temperature for model generation
-            max_retries: Maximum number of retries for failed model calls
-            system_prompt: Optional system prompt override
             art_model: art.Model instance for art provider integration
         """
         self.tools_info = tools_info
         self.model = model
         self.provider = provider
         self.temperature = temperature
-        self.max_retries = max_retries
         self.system_prompt = system_prompt
         self.art_model = art_model
-
-        # Initialize model client based on provider
-        self._init_model_client()
+        self.base_url = base_url
+        self.api_key = api_key
 
         logger.info(f"Initialized LinAlgAgent with model={model}, provider={provider}")
 
-    def _init_model_client(self) -> None:
-        """Initialize the model client based on the provider."""
-        if self.provider == "art":
-            # art.Model will be injected during rollout - no initialization needed here
-            self.model_client = None
-            logger.debug("Art model client - will be injected during rollout")
-        elif self.provider == "openai":
-            self._init_openai_client()
-        elif self.provider == "anthropic":
-            self._init_anthropic_client()
-        elif self.provider == "local":
-            self._init_local_client()
-        else:
-            logger.warning(f"Unknown provider '{self.provider}', using placeholder client")
-            self.model_client = None
+    async def llm_completion(self, messages: list[dict[str, Any]]) -> ModelResponse:
+        completion_obj = await acompletion(
+            messages=messages,
+            model=self.model,
+            custom_llm_provider=self.provider,
+            base_url=self.base_url,
+            api_key=self.api_key,
+            tools=self.tools_info,
+            temperature=self.temperature,
+        )
+        assert isinstance(completion_obj, ModelResponse)  # noqa: S101
+        return completion_obj
 
-    def _init_openai_client(self) -> None:
-        """Initialize OpenAI client."""
-        try:
-            import openai
-
-            self.model_client = openai.OpenAI()
-            logger.debug("Initialized OpenAI client")
-        except ImportError:
-            logger.exception("OpenAI package not available. Install with: pip install openai")
-            self.model_client = None
-        except Exception:
-            logger.exception("Failed to initialize OpenAI client")
-            self.model_client = None
-
-    def _init_anthropic_client(self) -> None:
-        """Initialize Anthropic client."""
-        try:
-            import anthropic
-
-            self.model_client = anthropic.Anthropic()
-            logger.debug("Initialized Anthropic client")
-        except ImportError:
-            logger.exception("Anthropic package not available. Install with: pip install anthropic")
-            self.model_client = None
-        except Exception:
-            logger.exception("Failed to initialize Anthropic client")
-            self.model_client = None
-
-    def _init_local_client(self) -> None:
-        """Initialize local model client (e.g., vLLM, transformers)."""
-        # Local model client integration (following tau-bench pattern)
-        # In tau-bench, local models are handled through the same interface
-        logger.debug("Local model client initialization - using standard interface")
-        self.model_client = None
-
-    def _ensure_openai_client(self) -> None:
-        """Ensure OpenAI client is initialized, raise if not."""
-        if self.model_client is None:
-            raise RuntimeError("OpenAI client not initialized")
-
-    def _ensure_anthropic_client(self) -> None:
-        """Ensure Anthropic client is initialized, raise if not."""
-        if self.model_client is None:
-            raise RuntimeError("Anthropic client not initialized")
-
-    def _format_tools_for_prompt(self) -> str:
-        """Format available tools for inclusion in system prompt."""
-        if not self.tools_info:
-            return "No tools available."
-
-        tool_descriptions = []
-        for tool in self.tools_info:
-            func_info = tool.get("function", {})
-            name = func_info.get("name", "unknown")
-            description = func_info.get("description", "No description available")
-            tool_descriptions.append(f"- {name}: {description}")
-
-        return "\n".join(tool_descriptions)
-
-    def solve(self, env: LinAlgEnvironment, task_index: int | None = None, max_num_steps: int = 30) -> SolveResult:
-        """
-        Solve a linear algebra task in the given environment.
-
-        Args:
-            env: LinAlgEnvironment instance
-            task_index: Index of task to solve, random if None
-            max_num_steps: Maximum number of steps to take
-
-        Returns:
-            SolveResult with reward, messages, and metadata
-        """
-        logger.info(f"Starting solve with task_index={task_index}, max_steps={max_num_steps}")
-
-        # Initialize tracking variables
+    async def solve(
+        self, env: LinAlgEnvironment, task_index: int | None = None, max_num_steps: int = 30
+    ) -> SolveResult:
         total_cost = 0.0
-        messages: list[dict[str, Any]] = []
 
-        # Reset environment and get initial observation
-        env_reset_res = env.reset(task_index=task_index)
+        # Async environment reset
+        env_reset_res = await env.reset(task_index=task_index)
         obs = env_reset_res.observation
         info = env_reset_res.info.model_dump()
         reward = 0.0
 
-        # Initialize conversation with system prompt and initial observation
-        messages = [
+        messages: list[dict[str, Any]] = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": obs},
         ]
 
-        logger.debug(f"Initial observation: {obs}")
+        # Track metrics like tau-bench
+        final_prompt_tokens = 0
+        avg_completion_tokens = 0
+        max_completion_tokens = 0
+        forced_stop = True
+        _curr_step_number = 0
 
-        # Main solving loop
-        for step in range(max_num_steps):
-            logger.debug(f"Step {step + 1}/{max_num_steps}")
+        for _curr_step_number in range(max_num_steps):
+            # Async LLM call
+            if self.provider == "art" and self.art_model is not None:
+                openai_client = self.art_model.openai_client()
+                res = await openai_client.chat.completions.create(
+                    model=self.art_model.name,
+                    messages=messages,
+                    tools=self.tools_info,
+                    temperature=self.temperature,
+                )
+            else:
+                res = await self.llm_completion(messages)
 
-            try:
-                # Generate next action from model
-                action, next_message, step_cost = self.generate_next_action(messages)
-                total_cost += step_cost
+            # Track token usage
+            final_prompt_tokens = res.usage.prompt_tokens
+            avg_completion_tokens += res.usage.completion_tokens
+            max_completion_tokens = max(max_completion_tokens, res.usage.completion_tokens)
 
-                # Execute action in environment
-                env_response = env.step(action)
-                reward = env_response.reward
-                info = {**info, **env_response.info.model_dump()}
+            next_message = res.choices[0].message.model_dump()
 
-                # Update conversation based on action type
-                if action.name != RESPOND_ACTION_NAME:
-                    # Tool call - add tool response to conversation
-                    messages.extend([
-                        next_message,
-                        {
-                            "role": "tool",
-                            "tool_call_id": self._get_tool_call_id(next_message),
-                            "name": action.name,
-                            "content": env_response.observation,
-                        },
-                    ])
-                    logger.debug(f"Tool call: {action.name} -> {env_response.observation}")
-                else:
-                    # Response action - add user feedback
-                    messages.extend([
-                        next_message,
-                        {"role": "user", "content": env_response.observation},
-                    ])
-                    logger.debug(f"Agent response: {action.kwargs.get('content', '')}")
+            # Limit tool calls before appending
+            if (
+                "tool_calls" in next_message
+                and next_message["tool_calls"] is not None
+                and len(next_message["tool_calls"]) > 0
+            ):
+                next_message["tool_calls"] = next_message["tool_calls"][:1]
 
-                # Check if episode is done
-                if env_response.done:
-                    logger.info(f"Episode completed after {step + 1} steps with reward {reward}")
-                    break
+            messages.append(next_message)
 
-            except Exception as e:
-                logger.exception(f"Error in step {step + 1}")
-                # Add error message to conversation and continue
+            total_cost += res._hidden_params.get("response_cost") or 0.0
+            action = self._message_to_action(next_message)
+
+            # Async environment step
+            env_response = await env.step(action)
+            reward = env_response.reward
+            info = {**info, **env_response.info.model_dump()}
+
+            # Update messages based on action type
+            if action.name != RESPOND_ACTION_NAME:
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": next_message["tool_calls"][0]["id"],
+                    "name": next_message["tool_calls"][0]["function"]["name"],
+                    "content": env_response.observation,
+                })
+            else:
                 messages.append({
                     "role": "user",
-                    "content": f"An error occurred: {e}. Please try a different approach.",
+                    "content": env_response.observation,
                 })
-                continue
 
-        else:
-            logger.warning(f"Episode reached maximum steps ({max_num_steps}) without completion")
+            if env_response.done:
+                forced_stop = False
+                break
+
+            # Check for forced stop conditions
+            if final_prompt_tokens > 20000 or res.choices[0].finish_reason == "length":
+                break
+
+        # Add metrics to info
+        info["total_steps"] = _curr_step_number + 1
+        info["avg_completion_tokens"] = avg_completion_tokens / info["total_steps"]
+        info["max_completion_tokens"] = max_completion_tokens
+        info["final_prompt_tokens"] = final_prompt_tokens
+        info["forced_stop"] = 1 if forced_stop else 0
 
         return SolveResult(
             reward=reward,
@@ -234,234 +180,9 @@ class LinAlgAgent(Agent):
             total_cost=total_cost,
         )
 
-    def generate_next_action(self, messages: list[dict[str, Any]]) -> tuple[Action, dict[str, Any], float]:
-        """
-        Generate the next action based on conversation history.
-
-        Args:
-            messages: Conversation history
-
-        Returns:
-            Tuple of (Action, message_dict, cost)
-        """
-        # Attempt model inference with retry logic
-        for attempt in range(self.max_retries):
-            try:
-                if self.provider == "art" and self.art_model is None:
-                    logger.warning("Art model not set, using placeholder")
-                    return self._generate_placeholder_action(messages)
-
-                if self.model_client is None and self.provider != "art":
-                    logger.warning(f"Model client not initialized for provider '{self.provider}', using placeholder")
-                    return self._generate_placeholder_action(messages)
-
-                # Call the appropriate model
-                response = self._call_model(messages)
-                next_message = response["message"]
-                cost = response.get("cost", 0.0)
-                action = self._message_to_action(next_message)
-
-                logger.debug(f"Generated action: {action.name}")
-                return action, next_message, cost  # noqa: TRY300
-
-            except Exception as e:
-                logger.warning(f"Model call attempt {attempt + 1}/{self.max_retries} failed: {e}")
-                if attempt == self.max_retries - 1:
-                    # Final attempt failed, use placeholder
-                    logger.exception("All model call attempts failed, using placeholder action")
-                    return self._generate_placeholder_action(messages)
-
-                # Wait before retry (exponential backoff)
-                import time
-
-                time.sleep(2**attempt)
-
-        # Should not reach here, but fallback just in case
-        return self._generate_placeholder_action(messages)
-
-    def _call_model(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
-        """
-        Call the model with the given messages.
-
-        This method integrates with different model providers including art.Model.
-
-        Args:
-            messages: Conversation history in OpenAI format
-
-        Returns:
-            Dictionary with "message" and "cost" keys
-        """
-        if self.provider == "art" and self.art_model is not None:
-            return self._call_art_model(messages)
-        elif self.provider == "openai" and self.model_client is not None:
-            return self._call_openai_model(messages)
-        elif self.provider == "anthropic" and self.model_client is not None:
-            return self._call_anthropic_model(messages)
-        elif self.provider == "local" and self.model_client is not None:
-            return self._call_local_model(messages)
-        else:
-            logger.exception(f"No valid model client for provider '{self.provider}'")
-            raise RuntimeError(f"Model client not available for provider '{self.provider}'")
-
-    def _call_art_model(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
-        """
-        Call art.Model for inference.
-
-        Args:
-            messages: Conversation history
-
-        Returns:
-            Dictionary with message and cost
-        """
-        try:
-            # Art.Model integration - following tau-bench pattern
-            # The art framework handles the actual model calls during training
-            logger.debug("Art.Model integration - using placeholder for rollout compatibility")
-
-            # Extract the last user message for context
-            user_message = ""
-            for msg in reversed(messages):
-                if msg.get("role") == "user":
-                    user_message = msg.get("content", "")
-                    break
-
-            # Simple heuristic for demonstration
-            if "matrix" in user_message.lower() or "determinant" in user_message.lower():
-                # Simulate a tool call response
-                response_message = {
-                    "role": "assistant",
-                    "content": "I'll help you solve this linear algebra problem using the available tools.",
-                    "tool_calls": [
-                        {
-                            "id": "call_001",
-                            "type": "function",
-                            "function": {
-                                "name": "matrix_determinant",
-                                "arguments": '{"matrix": "A"}',
-                            },
-                        }
-                    ],
-                }
-            else:
-                # Simulate a regular response
-                response_message = {
-                    "role": "assistant",
-                    "content": "Based on the calculations, I can provide the final answer.",
-                }
-
-            return {"message": response_message, "cost": 0.0}  # noqa: TRY300
-
-        except Exception:
-            logger.exception("Art model call failed")
-            raise
-
-    def _call_openai_model(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
-        """
-        Call OpenAI API for inference.
-
-        Args:
-            messages: Conversation history
-
-        Returns:
-            Dictionary with message and cost
-        """
-        try:
-            self._ensure_openai_client()
-
-            response = self.model_client.chat.completions.create(  # type: ignore[attr-defined]
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature,
-                tools=[{"type": "function", "function": tool["function"]} for tool in self.tools_info],
-                tool_choice="auto",
-            )
-
-            message = response.choices[0].message.model_dump()
-            cost = 0.0  # Cost tracking handled by model provider
-
-            return {"message": message, "cost": cost}  # noqa: TRY300
-
-        except Exception:
-            logger.exception("OpenAI model call failed")
-            raise
-
-    def _call_anthropic_model(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
-        """
-        Call Anthropic API for inference.
-
-        Args:
-            messages: Conversation history
-
-        Returns:
-            Dictionary with message and cost
-        """
-        try:
-            self._ensure_anthropic_client()
-
-            # Convert OpenAI format to Anthropic format
-            system_message = ""
-            anthropic_messages = []
-
-            for msg in messages:
-                if msg["role"] == "system":
-                    system_message = msg["content"]
-                else:
-                    anthropic_messages.append(msg)
-
-            response = self.model_client.messages.create(  # type: ignore[attr-defined]
-                model=self.model,
-                max_tokens=1024,
-                temperature=self.temperature,
-                system=system_message,
-                messages=anthropic_messages,
-            )
-
-            # Convert back to OpenAI format
-            message = {
-                "role": "assistant",
-                "content": response.content[0].text if response.content else "",
-            }
-            cost = 0.0  # Cost tracking handled by model provider
-
-            return {"message": message, "cost": cost}  # noqa: TRY300
-
-        except Exception:
-            logger.exception("Anthropic model call failed")
-            raise
-
-    def _call_local_model(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
-        """
-        Call local model for inference.
-
-        Args:
-            messages: Conversation history
-
-        Returns:
-            Dictionary with message and cost
-        """
-        try:
-            # Local model integration (following tau-bench pattern)
-            # Local models use the same interface as other providers
-            logger.debug("Local model call - using standard interface")
-
-            # For now, return a placeholder response
-            message = {
-                "role": "assistant",
-                "content": "Local model response placeholder",
-            }
-
-            return {"message": message, "cost": 0.0}  # noqa: TRY300
-
-        except Exception:
-            logger.exception("Local model call failed")
-            raise
-
     def set_art_model(self, art_model: Any) -> None:
         """
         Set the art.Model instance for inference.
-
-        This method allows injecting the art.Model after agent initialization,
-        which is useful for the rollout function integration.
 
         Args:
             art_model: art.Model instance
@@ -469,52 +190,15 @@ class LinAlgAgent(Agent):
         self.art_model = art_model
         logger.debug("Art model instance set for agent")
 
-    def _generate_placeholder_action(self, messages: list[dict[str, Any]]) -> tuple[Action, dict[str, Any], float]:
-        """
-        Generate a placeholder action for testing purposes.
-
-        This method provides basic functionality for testing the agent structure
-        before full model integration.
-        """
-        # Simple heuristic: if we haven't used any tools yet, try a basic tool call
-        tool_calls_made = sum(1 for msg in messages if msg.get("role") == "tool")
-
-        if tool_calls_made == 0 and self.tools_info:
-            # Make a simple tool call
-            tool_info = self.tools_info[0]  # Use first available tool
-            tool_name = tool_info["function"]["name"]
-
-            # Create a simple tool call message
-            next_message = {
-                "role": "assistant",
-                "content": f"I'll use the {tool_name} tool to help solve this problem.",
-                "tool_calls": [
-                    {
-                        "id": "call_001",
-                        "type": "function",
-                        "function": {
-                            "name": tool_name,
-                            "arguments": "{}",  # Empty arguments for placeholder
-                        },
-                    }
-                ],
-            }
-
-            action = Action(name=tool_name, kwargs={})
-            return action, next_message, 0.0
-        else:
-            # Provide a response action
-            next_message = {
-                "role": "assistant",
-                "content": "Based on the available information, I believe this completes the solution.",
-            }
-
-            action = Action(name=RESPOND_ACTION_NAME, kwargs={"content": next_message["content"]})
-            return action, next_message, 0.0
+        # Validate that the art model has the expected interface
+        if not hasattr(art_model, "openai_client"):
+            logger.warning("Art model does not have 'openai_client' method - may cause inference issues")
+        if not hasattr(art_model, "get_inference_name"):
+            logger.warning("Art model does not have 'get_inference_name' method - may cause inference issues")
 
     def _message_to_action(self, message: dict[str, Any]) -> Action:
         """
-        Convert a model message to an Action.
+        Convert a model message to an Action following tau-bench pattern.
 
         Args:
             message: Message dictionary from model response
@@ -522,7 +206,6 @@ class LinAlgAgent(Agent):
         Returns:
             Action object
         """
-        # Check if message contains tool calls
         if (
             "tool_calls" in message
             and message["tool_calls"] is not None
@@ -544,134 +227,6 @@ class LinAlgAgent(Agent):
             # Regular response action
             content = message.get("content", "")
             return Action(name=RESPOND_ACTION_NAME, kwargs={"content": content})
-
-    def _get_tool_call_id(self, message: dict[str, Any]) -> str:
-        """
-        Extract tool call ID from message.
-
-        Args:
-            message: Message containing tool call
-
-        Returns:
-            Tool call ID string
-        """
-        if "tool_calls" in message and message["tool_calls"] is not None and len(message["tool_calls"]) > 0:
-            return message["tool_calls"][0].get("id", "call_001")
-        return "call_001"
-
-    def validate_configuration(self) -> bool:
-        """
-        Validate the agent configuration.
-
-        Returns:
-            True if configuration is valid, False otherwise
-        """
-        if self.provider == "art":
-            if self.art_model is None:
-                logger.error("Art provider requires art_model to be set")
-                return False
-        elif self.provider in ["openai", "anthropic", "local"]:
-            if self.model_client is None:
-                logger.error(f"Provider '{self.provider}' requires model_client to be initialized")
-                return False
-        else:
-            logger.warning(f"Unknown provider '{self.provider}'")
-            return False
-
-        if not self.tools_info:
-            logger.warning("No tools available for agent")
-
-        if self.temperature < 0.0 or self.temperature > 2.0:
-            logger.warning(f"Temperature {self.temperature} may be outside normal range [0.0, 2.0]")
-
-        return True
-
-    def get_model_info(self) -> dict[str, Any]:
-        """
-        Get information about the current model configuration.
-
-        Returns:
-            Dictionary with model information
-        """
-        return {
-            "model": self.model,
-            "provider": self.provider,
-            "temperature": self.temperature,
-            "max_retries": self.max_retries,
-            "tools_count": len(self.tools_info),
-            "has_art_model": self.art_model is not None,
-            "has_model_client": self.model_client is not None,
-            "configuration_valid": self.validate_configuration(),
-        }
-
-    def update_temperature(self, temperature: float) -> None:
-        """
-        Update the sampling temperature.
-
-        Args:
-            temperature: New temperature value
-        """
-        self.temperature = temperature
-        logger.debug(f"Updated temperature to {temperature}")
-
-    def add_tools(self, new_tools_info: list[dict[str, Any]]) -> None:
-        """
-        Add new tools to the agent's available tools.
-
-        Args:
-            new_tools_info: List of new tool information dictionaries
-        """
-        self.tools_info.extend(new_tools_info)
-        logger.info(f"Added {len(new_tools_info)} new tools. Total tools: {len(self.tools_info)}")
-
-        # Update system prompt to include new tools
-        self.system_prompt = get_math_system_prompt(include_examples=False)
-
-    def get_available_tools(self) -> list[str]:
-        """
-        Get list of available tool names.
-
-        Returns:
-            List of tool names
-        """
-        return [tool["function"]["name"] for tool in self.tools_info]
-
-    def update_model_config(self, model: str | None = None, temperature: float | None = None) -> None:
-        """
-        Update model configuration parameters.
-
-        Args:
-            model: New model name/identifier
-            temperature: New temperature value
-        """
-        if model is not None:
-            self.model = model
-            logger.debug(f"Updated model to {model}")
-
-        if temperature is not None:
-            self.temperature = temperature
-            logger.debug(f"Updated temperature to {temperature}")
-
-    def get_provider_status(self) -> dict[str, Any]:
-        """
-        Get detailed status information about the model provider.
-
-        Returns:
-            Dictionary with provider status information
-        """
-        status = {
-            "provider": self.provider,
-            "model": self.model,
-            "client_initialized": self.model_client is not None,
-            "art_model_available": self.art_model is not None,
-        }
-
-        if self.provider == "art":
-            status["ready"] = self.art_model is not None
-        else:
-            status["ready"] = self.model_client is not None
-
-        return status
 
 
 def create_linalg_agent(

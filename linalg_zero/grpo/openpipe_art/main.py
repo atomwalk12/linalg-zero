@@ -63,7 +63,9 @@ async def rollout(model: art.Model, scenario: LinearAlgebraScenario) -> Any:
         agent = create_linalg_agent(
             env=environment,
             model=model.name if hasattr(model, "name") else "art-model",
-            provider="art",  # Custom provider for art integration
+            provider="art",  # "art",  # Custom provider for art integration
+            api_key=run_config.api_key,  # From model.inference_api_key
+            base_url=run_config.base_url,  # From model.inference_base_url
             temperature=run_config.temperature,
             art_model=model,  # Pass the art.Model instance directly
         )
@@ -71,7 +73,7 @@ async def rollout(model: art.Model, scenario: LinearAlgebraScenario) -> Any:
         logger.debug("Created LinAlg agent with art model integration")
 
         # Run episode with agent
-        solve_result = agent.solve(
+        solve_result = await agent.solve(
             env=environment,
             task_index=None,  # Random task selection
             max_num_steps=run_config.max_num_steps,
@@ -154,6 +156,11 @@ async def main(run_config: RunConfig, train_config: LinearAlgebraTrainingConfig)
         logger.info("Continuing without weave initialization")
 
     await model.register(backend)
+
+    # Update local configuration with art model inference details
+    run_config.api_key = model.inference_api_key
+    run_config.base_url = model.inference_base_url
+    run_config.base_model = model.base_model
     print("Model registered successfully!")
 
     #########
