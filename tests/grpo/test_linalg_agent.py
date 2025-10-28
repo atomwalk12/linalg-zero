@@ -9,7 +9,7 @@ import pytest
 from linalg_zero.grpo.openpipe_art.base_types import RESPOND_ACTION_NAME
 from linalg_zero.grpo.openpipe_art.data_types import RunConfig
 from linalg_zero.grpo.openpipe_art.linalg_agent import LinAlgAgent, create_linalg_agent
-from linalg_zero.grpo.openpipe_art.linalg_env import LinAlgEnvironment, create_sample_tasks
+from linalg_zero.grpo.openpipe_art.linalg_env import LinAlgEnvironment, LinAlgTask
 
 
 class TestLinAlgAgent:
@@ -141,7 +141,21 @@ class TestCreateLinAlgAgent:
         # Create a mock environment with tools
         config = RunConfig(model_provider="test", user_model_provider="test", model="test-model")
 
-        tasks = create_sample_tasks()
+        # Create minimal test tasks
+        import json
+
+        tasks = [
+            LinAlgTask(
+                user_id="test_1",
+                instruction="Test task",
+                actions=[],
+                outputs=["test"],
+                query="Test query",
+                ground_truth=json.dumps(1.0),
+                stepwise_ground_truths=json.dumps([{"test": 1.0}]),
+                tools=None,
+            )
+        ]
 
         # Import here to avoid circular imports during testing
         from linalg_zero.grpo.openpipe_art.linalg_tools import get_linalg_tools
