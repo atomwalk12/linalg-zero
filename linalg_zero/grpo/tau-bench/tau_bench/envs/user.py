@@ -34,6 +34,17 @@ class HumanUserSimulationEnv(BaseUserSimulationEnv):
         return 0
 
 
+class LocalSimulationEnv(BaseUserSimulationEnv):
+    async def reset(self, instruction: str | None = None) -> str:
+        return f"{instruction}\n"
+
+    async def step(self, content: str) -> str:
+        return f"{content}\n"
+
+    def get_total_cost(self) -> float:
+        return 0
+
+
 class LLMUserSimulationEnv(BaseUserSimulationEnv):
     def __init__(self, model: str, provider: str) -> None:
         super().__init__()
@@ -285,6 +296,7 @@ class UserStrategy(enum.Enum):
     REACT = "react"
     VERIFY = "verify"
     REFLECTION = "reflection"
+    LOCAL = "local"
 
 
 def load_user(
@@ -296,6 +308,8 @@ def load_user(
         user_strategy = UserStrategy(user_strategy)
     if user_strategy == UserStrategy.HUMAN:
         return HumanUserSimulationEnv()
+    elif user_strategy == UserStrategy.LOCAL:
+        return LocalSimulationEnv()
     elif user_strategy == UserStrategy.LLM:
         if model is None:
             raise ValueError("LLM user strategy requires a model")

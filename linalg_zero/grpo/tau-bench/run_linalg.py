@@ -2,15 +2,18 @@ import os
 
 os.environ["IMPORT_PEFT"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = ""
-
+os.environ["LITELLM_LOG"] = "DEBUG"
 import asyncio
 
 import art
+import litellm
 import torch
 from dotenv import load_dotenv
 from run import RunConfig
 from run_rl import train
 from tau_bench.types import TauBenchPolicyConfig, TauBenchTrainingConfig
+
+litellm._turn_on_debug()
 
 if __name__ == "__main__":
     """Script entry point for SFT training."""
@@ -36,6 +39,7 @@ if __name__ == "__main__":
                 model_provider="hosted_vllm",
                 user_model_provider="openai",
                 model=MODEL_NAME,
+                user_strategy="local",
                 user_model="gpt-4o",
                 agent_strategy="tool-calling-rl",
                 temperature=1.0,

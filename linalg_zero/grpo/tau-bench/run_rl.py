@@ -35,7 +35,7 @@ def clean_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return cleaned_messages
 
 
-@limit_concurrency(256)
+@limit_concurrency(1)
 async def rollout_tau_bench_task(
     model: art.Model[TauBenchPolicyConfig],
     task_index: int,
