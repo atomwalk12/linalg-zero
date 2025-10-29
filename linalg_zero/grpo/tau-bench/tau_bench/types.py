@@ -19,6 +19,14 @@ class Task(BaseModel):
     instruction: str
     outputs: list[str]
 
+    @classmethod
+    def from_dataset_entry(cls, entry: dict[str, Any]) -> "Task":
+        return cls(
+            user_id=entry.get("user_id", "user"),
+            actions=[], # will be populated during rollout execution
+            instruction=entry["query"],
+            outputs=entry.get("ground_truth", [])
+        )
 
 class RewardOutputInfo(BaseModel):
     r_outputs: float
