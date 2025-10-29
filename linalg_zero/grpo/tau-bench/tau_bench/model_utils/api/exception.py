@@ -1,8 +1,9 @@
 import json
 import os
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from tau_bench.model_utils.model.exception import ModelError, Result
 
@@ -32,9 +33,7 @@ def generate_report_location() -> str:
 
 
 class APIError(Exception):
-    def __init__(
-        self, short_message: str, report: dict[str, Any] | None = None
-    ) -> None:
+    def __init__(self, short_message: str, report: dict[str, Any] | None = None) -> None:
         self.report_path = generate_report_location()
         self.short_message = short_message
         self.report = report
@@ -43,9 +42,7 @@ class APIError(Exception):
                 report={"error_type": "APIError", "report": report},
                 path=self.report_path,
             )
-        super().__init__(
-            f"{short_message}\n\nSee the full report at {self.report_path}"
-        )
+        super().__init__(f"{short_message}\n\nSee the full report at {self.report_path}")
 
 
 def execute_and_filter_model_errors(

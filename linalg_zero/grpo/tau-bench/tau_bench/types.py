@@ -1,6 +1,6 @@
 # Copyright Sierra
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -10,19 +10,19 @@ RESPOND_ACTION_FIELD_NAME = "content"
 
 class Action(BaseModel):
     name: str
-    kwargs: Dict[str, Any]
+    kwargs: dict[str, Any]
 
 
 class Task(BaseModel):
     user_id: str
-    actions: List[Action]
+    actions: list[Action]
     instruction: str
-    outputs: List[str]
+    outputs: list[str]
 
 
 class RewardOutputInfo(BaseModel):
     r_outputs: float
-    outputs: Dict[str, bool]
+    outputs: dict[str, bool]
 
 
 class RewardActionInfo(BaseModel):
@@ -32,22 +32,22 @@ class RewardActionInfo(BaseModel):
 
 class RewardResult(BaseModel):
     reward: float
-    info: Union[RewardOutputInfo, RewardActionInfo]
-    actions: List[Action]
+    info: RewardOutputInfo | RewardActionInfo
+    actions: list[Action]
 
 
 class SolveResult(BaseModel):
     reward: float
-    messages: List[Dict[str, Any]]
-    info: Dict[str, Any]
-    total_cost: Optional[float] = None
+    messages: list[dict[str, Any]]
+    info: dict[str, Any]
+    total_cost: float | None = None
 
 
 class EnvInfo(BaseModel):
     task: Task
-    source: Optional[str] = None
-    user_cost: Optional[float] = None
-    reward_info: Optional[RewardResult] = None
+    source: str | None = None
+    user_cost: float | None = None
+    reward_info: RewardResult | None = None
 
 
 class EnvResponse(BaseModel):
@@ -65,8 +65,8 @@ class EnvResetResponse(BaseModel):
 class EnvRunResult(BaseModel):
     task_id: int
     reward: float
-    info: Dict[str, Any]
-    traj: List[Dict[str, Any]]
+    info: dict[str, Any]
+    traj: list[dict[str, Any]]
     trial: int
 
 
@@ -82,16 +82,16 @@ class RunConfig(BaseModel):
     task_split: str = "test"
     start_index: int = 0
     end_index: int = -1
-    task_ids: Optional[List[int]] = None
+    task_ids: list[int] | None = None
     log_dir: str = "results"
     max_concurrency: int = 1
     seed: int = 10
     shuffle: int = 0
     user_strategy: str = "llm"
-    few_shot_displays_path: Optional[str] = None
+    few_shot_displays_path: str | None = None
     # art related configs
-    api_key: Optional[str] = None
-    base_url: Optional[str] = None
+    api_key: str | None = None
+    base_url: str | None = None
     reward_type: str = "real"
     judge_model: str = "o3"
     max_num_steps: int = 30

@@ -3,13 +3,14 @@ import os
 os.environ["IMPORT_PEFT"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = ""
 
+import asyncio
+
+import art
 import torch
 from dotenv import load_dotenv
 from run import RunConfig
 from run_rl import train
 from tau_bench.types import TauBenchPolicyConfig, TauBenchTrainingConfig
-import asyncio
-import art
 
 if __name__ == "__main__":
     """Script entry point for SFT training."""

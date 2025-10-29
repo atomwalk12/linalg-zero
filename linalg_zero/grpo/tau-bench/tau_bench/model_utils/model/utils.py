@@ -56,11 +56,9 @@ def json_response_to_obj_or_partial_obj(
     if isinstance(typ, dict):
         return response
     else:
-        required_field_names = [
-            name for name, field in typ.model_fields.items() if field.is_required()
-        ]
+        required_field_names = [name for name, field in typ.model_fields.items() if field.is_required()]
         for name in required_field_names:
-            if name not in response.keys() or response[name] is None:
+            if name not in response or response[name] is None:
                 return response
         return typ.model_validate(response)
 

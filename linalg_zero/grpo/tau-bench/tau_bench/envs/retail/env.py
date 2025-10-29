@@ -1,6 +1,5 @@
 # Copyright Sierra
 
-from typing import Optional, Union
 
 from tau_bench.envs.base import Env
 from tau_bench.envs.retail.data import load_data
@@ -13,11 +12,11 @@ from tau_bench.envs.user import UserStrategy
 class MockRetailDomainEnv(Env):
     def __init__(
         self,
-        user_strategy: Union[str, UserStrategy] = UserStrategy.LLM,
+        user_strategy: str | UserStrategy = UserStrategy.LLM,
         user_model: str = "gpt-4o",
-        user_provider: Optional[str] = None,
+        user_provider: str | None = None,
         task_split: str = "test",
-        task_index: Optional[int] = None,
+        task_index: int | None = None,
     ):
         match task_split:
             case "test":

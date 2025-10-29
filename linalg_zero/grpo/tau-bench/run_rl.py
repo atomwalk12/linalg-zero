@@ -6,8 +6,11 @@ import concurrent.futures
 import copy
 import json
 import random
-from typing import Any, Dict, List
+from typing import Any
 
+import art
+from art.local import LocalBackend
+from art.utils import iterate_dataset, limit_concurrency
 from dotenv import load_dotenv
 from tau_bench.agents.tool_calling_agent import ToolCallingRLAgent
 from tau_bench.envs import get_env
@@ -20,15 +23,11 @@ from tau_bench.run import agent_factory
 from tau_bench.types import RunConfig, SolveResult, TauBenchPolicyConfig
 from tqdm.asyncio import tqdm_asyncio
 
-import art
-from art.local import LocalBackend
-from art.utils import iterate_dataset, limit_concurrency
-
 # Load environment variables
 load_dotenv(override=True)
 
 
-def clean_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def clean_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     cleaned_messages = []
     for msg in messages:
         cleaned_msg = {k: v for k, v in msg.items() if v is not None}
@@ -116,9 +115,7 @@ async def rollout_tau_bench_task(
             "forced_stop": result.info["forced_stop"],
         }
         traj.metadata.update(result.info)
-        traj.metadata["reward"] = (
-            "pending_general_rm" if config.reward_type == "general_rm" else traj.reward
-        )
+        traj.metadata["reward"] = "pending_general_rm" if config.reward_type == "general_rm" else traj.reward
         traj.metadata["outcome_correct"] = traj.metrics["outcome_correct"]
         traj.metadata["judge_explanation"] = explanation
 
@@ -154,7 +151,7 @@ async def evaluate_model(
     model: art.Model[TauBenchPolicyConfig],
     config: RunConfig,
     step: int,
-    val_task_indices: List[int],
+    val_task_indices: list[int],
 ) -> float:
     """Evaluate the model on a subset of tasks"""
     print(f"Evaluating model on {len(val_task_indices)} tasks...")
@@ -162,12 +159,8 @@ async def evaluate_model(
     total_reward = 0.0
 
     trajectories = await art.gather_trajectories(
-        (
-            rollout_tau_bench_task(
-                model, val_task_index, step, "val", reward_type=config.reward_type
-            )
-            for val_task_index in val_task_indices
-        )
+        rollout_tau_bench_task(model, val_task_index, step, "val", reward_type=config.reward_type)
+        for val_task_index in val_task_indices
     )
     await model.log(trajectories=trajectories, split="val")
 
@@ -210,11 +203,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
         )
 
         # Create list of task indices for training
-        end_index = (
-            min(config.end_index, len(env.tasks))
-            if config.end_index != -1
-            else len(env.tasks)
-        )
+        end_index = min(config.end_index, len(env.tasks)) if config.end_index != -1 else len(env.tasks)
         if config.task_ids:
             train_task_indices = config.task_ids
         else:
@@ -240,9 +229,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             global_step = 0
             train_task_indices_async_rl = []
             for _ in range(training_config.num_epochs):
-                train_task_indices_async_rl.extend(
-                    random.sample(train_task_indices, len(train_task_indices))
-                )
+                train_task_indices_async_rl.extend(random.sample(train_task_indices, len(train_task_indices)))
 
             async for trajectory_groups in art.trajectory_group_batches(
                 (
@@ -259,10 +246,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 skip_batches=await model.get_step(),
             ):
                 # NOT UPDATED FOR TRAINING WITH SHADOW TRAJECTORIES
-                if (
-                    global_step % training_config.eval_steps == 0
-                    and not config.skip_eval
-                ):
+                if global_step % training_config.eval_steps == 0 and not config.skip_eval:
                     print(f"\n--- Evaluating at Step {global_step} ---")
                     await evaluate_model(model, config, global_step, val_task_indices)
                     # await model.delete_checkpoints()
@@ -270,10 +254,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 if config.reward_type == "general_rm":
                     print("Creating general RM trajectory groups...")
                     updated_groups = await tqdm_asyncio.gather(
-                        *[
-                            create_general_rm_trajectory_groups(group, config)
-                            for group in trajectory_groups
-                        ],
+                        *[create_general_rm_trajectory_groups(group, config) for group in trajectory_groups],
                         desc="Creating general RM trajectory groups",
                         total=len(trajectory_groups),
                     )
@@ -304,15 +285,10 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             )
 
             for batch in train_iterator:
-                print(
-                    f"\n--- Training Step {batch.step} (Epoch {batch.epoch}, Step {batch.epoch_step}) ---"
-                )
+                print(f"\n--- Training Step {batch.step} (Epoch {batch.epoch}, Step {batch.epoch_step}) ---")
 
                 # Evaluation
-                if (
-                    batch.step % training_config.eval_steps == 0
-                    and not config.skip_eval
-                ):
+                if batch.step % training_config.eval_steps == 0 and not config.skip_eval:
                     print(f"\n--- Evaluating at Step {batch.step} ---")
                     await evaluate_model(model, config, batch.step, val_task_indices)
                     await model.delete_checkpoints()
@@ -320,35 +296,24 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 # Generate trajectory groups
                 print(f"Generating trajectories for {len(batch.items)} tasks...")
                 groups = await art.gather_trajectory_groups(
-                    (
-                        art.TrajectoryGroup(
-                            (
-                                rollout_tau_bench_task(
-                                    model,
-                                    task_index,
-                                    batch.step,
-                                    "train",
-                                    reward_type=config.reward_type,
-                                    is_shadow=config.add_shadow_trajectory
-                                    and rollout_idx
-                                    % training_config.trajectories_per_group
-                                    == 0,
-                                )
-                                for rollout_idx in range(
-                                    training_config.trajectories_per_group
-                                )
-                            )
+                    art.TrajectoryGroup(
+                        rollout_tau_bench_task(
+                            model,
+                            task_index,
+                            batch.step,
+                            "train",
+                            reward_type=config.reward_type,
+                            is_shadow=config.add_shadow_trajectory
+                            and rollout_idx % training_config.trajectories_per_group == 0,
                         )
-                        for task_index in batch.items
+                        for rollout_idx in range(training_config.trajectories_per_group)
                     )
+                    for task_index in batch.items
                 )
                 if config.reward_type == "general_rm":
                     print("Creating general RM trajectory groups...")
                     updated_groups = await tqdm_asyncio.gather(
-                        *[
-                            create_general_rm_trajectory_groups(group, config)
-                            for group in groups
-                        ],
+                        *[create_general_rm_trajectory_groups(group, config) for group in groups],
                         desc="Creating general RM trajectory groups",
                         total=len(groups),
                     )
@@ -361,22 +326,16 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                     config=art.TrainConfig(learning_rate=training_config.learning_rate),
                     _config=art.dev.TrainConfig(
                         importance_sampling_level=training_config.importance_sampling_level,
-                        allow_training_without_logprobs=True
-                        if config.messages_only
-                        else False,
+                        allow_training_without_logprobs=True if config.messages_only else False,
                     ),
                 )
                 if config.is_multi_gpu:
                     await model.delete_checkpoints()
 
                 # Log progress
-                total_reward = sum(
-                    sum(traj.reward for traj in group.trajectories) for group in groups
-                )
+                total_reward = sum(sum(traj.reward for traj in group.trajectories) for group in groups)
                 num_trajectories = sum(len(group.trajectories) for group in groups)
-                avg_reward = (
-                    total_reward / num_trajectories if num_trajectories > 0 else 0
-                )
+                avg_reward = total_reward / num_trajectories if num_trajectories > 0 else 0
                 print(f"Step {batch.step}: Average training reward = {avg_reward}")
 
         # Final evaluation
@@ -391,9 +350,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
 def main():
     """Entry point: expects a JSON-serialized TrainableModel (model_json) just like art-e/train.py"""
 
-    parser = argparse.ArgumentParser(
-        description="Run RL training for a serialized TrainableModel"
-    )
+    parser = argparse.ArgumentParser(description="Run RL training for a serialized TrainableModel")
     parser.add_argument(
         "model_json",
         help="JSON string serialization of the TrainableModel to train",
@@ -412,19 +369,12 @@ def main():
 
     # the nested "_internal_config" needs to be converted back into the proper pydantic model.
     if "_internal_config" in model_dict and model_dict["_internal_config"] is not None:
-        model_dict["_internal_config"] = art.dev.InternalModelConfig(
-            **model_dict["_internal_config"]
-        )
+        model_dict["_internal_config"] = art.dev.InternalModelConfig(**model_dict["_internal_config"])
 
     model: art.TrainableModel[TauBenchPolicyConfig] = art.TrainableModel(**model_dict)
     if model._internal_config is not None:
-        is_multi_gpu = (
-            model._internal_config.get("engine_args", {}).get("tensor_parallel_size", 1)
-            > 1
-        )
-    model.config.run_config.model = (
-        model.name
-    )  # set run_config model name to model name
+        is_multi_gpu = model._internal_config.get("engine_args", {}).get("tensor_parallel_size", 1) > 1
+    model.config.run_config.model = model.name  # set run_config model name to model name
     model.config.run_config.is_multi_gpu = is_multi_gpu
 
     print(model)

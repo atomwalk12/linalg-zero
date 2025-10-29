@@ -1,7 +1,7 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
@@ -9,7 +9,7 @@ from tau_bench.envs.tool import Tool
 class ModifyUserAddress(Tool):
     @staticmethod
     def invoke(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         user_id: str,
         address1: str,
         address2: str,
@@ -33,7 +33,7 @@ class ModifyUserAddress(Tool):
         return json.dumps(user)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

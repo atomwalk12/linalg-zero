@@ -1,7 +1,7 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from litellm import acompletion
 
@@ -18,7 +18,7 @@ from tau_bench.types import (
 class ChatReActAgent(Agent):
     def __init__(
         self,
-        tools_info: List[Dict[str, Any]],
+        tools_info: list[dict[str, Any]],
         wiki: str,
         model: str,
         provider: str,
@@ -26,18 +26,14 @@ class ChatReActAgent(Agent):
         temperature: float = 0.0,
     ) -> None:
         instruction = REACT_INSTRUCTION if use_reasoning else ACT_INSTRUCTION
-        self.prompt = (
-            wiki + "\n#Available tools\n" + json.dumps(tools_info) + instruction
-        )
+        self.prompt = wiki + "\n#Available tools\n" + json.dumps(tools_info) + instruction
         self.model = model
         self.provider = provider
         self.temperature = temperature
         self.use_reasoning = use_reasoning
         self.tools_info = tools_info
 
-    async def generate_next_step(
-        self, messages: List[Dict[str, Any]]
-    ) -> Tuple[Dict[str, Any], Action, float]:
+    async def generate_next_step(self, messages: list[dict[str, Any]]) -> tuple[dict[str, Any], Action, float]:
         res = await acompletion(
             model=self.model,
             custom_llm_provider=self.provider,
@@ -59,12 +55,10 @@ class ChatReActAgent(Agent):
         action = Action(name=action_parsed["name"], kwargs=action_parsed["arguments"])
         return message.model_dump(), action, res._hidden_params["response_cost"]
 
-    async def solve(
-        self, env: Env, task_index: Optional[int] = None, max_num_steps: int = 30
-    ) -> SolveResult:
+    async def solve(self, env: Env, task_index: int | None = None, max_num_steps: int = 30) -> SolveResult:
         response = await env.reset(task_index=task_index)
         reward = 0.0
-        messages: List[Dict[str, Any]] = [
+        messages: list[dict[str, Any]] = [
             {"role": "system", "content": self.prompt},
             {"role": "user", "content": response.observation},
         ]
@@ -78,12 +72,10 @@ class ChatReActAgent(Agent):
             info = {**info, **response.info.model_dump()}
             if action.name != RESPOND_ACTION_NAME:
                 obs = "API output: " + obs
-            messages.extend(
-                [
-                    message,
-                    {"role": "user", "content": obs},
-                ]
-            )
+            messages.extend([
+                message,
+                {"role": "user", "content": obs},
+            ])
             total_cost += cost
             if response.done:
                 break

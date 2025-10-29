@@ -1,4 +1,5 @@
-from typing import Callable, Iterable, TypeVar
+from collections.abc import Callable, Iterable
+from typing import TypeVar
 
 from tau_bench.model_utils.func_tools.map import map
 
@@ -14,4 +15,4 @@ def filter(
 ) -> Iterable[T]:
     assert max_concurrency is None or max_concurrency > 0
     bits = map(func, iterable=iterable, max_concurrency=max_concurrency)
-    return [x for x, y in zip(iterable, bits) if y]
+    return [x for x, y in zip(iterable, bits, strict=False) if y]

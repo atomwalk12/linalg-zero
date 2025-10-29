@@ -59,9 +59,7 @@ def log_call(func):
                 "cls_name": cls_name,
                 "method_name": func.__name__,
                 "kwargs": {
-                    k: prep_for_json_serialization(
-                        v, from_parse_method=func.__name__ in ["parse", "async_parse"]
-                    )
+                    k: prep_for_json_serialization(v, from_parse_method=func.__name__ in ["parse", "async_parse"])
                     for k, v in all_args.items()
                 },
                 "response": prep_for_json_serialization(response),

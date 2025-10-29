@@ -1,7 +1,7 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict, List
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
@@ -9,9 +9,9 @@ from tau_bench.envs.tool import Tool
 class UpdateReservationPassengers(Tool):
     @staticmethod
     def invoke(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         reservation_id: str,
-        passengers: List[Dict[str, Any]],
+        passengers: list[dict[str, Any]],
     ) -> str:
         reservations = data["reservations"]
         if reservation_id not in reservations:
@@ -23,7 +23,7 @@ class UpdateReservationPassengers(Tool):
         return json.dumps(reservation)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

@@ -1,7 +1,7 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict, List
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
@@ -9,10 +9,10 @@ from tau_bench.envs.tool import Tool
 class ModifyPendingOrderItems(Tool):
     @staticmethod
     def invoke(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         order_id: str,
-        item_ids: List[str],
-        new_item_ids: List[str],
+        item_ids: list[str],
+        new_item_ids: list[str],
         payment_method_id: str,
     ) -> str:
         products, orders, users = data["products"], data["orders"], data["users"]
@@ -35,7 +35,7 @@ class ModifyPendingOrderItems(Tool):
             return "Error: the number of items to be exchanged should match"
 
         diff_price = 0
-        for item_id, new_item_id in zip(item_ids, new_item_ids):
+        for item_id, new_item_id in zip(item_ids, new_item_ids, strict=False):
             item = [item for item in order["items"] if item["item_id"] == item_id][0]
             product_id = item["product_id"]
             if not (
@@ -54,40 +54,31 @@ class ModifyPendingOrderItems(Tool):
 
         # If the new item is more expensive, check if the gift card has enough balance
         payment_method = users[order["user_id"]]["payment_methods"][payment_method_id]
-        if (
-            payment_method["source"] == "gift_card"
-            and payment_method["balance"] < diff_price
-        ):
+        if payment_method["source"] == "gift_card" and payment_method["balance"] < diff_price:
             return "Error: insufficient gift card balance to pay for the new item"
 
         # Handle the payment or refund
-        order["payment_history"].append(
-            {
-                "transaction_type": "payment" if diff_price > 0 else "refund",
-                "amount": abs(diff_price),
-                "payment_method_id": payment_method_id,
-            }
-        )
+        order["payment_history"].append({
+            "transaction_type": "payment" if diff_price > 0 else "refund",
+            "amount": abs(diff_price),
+            "payment_method_id": payment_method_id,
+        })
         if payment_method["source"] == "gift_card":
             payment_method["balance"] -= diff_price
             payment_method["balance"] = round(payment_method["balance"], 2)
 
         # Modify the order
-        for item_id, new_item_id in zip(item_ids, new_item_ids):
+        for item_id, new_item_id in zip(item_ids, new_item_ids, strict=False):
             item = [item for item in order["items"] if item["item_id"] == item_id][0]
             item["item_id"] = new_item_id
-            item["price"] = products[item["product_id"]]["variants"][new_item_id][
-                "price"
-            ]
-            item["options"] = products[item["product_id"]]["variants"][new_item_id][
-                "options"
-            ]
+            item["price"] = products[item["product_id"]]["variants"][new_item_id]["price"]
+            item["options"] = products[item["product_id"]]["variants"][new_item_id]["options"]
         order["status"] = "pending (item modified)"
 
         return json.dumps(order)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

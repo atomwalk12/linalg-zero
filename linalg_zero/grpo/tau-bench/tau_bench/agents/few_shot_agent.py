@@ -2,7 +2,7 @@
 
 import json
 import random
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from litellm import acompletion
 
@@ -14,11 +14,11 @@ from tau_bench.types import RESPOND_ACTION_NAME, Action, SolveResult
 class FewShotToolCallingAgent(Agent):
     def __init__(
         self,
-        tools_info: List[Dict[str, Any]],
+        tools_info: list[dict[str, Any]],
         wiki: str,
         model: str,
         provider: str,
-        few_shot_displays: List[str],
+        few_shot_displays: list[str],
         temperature: float = 0.0,
         num_few_shots: int = 5,
     ):
@@ -36,24 +36,17 @@ class FewShotToolCallingAgent(Agent):
         self.temperature = temperature
         self.num_few_shots = num_few_shots
 
-    async def solve(
-        self, env: Env, task_index: Optional[int] = None, max_num_steps: int = 30
-    ) -> SolveResult:
-        sampled_few_shot_displays = random.sample(
-            self.few_shot_displays, self.num_few_shots
-        )
-        few_shots = "\n\n".join(
-            [
-                f"Example {i + 1}:\n{display}"
-                for i, display in enumerate(sampled_few_shot_displays)
-            ]
-        )
+    async def solve(self, env: Env, task_index: int | None = None, max_num_steps: int = 30) -> SolveResult:
+        sampled_few_shot_displays = random.sample(self.few_shot_displays, self.num_few_shots)
+        few_shots = "\n\n".join([
+            f"Example {i + 1}:\n{display}" for i, display in enumerate(sampled_few_shot_displays)
+        ])
         total_cost = 0.0
         env_reset_res = await env.reset(task_index=task_index)
         obs = env_reset_res.observation
         info = env_reset_res.info.model_dump()
         reward = 0.0
-        messages: List[Dict[str, Any]] = [
+        messages: list[dict[str, Any]] = [
             {"role": "system", "content": f"{self.wiki}\n\n{few_shots}"},
             {"role": "user", "content": obs},
         ]
@@ -73,24 +66,20 @@ class FewShotToolCallingAgent(Agent):
             info = {**info, **env_response.info.model_dump()}
             if action.name != RESPOND_ACTION_NAME:
                 next_message["tool_calls"] = next_message["tool_calls"][:1]
-                messages.extend(
-                    [
-                        next_message,
-                        {
-                            "role": "tool",
-                            "tool_call_id": next_message["tool_calls"][0]["id"],
-                            "name": next_message["tool_calls"][0]["function"]["name"],
-                            "content": env_response.observation,
-                        },
-                    ]
-                )
+                messages.extend([
+                    next_message,
+                    {
+                        "role": "tool",
+                        "tool_call_id": next_message["tool_calls"][0]["id"],
+                        "name": next_message["tool_calls"][0]["function"]["name"],
+                        "content": env_response.observation,
+                    },
+                ])
             else:
-                messages.extend(
-                    [
-                        next_message,
-                        {"role": "user", "content": env_response.observation},
-                    ]
-                )
+                messages.extend([
+                    next_message,
+                    {"role": "user", "content": env_response.observation},
+                ])
             if env_response.done:
                 break
         return SolveResult(
@@ -102,7 +91,7 @@ class FewShotToolCallingAgent(Agent):
 
 
 def message_to_action(
-    message: Dict[str, Any],
+    message: dict[str, Any],
 ) -> Action:
     if (
         "tool_calls" in message

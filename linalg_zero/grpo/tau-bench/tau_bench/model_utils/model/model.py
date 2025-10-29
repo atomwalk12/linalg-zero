@@ -125,11 +125,4 @@ class ScoreModel(Model):
         raise NotImplementedError
 
 
-AnyModel = (
-    BinaryClassifyModel
-    | ClassifyModel
-    | ParseForceModel
-    | GenerateModel
-    | ParseModel
-    | ScoreModel
-)
+AnyModel = BinaryClassifyModel | ClassifyModel | ParseForceModel | GenerateModel | ParseModel | ScoreModel

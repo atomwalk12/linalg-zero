@@ -385,9 +385,7 @@ tasks = [
             },
             {
                 "name": "transfer_to_human_agents",
-                "arguments": {
-                    "summary": "The user prefers PayPal for refund, but the agent cannot help."
-                },
+                "arguments": {"summary": "The user prefers PayPal for refund, but the agent cannot help."},
             },
         ],
     },
@@ -1323,9 +1321,7 @@ tasks = [
             {"name": "get_product_details", "arguments": {"product_id": "9523456873"}},
             {
                 "name": "calculate",
-                "arguments": {
-                    "expression": "466.75 + 288.82 + 135.24 + 193.38 + 46.66"
-                },
+                "arguments": {"expression": "466.75 + 288.82 + 135.24 + 193.38 + 46.66"},
             },
             {
                 "name": "cancel_pending_order",

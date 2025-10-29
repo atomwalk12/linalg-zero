@@ -1,14 +1,14 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
 
 class CancelPendingOrder(Tool):
     @staticmethod
-    def invoke(data: Dict[str, Any], order_id: str, reason: str) -> str:
+    def invoke(data: dict[str, Any], order_id: str, reason: str) -> str:
         # check order exists and is pending
         orders = data["orders"]
         if order_id not in orders:
@@ -32,9 +32,7 @@ class CancelPendingOrder(Tool):
             }
             refunds.append(refund)
             if "gift_card" in payment_id:  # refund to gift card immediately
-                payment_method = data["users"][order["user_id"]]["payment_methods"][
-                    payment_id
-                ]
+                payment_method = data["users"][order["user_id"]]["payment_methods"][payment_id]
                 payment_method["balance"] += payment["amount"]
                 payment_method["balance"] = round(payment_method["balance"], 2)
 
@@ -46,7 +44,7 @@ class CancelPendingOrder(Tool):
         return json.dumps(order)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

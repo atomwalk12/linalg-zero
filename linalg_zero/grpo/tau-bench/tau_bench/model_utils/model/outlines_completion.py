@@ -8,9 +8,7 @@ from tau_bench.model_utils.model.vllm_utils import generate_request
 
 
 class OutlinesCompletionModel(VLLMCompletionModel):
-    def parse_force_from_prompt(
-        self, prompt: str, typ: BaseModel, temperature: float | None = None
-    ) -> dict[str, Any]:
+    def parse_force_from_prompt(self, prompt: str, typ: BaseModel, temperature: float | None = None) -> dict[str, Any]:
         if temperature is None:
             temperature = self.temperature
         schema = typ.model_json_schema()

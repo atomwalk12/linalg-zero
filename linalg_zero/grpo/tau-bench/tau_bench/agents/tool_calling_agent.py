@@ -1,14 +1,14 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from art.utils import limit_concurrency
+from art.utils.litellm import convert_litellm_choice_to_openai
 from litellm import Choices, acompletion
 from litellm.types.utils import ModelResponse
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from art.utils import limit_concurrency
-from art.utils.litellm import convert_litellm_choice_to_openai
 from tau_bench.agents.base import Agent
 from tau_bench.envs.base import Env
 from tau_bench.types import RESPOND_ACTION_NAME, Action, SolveResult
@@ -27,7 +27,7 @@ async def acompletion_with_limit_concurrency(*args, **kwargs):
 class ToolCallingAgent(Agent):
     def __init__(
         self,
-        tools_info: List[Dict[str, Any]],
+        tools_info: list[dict[str, Any]],
         wiki: str,
         model: str,
         provider: str,
@@ -42,7 +42,7 @@ class ToolCallingAgent(Agent):
         self.temperature = temperature
         self.messages = []
 
-    async def llm_completion(self, messages: List[Dict[str, Any]]) -> ModelResponse:
+    async def llm_completion(self, messages: list[dict[str, Any]]) -> ModelResponse:
         completion_obj = await acompletion(
             messages=messages,
             model=self.model,
@@ -53,15 +53,13 @@ class ToolCallingAgent(Agent):
         assert isinstance(completion_obj, ModelResponse)
         return completion_obj
 
-    async def solve(
-        self, env: Env, task_index: Optional[int] = None, max_num_steps: int = 30
-    ) -> SolveResult:
+    async def solve(self, env: Env, task_index: int | None = None, max_num_steps: int = 30) -> SolveResult:
         total_cost = 0.0
         env_reset_res = await env.reset(task_index=task_index)
         obs = env_reset_res.observation
         info = env_reset_res.info.model_dump()
         reward = 0.0
-        self.messages: List[Dict[str, Any]] = [
+        self.messages: list[dict[str, Any]] = [
             {"role": "system", "content": self.wiki},
             {"role": "user", "content": obs},
         ]
@@ -73,9 +71,7 @@ class ToolCallingAgent(Agent):
             res = await self.llm_completion(self.messages)
             final_prompt_tokens = res.usage.prompt_tokens  # type: ignore
             avg_completion_tokens += res.usage.completion_tokens  # type: ignore
-            max_completion_tokens = max(
-                max_completion_tokens, res.usage.completion_tokens
-            )  # type: ignore
+            max_completion_tokens = max(max_completion_tokens, res.usage.completion_tokens)  # type: ignore
             next_message = res.choices[0].message.model_dump()  # type: ignore
             if (
                 "tool_calls" in next_message
@@ -92,21 +88,17 @@ class ToolCallingAgent(Agent):
             reward = env_response.reward
             info = {**info, **env_response.info.model_dump()}
             if action.name != RESPOND_ACTION_NAME:
-                self.messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": next_message["tool_calls"][0]["id"],
-                        "name": next_message["tool_calls"][0]["function"]["name"],
-                        "content": env_response.observation,
-                    }
-                )
+                self.messages.append({
+                    "role": "tool",
+                    "tool_call_id": next_message["tool_calls"][0]["id"],
+                    "name": next_message["tool_calls"][0]["function"]["name"],
+                    "content": env_response.observation,
+                })
             else:
-                self.messages.append(
-                    {
-                        "role": "user",
-                        "content": env_response.observation,
-                    }
-                )
+                self.messages.append({
+                    "role": "user",
+                    "content": env_response.observation,
+                })
             if env_response.done:
                 forced_stop = False
                 break
@@ -128,12 +120,12 @@ class ToolCallingAgent(Agent):
 class ToolCallingRLAgent(ToolCallingAgent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.api_key = kwargs.get("api_key", None)
-        self.base_url = kwargs.get("base_url", None)
-        self.base_model = kwargs.get("base_model", None)
+        self.api_key = kwargs.get("api_key")
+        self.base_url = kwargs.get("base_url")
+        self.base_model = kwargs.get("base_model")
         self.choices = []
 
-    async def llm_completion(self, messages: List[Dict[str, Any]]):
+    async def llm_completion(self, messages: list[dict[str, Any]]):
         response = await acompletion_with_limit_concurrency(
             messages=messages,
             model=self.model,
@@ -160,10 +152,7 @@ class ToolCallingRLAgent(ToolCallingAgent):
             if message["role"] == "assistant":
                 choice = self.choices[choice_idx]
                 if "Qwen3-" in self.base_model:
-                    if (
-                        hasattr(choice.message, "content")
-                        and choice.message.content is None
-                    ):
+                    if hasattr(choice.message, "content") and choice.message.content is None:
                         choice.message.content = ""
                 messages_and_choices.append(choice)
                 choice_idx += 1
@@ -179,7 +168,7 @@ class ToolCallingRLAgent(ToolCallingAgent):
 
 
 def message_to_action(
-    message: Dict[str, Any],
+    message: dict[str, Any],
 ) -> Action:
     if (
         "tool_calls" in message

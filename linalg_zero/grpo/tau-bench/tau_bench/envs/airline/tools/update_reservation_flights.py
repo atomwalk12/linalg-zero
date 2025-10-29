@@ -2,7 +2,7 @@
 
 import json
 from copy import deepcopy
-from typing import Any, Dict, List
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
@@ -10,10 +10,10 @@ from tau_bench.envs.tool import Tool
 class UpdateReservationFlights(Tool):
     @staticmethod
     def invoke(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         reservation_id: str,
         cabin: str,
-        flights: List[Dict[str, Any]],
+        flights: list[dict[str, Any]],
         payment_id: str,
     ) -> str:
         users, reservations = data["users"], data["reservations"]
@@ -43,24 +43,18 @@ class UpdateReservationFlights(Tool):
                 return f"Error: flight {flight_number} not found"
             flight_data = data["flights"][flight_number]
             if flight["date"] not in flight_data["dates"]:
-                return (
-                    f"Error: flight {flight_number} not found on date {flight['date']}"
-                )
+                return f"Error: flight {flight_number} not found on date {flight['date']}"
             flight_date_data = flight_data["dates"][flight["date"]]
             if flight_date_data["status"] != "available":
                 return f"Error: flight {flight_number} not available on date {flight['date']}"
-            if flight_date_data["available_seats"][cabin] < len(
-                reservation["passengers"]
-            ):
+            if flight_date_data["available_seats"][cabin] < len(reservation["passengers"]):
                 return f"Error: not enough seats on flight {flight_number}"
             flight["price"] = flight_date_data["prices"][cabin]
             flight["origin"] = flight_data["origin"]
             flight["destination"] = flight_data["destination"]
             total_price += flight["price"] * len(reservation["passengers"])
 
-        total_price -= sum(flight["price"] for flight in reservation["flights"]) * len(
-            reservation["passengers"]
-        )
+        total_price -= sum(flight["price"] for flight in reservation["flights"]) * len(reservation["passengers"])
 
         # check payment
         if payment_id not in users[reservation["user_id"]]["payment_methods"]:
@@ -68,10 +62,7 @@ class UpdateReservationFlights(Tool):
         payment_method = users[reservation["user_id"]]["payment_methods"][payment_id]
         if payment_method["source"] == "certificate":
             return "Error: certificate cannot be used to update reservation"
-        elif (
-            payment_method["source"] == "gift_card"
-            and payment_method["amount"] < total_price
-        ):
+        elif payment_method["source"] == "gift_card" and payment_method["amount"] < total_price:
             return "Error: gift card balance is not enough"
 
         # if checks pass, deduct payment and update seats
@@ -79,17 +70,15 @@ class UpdateReservationFlights(Tool):
             payment_method["amount"] -= total_price
         reservation["flights"] = flights
         if total_price != 0:
-            reservation["payment_history"].append(
-                {
-                    "payment_id": payment_id,
-                    "amount": total_price,
-                }
-            )
+            reservation["payment_history"].append({
+                "payment_id": payment_id,
+                "amount": total_price,
+            })
         # do not make flight database update here, assume it takes time to be updated
         return json.dumps(reservation)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

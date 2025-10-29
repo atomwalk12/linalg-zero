@@ -24,9 +24,7 @@ tasks = [
                             "date": "2024-05-20",
                         },
                     ],
-                    "passengers": [
-                        {"first_name": "Mia", "last_name": "Li", "dob": "1990-04-05"}
-                    ],
+                    "passengers": [{"first_name": "Mia", "last_name": "Li", "dob": "1990-04-05"}],
                     "payment_methods": [
                         {"payment_id": "certificate_7504069", "amount": 250},
                         {"payment_id": "credit_card_4421486", "amount": 5},
@@ -444,9 +442,7 @@ tasks = [
                         {"flight_number": "HAT069", "date": "2024-05-20"},
                         {"flight_number": "HAT276", "date": "2024-05-25"},
                     ],
-                    "passengers": [
-                        {"first_name": "Mia", "last_name": "Kim", "dob": "1965-06-09"}
-                    ],
+                    "passengers": [{"first_name": "Mia", "last_name": "Kim", "dob": "1965-06-09"}],
                     "payment_methods": [
                         {"payment_id": "gift_card_7359776", "amount": 39},
                         {"payment_id": "gift_card_7773485", "amount": 67},
@@ -770,9 +766,7 @@ tasks = [
                             "dob": "1985-04-04",
                         }
                     ],
-                    "payment_methods": [
-                        {"payment_id": "credit_card_9074831", "amount": 290}
-                    ],
+                    "payment_methods": [{"payment_id": "credit_card_9074831", "amount": 290}],
                     "total_baggages": 0,
                     "nonfree_baggages": 0,
                     "insurance": "no",
@@ -1047,9 +1041,7 @@ tasks = [
                             "dob": "2001-04-12",
                         },
                     ],
-                    "payment_methods": [
-                        {"payment_id": "certificate_8045380", "amount": 348}
-                    ],
+                    "payment_methods": [{"payment_id": "certificate_8045380", "amount": 348}],
                     "total_baggages": 0,
                     "nonfree_baggages": 0,
                     "insurance": "no",

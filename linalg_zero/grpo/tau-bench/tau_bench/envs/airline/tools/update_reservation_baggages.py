@@ -1,7 +1,7 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
@@ -9,7 +9,7 @@ from tau_bench.envs.tool import Tool
 class UpdateReservationBaggages(Tool):
     @staticmethod
     def invoke(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         reservation_id: str,
         total_baggages: int,
         nonfree_baggages: int,
@@ -26,10 +26,7 @@ class UpdateReservationBaggages(Tool):
         payment_method = users[reservation["user_id"]]["payment_methods"][payment_id]
         if payment_method["source"] == "certificate":
             return "Error: certificate cannot be used to update reservation"
-        elif (
-            payment_method["source"] == "gift_card"
-            and payment_method["amount"] < total_price
-        ):
+        elif payment_method["source"] == "gift_card" and payment_method["amount"] < total_price:
             return "Error: gift card balance is not enough"
 
         reservation["total_baggages"] = total_baggages
@@ -38,17 +35,15 @@ class UpdateReservationBaggages(Tool):
             payment_method["amount"] -= total_price
 
         if total_price != 0:
-            reservation["payment_history"].append(
-                {
-                    "payment_id": payment_id,
-                    "amount": total_price,
-                }
-            )
+            reservation["payment_history"].append({
+                "payment_id": payment_id,
+                "amount": total_price,
+            })
 
         return json.dumps(reservation)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

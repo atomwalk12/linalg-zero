@@ -8,7 +8,7 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from math import comb
-from typing import Any, Dict, List
+from typing import Any
 
 from langfuse import Langfuse
 from litellm import provider_list
@@ -25,19 +25,13 @@ warnings.filterwarnings(
 )
 
 
-def run(config: RunConfig) -> List[EnvRunResult]:
-    assert config.env in ["retail", "airline"], (
-        "Only retail and airline envs are supported"
-    )
+def run(config: RunConfig) -> list[EnvRunResult]:
+    assert config.env in ["retail", "airline"], "Only retail and airline envs are supported"
     assert config.model_provider in provider_list, "Invalid model provider"
     assert config.user_model_provider in provider_list, "Invalid user model provider"
-    assert config.agent_strategy in ["tool-calling", "act", "react", "few-shot"], (
-        "Invalid agent strategy"
-    )
+    assert config.agent_strategy in ["tool-calling", "act", "react", "few-shot"], "Invalid agent strategy"
     assert config.task_split in ["train", "test", "dev"], "Invalid task split"
-    assert config.user_strategy in [item.value for item in UserStrategy], (
-        "Invalid user strategy"
-    )
+    assert config.user_strategy in [item.value for item in UserStrategy], "Invalid user strategy"
 
     langfuse = Langfuse(
         secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
@@ -63,19 +57,13 @@ def run(config: RunConfig) -> List[EnvRunResult]:
         wiki=env.wiki,
         config=config,
     )
-    end_index = (
-        len(env.tasks)
-        if config.end_index == -1
-        else min(config.end_index, len(env.tasks))
-    )
-    results: List[EnvRunResult] = []
+    end_index = len(env.tasks) if config.end_index == -1 else min(config.end_index, len(env.tasks))
+    results: list[EnvRunResult] = []
     lock = multiprocessing.Lock()
     if config.task_ids and len(config.task_ids) > 0:
         print(f"Running tasks {config.task_ids} (checkpoint path: {ckpt_path})")
     else:
-        print(
-            f"Running tasks {config.start_index} to {end_index} (checkpoint path: {ckpt_path})"
-        )
+        print(f"Running tasks {config.start_index} to {end_index} (checkpoint path: {ckpt_path})")
     for i in range(config.num_trials):
         if config.task_ids and len(config.task_ids) > 0:
             idxs = config.task_ids
@@ -85,9 +73,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
             random.shuffle(idxs)
 
         # --- 2. helper -------
-        def log_trace_to_langfuse(
-            env_result: EnvRunResult, task_idx: int, cfg: RunConfig
-        ) -> None:
+        def log_trace_to_langfuse(env_result: EnvRunResult, task_idx: int, cfg: RunConfig) -> None:
             """
             Push one full conversation to Langfuse.
             """
@@ -141,7 +127,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
             with lock:
                 data = []
                 if os.path.exists(ckpt_path):
-                    with open(ckpt_path, "r") as f:
+                    with open(ckpt_path) as f:
                         data = json.load(f)
                 with open(ckpt_path, "w") as f:
                     json.dump(data + [result.model_dump()], f, indent=2)
@@ -160,7 +146,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
     return results
 
 
-def agent_factory(tools_info: List[Dict[str, Any]], wiki, config: RunConfig) -> Agent:
+def agent_factory(tools_info: list[dict[str, Any]], wiki, config: RunConfig) -> Agent:
     if config.agent_strategy == "tool-calling-rl":
         from tau_bench.agents.tool_calling_agent import ToolCallingRLAgent
 
@@ -215,7 +201,7 @@ def agent_factory(tools_info: List[Dict[str, Any]], wiki, config: RunConfig) -> 
         assert config.few_shot_displays_path is not None, (
             "Few shot displays path is required for few-shot agent strategy"
         )
-        with open(config.few_shot_displays_path, "r") as f:
+        with open(config.few_shot_displays_path) as f:
             few_shot_displays = [json.loads(line)["messages_display"] for line in f]
 
         return FewShotToolCallingAgent(
@@ -230,7 +216,7 @@ def agent_factory(tools_info: List[Dict[str, Any]], wiki, config: RunConfig) -> 
         raise ValueError(f"Unknown agent strategy: {config.agent_strategy}")
 
 
-def display_metrics(results: List[EnvRunResult]) -> None:
+def display_metrics(results: list[EnvRunResult]) -> None:
     def is_successful(reward: float) -> bool:
         return (1 - 1e-6) <= reward <= (1 + 1e-6)
 

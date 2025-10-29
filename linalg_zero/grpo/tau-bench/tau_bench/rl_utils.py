@@ -2,20 +2,17 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+import art
+from art.trajectories import MetadataValue
 from langfuse import Langfuse
 from openai import AsyncOpenAI
 from openpipe.client import AsyncOpenPipe, UpdateLogTagsRequestFiltersItem
 from pydantic import BaseModel, Field
 
-import art
-from art.trajectories import MetadataValue
 
-
-def log_trajectory_to_langfuse(
-    traj: art.Trajectory, messages: List[Dict[str, Any]]
-) -> None:
+def log_trajectory_to_langfuse(traj: art.Trajectory, messages: list[dict[str, Any]]) -> None:
     """
     Push one trajectory to Langfuse with task_idx and step for comparison.
     """
@@ -62,9 +59,9 @@ def string_to_string_dict(metadata: dict[str, Any]) -> dict[str, str]:
     return string_dict
 
 
-def create_response_payload(response_str: Optional[str] = None) -> dict[str, Any]:
+def create_response_payload(response_str: str | None = None) -> dict[str, Any]:
     return {
-        "id": f"chatcmpl-dummy-{str(uuid.uuid4())}",
+        "id": f"chatcmpl-dummy-{uuid.uuid4()!s}",
         "object": "chat.completion",
         "created": int(time.time()),
         "model": "dummy-model",
@@ -84,8 +81,8 @@ def create_response_payload(response_str: Optional[str] = None) -> dict[str, Any
 
 async def log_trajectory_to_openpipe(
     traj: art.Trajectory,
-    messages: List[Dict[str, Any]],
-    response_str: Optional[str] = None,
+    messages: list[dict[str, Any]],
+    response_str: str | None = None,
 ) -> None:
     """
     Push one trajectory to Langfuse with task_idx and step for comparison.
@@ -128,9 +125,7 @@ async def update_openpipe_log(traj: art.Trajectory):
     await op_client.base_client._client_wrapper.httpx_client.aclose()
 
 
-async def update_steps_for_openpipe_logs(
-    trajectory_groups: List[art.TrajectoryGroup], global_step: int
-):
+async def update_steps_for_openpipe_logs(trajectory_groups: list[art.TrajectoryGroup], global_step: int):
     op_client = AsyncOpenPipe(api_key=os.environ["OPENPIPE_API_KEY"])
     for trajectory_group in trajectory_groups:
         for trajectory in trajectory_group:
@@ -157,18 +152,14 @@ class ErrorAnalysisRollout(BaseModel):
         description="A summary of the rollout. This should be such that a reader can understand what happened in the rollout without haveing to look at the whole rollout. Not too verbose, but relevant."
     )
     reasoning: str = Field(description="Reasoning about why the rollout failed")
-    blame_assignment: str = Field(
-        description="Assignment of blame: 'scenario', 'assistant', 'user', or 'combination'"
-    )
-    category: str = Field(
-        description="A few word description for a category of the failure"
-    )
+    blame_assignment: str = Field(description="Assignment of blame: 'scenario', 'assistant', 'user', or 'combination'")
+    category: str = Field(description="A few word description for a category of the failure")
 
 
 class ErrorAnalysis(BaseModel):
     """Model representing the error analysis for a task with failed rollouts"""
 
-    error_analysis_rollouts: List[ErrorAnalysisRollout] = Field(
+    error_analysis_rollouts: list[ErrorAnalysisRollout] = Field(
         description="The error analysis for each failed rollout"
     )
 
@@ -199,7 +190,7 @@ In your response, provide, for each failed rollout, the following:
 
 def keep_only_messages(
     messages_and_choices: art.MessagesAndChoices,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Keep only the messages from the messages_and_choices."""
     only_messages = []
     for message_and_choice in messages_and_choices:
@@ -210,7 +201,7 @@ def keep_only_messages(
     return only_messages
 
 
-def create_correct_tools_description(actions: List[Dict[str, Any]]) -> str:
+def create_correct_tools_description(actions: list[dict[str, Any]]) -> str:
     """Create a string representation of the correct tools for the task."""
     tools_desc = ""
     for action in actions:
@@ -218,7 +209,7 @@ def create_correct_tools_description(actions: List[Dict[str, Any]]) -> str:
     return tools_desc
 
 
-def format_rollout_messages(messages: List[Dict[str, Any]]) -> str:
+def format_rollout_messages(messages: list[dict[str, Any]]) -> str:
     """Format rollout messages for analysis."""
     formatted = ""
     for msg in messages:
@@ -229,7 +220,9 @@ def format_rollout_messages(messages: List[Dict[str, Any]]) -> str:
         if tool_calls:
             tool_call_str = ""
             for tool_call in tool_calls:
-                tool_call_str += f"TOOL CALL: {tool_call['function']['name']}: {tool_call['function']['arguments']}\n\n"
+                tool_call_str += (
+                    f"TOOL CALL: {tool_call['function']['name']}: {tool_call['function']['arguments']}\n\n"
+                )
             formatted += f"{role.upper()}: {tool_call_str}\n\n"
         else:
             formatted += f"{role.upper()}: {content}\n\n"
@@ -238,10 +231,10 @@ def format_rollout_messages(messages: List[Dict[str, Any]]) -> str:
 
 async def analyze_failed_task(
     task_id: int,
-    failed_rollouts: List[art.Trajectory],
-    env_task: Dict[str, Any],
+    failed_rollouts: list[art.Trajectory],
+    env_task: dict[str, Any],
     analyzer_model: str = "o3",
-) -> Optional[tuple[ErrorAnalysis, str]]:
+) -> tuple[ErrorAnalysis, str] | None:
     """Analyze why a task failed across multiple rollouts. Returns (analysis, prompt) tuple."""
 
     try:
@@ -289,7 +282,7 @@ async def analyze_failed_task(
 async def log_rollout_analysis_to_openpipe(
     task_id: int,
     rollout_analysis: ErrorAnalysisRollout,
-    trajectory_data: Dict[str, Any],
+    trajectory_data: dict[str, Any],
     rollout_index: int,
     prompt: str,
 ) -> None:
@@ -327,22 +320,14 @@ async def log_rollout_analysis_to_openpipe(
         messages = keep_only_messages(trajectory_data["traj"])
 
         # Log to OpenPipe
-        await log_trajectory_to_openpipe(
-            enhanced_trajectory, messages, response_str=response
-        )
-        print(
-            f"Logged rollout analysis for task {task_id}, rollout {rollout_index} to OpenPipe"
-        )
+        await log_trajectory_to_openpipe(enhanced_trajectory, messages, response_str=response)
+        print(f"Logged rollout analysis for task {task_id}, rollout {rollout_index} to OpenPipe")
 
     except Exception as e:
-        print(
-            f"Error logging rollout analysis for task {task_id}, rollout {rollout_index}: {e}"
-        )
+        print(f"Error logging rollout analysis for task {task_id}, rollout {rollout_index}: {e}")
 
 
-async def log_full_analysis_to_openpipe(
-    task_id: int, analysis: ErrorAnalysis, prompt: str, response: str
-) -> None:
+async def log_full_analysis_to_openpipe(task_id: int, analysis: ErrorAnalysis, prompt: str, response: str) -> None:
     """Log the full error analysis (all rollouts) to OpenPipe."""
 
     try:
@@ -350,12 +335,8 @@ async def log_full_analysis_to_openpipe(
         blame_counts = {}
         category_counts = {}
         for rollout in analysis.error_analysis_rollouts:
-            blame_counts[rollout.blame_assignment] = (
-                blame_counts.get(rollout.blame_assignment, 0) + 1
-            )
-            category_counts[rollout.category] = (
-                category_counts.get(rollout.category, 0) + 1
-            )
+            blame_counts[rollout.blame_assignment] = blame_counts.get(rollout.blame_assignment, 0) + 1
+            category_counts[rollout.category] = category_counts.get(rollout.category, 0) + 1
 
         metadata = {
             "task_id": str(task_id),
@@ -383,9 +364,7 @@ async def log_full_analysis_to_openpipe(
             {"role": "user", "content": prompt},
         ]
 
-        await log_trajectory_to_openpipe(
-            summary_trajectory, messages, response_str=response
-        )
+        await log_trajectory_to_openpipe(summary_trajectory, messages, response_str=response)
         print(f"Logged full analysis for task {task_id} to OpenPipe")
 
     except Exception as e:
@@ -393,9 +372,7 @@ async def log_full_analysis_to_openpipe(
 
 
 # Keep the old function for backward compatibility but mark it as deprecated
-async def log_analysis_to_openpipe(
-    task_id: int, analysis: ErrorAnalysis, prompt: str, response: str
-) -> None:
+async def log_analysis_to_openpipe(task_id: int, analysis: ErrorAnalysis, prompt: str, response: str) -> None:
     """
     DEPRECATED: Use log_full_analysis_to_openpipe instead.
     Log the analysis prompt and response to OpenPipe.

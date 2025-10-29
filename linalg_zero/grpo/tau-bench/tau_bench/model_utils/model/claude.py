@@ -63,27 +63,21 @@ class ClaudeModel(ChatModel):
         self.temperature = temperature
 
     def get_approx_cost(self, dp: Datapoint) -> float:
-        cost_per_token = PRICE_PER_INPUT_TOKEN_MAP.get(
-            self.model, INPUT_PRICE_PER_TOKEN_FALLBACK
-        )
+        cost_per_token = PRICE_PER_INPUT_TOKEN_MAP.get(self.model, INPUT_PRICE_PER_TOKEN_FALLBACK)
         return approx_cost_for_datapoint(dp=dp, price_per_input_token=cost_per_token)
 
     def get_latency(self, dp: Datapoint) -> float:
         latency_per_output_token = LATENCY_MS_PER_OUTPUT_TOKEN_MAP.get(
             self.model, LATENCY_MS_PER_OUTPUT_TOKEN_FALLBACK
         )
-        return approx_cost_for_datapoint(
-            dp=dp, price_per_input_token=latency_per_output_token
-        )
+        return approx_cost_for_datapoint(dp=dp, price_per_input_token=latency_per_output_token)
 
     def get_capability(self) -> float:
         return CAPABILITY_SCORE_MAP.get(self.model, CAPABILITY_SCORE_FALLBACK)
 
     def supports_dp(self, dp: Datapoint) -> bool:
         prompt = approx_prompt_str(dp)
-        return approx_num_tokens(prompt) <= MAX_CONTEXT_LENGTH_MAP.get(
-            self.model, MAX_CONTEXT_LENGTH_FALLBACK
-        )
+        return approx_num_tokens(prompt) <= MAX_CONTEXT_LENGTH_MAP.get(self.model, MAX_CONTEXT_LENGTH_FALLBACK)
 
     def _remap_messages(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
         remapped: list[dict[str, str]] = []
@@ -96,9 +90,7 @@ class ClaudeModel(ChatModel):
                         f"First message must be a system or user message, got {[m['role'] for m in messages]}"
                     )
                 elif is_user:
-                    raise ValueError(
-                        f"Must alternate between user and assistant, got {[m['role'] for m in messages]}"
-                    )
+                    raise ValueError(f"Must alternate between user and assistant, got {[m['role'] for m in messages]}")
                 remapped.append(message)
                 is_user = True
             else:
@@ -141,6 +133,4 @@ class ClaudeModel(ChatModel):
             temperature=wrap_temperature(temperature),
             max_tokens=DEFAULT_MAX_TOKENS,
         )
-        return self.handle_generate_message_response(
-            prompt=msgs, content=res.content[0].text, force_json=force_json
-        )
+        return self.handle_generate_message_response(prompt=msgs, content=res.content[0].text, force_json=force_json)

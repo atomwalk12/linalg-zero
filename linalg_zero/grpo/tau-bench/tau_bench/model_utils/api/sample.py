@@ -1,7 +1,8 @@
 import abc
 import functools
+from collections.abc import Callable
 from multiprocessing import Lock
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -17,9 +18,7 @@ T = TypeVar("T")
 
 class SamplingStrategy(abc.ABC):
     @abc.abstractmethod
-    def execute(
-        self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]
-    ) -> T:
+    def execute(self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]) -> T:
         raise NotImplementedError
 
 
@@ -54,9 +53,7 @@ class RedundantSamplingStrategy(SamplingStrategy):
         self.n = n
 
     @catch_model_errors
-    def execute(
-        self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]
-    ) -> T:
+    def execute(self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]) -> T:
         results = execute_and_filter_model_errors(
             [lambda: invocable_or_invokables() for _ in range(self.n)]
             if isinstance(invocable_or_invokables, Callable)
@@ -97,9 +94,7 @@ class MajoritySamplingStrategy(SamplingStrategy):
         self.panic_on_first_model_error = panic_on_first_model_error
 
     @catch_model_errors
-    def execute(
-        self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]
-    ) -> T:
+    def execute(self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]) -> T:
         if self.panic_on_first_model_error:
             if isinstance(invocable_or_invokables, Callable):
                 results = list(
@@ -127,9 +122,7 @@ class MajoritySamplingStrategy(SamplingStrategy):
                 max_concurrency=self.max_concurrency,
             )
         if not self.panic_on_first_model_error and len(results) == 0:
-            raise SamplingError(
-                "No results from majority sampling (all calls resulted in LLM errors)"
-            )
+            raise SamplingError("No results from majority sampling (all calls resulted in LLM errors)")
         return get_majority(results)
 
 
@@ -159,13 +152,8 @@ class EnsembleSamplingStrategy(SamplingStrategy):
         self.panic_on_first_model_error = panic_on_first_model_error
 
     @catch_model_errors
-    def execute(
-        self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]
-    ) -> T:
-        if (
-            not isinstance(invocable_or_invokables, list)
-            or len(invocable_or_invokables) < 2
-        ):
+    def execute(self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]) -> T:
+        if not isinstance(invocable_or_invokables, list) or len(invocable_or_invokables) < 2:
             raise ValueError("Ensemble sampling requires at least 2 invocables")
         if self.panic_on_first_model_error:
             results = list(
@@ -176,13 +164,9 @@ class EnsembleSamplingStrategy(SamplingStrategy):
                 )
             )
         else:
-            results = execute_and_filter_model_errors(
-                invocable_or_invokables, max_concurrency=self.max_concurrency
-            )
+            results = execute_and_filter_model_errors(invocable_or_invokables, max_concurrency=self.max_concurrency)
         if not self.panic_on_first_model_error and len(results) == 0:
-            raise SamplingError(
-                "No results from ensemble sampling (all calls resulted in LLM errors)"
-            )
+            raise SamplingError("No results from ensemble sampling (all calls resulted in LLM errors)")
         return get_majority(results)
 
 
@@ -198,9 +182,7 @@ class UnanimousSamplingStrategy(SamplingStrategy):
         self.panic_on_first_model_error = panic_on_first_model_error
 
     @catch_model_errors
-    def execute(
-        self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]
-    ) -> T:
+    def execute(self, invocable_or_invokables: Callable[..., T] | list[Callable[..., T]]) -> T:
         if self.panic_on_first_model_error:
             if isinstance(invocable_or_invokables, Callable):
                 results = list(

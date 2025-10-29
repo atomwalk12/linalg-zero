@@ -1,7 +1,7 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
@@ -9,7 +9,7 @@ from tau_bench.envs.tool import Tool
 class CancelReservation(Tool):
     @staticmethod
     def invoke(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         reservation_id: str,
     ) -> str:
         reservations = data["reservations"]
@@ -20,18 +20,16 @@ class CancelReservation(Tool):
         # reverse the payment
         refunds = []
         for payment in reservation["payment_history"]:
-            refunds.append(
-                {
-                    "payment_id": payment["payment_id"],
-                    "amount": -payment["amount"],
-                }
-            )
+            refunds.append({
+                "payment_id": payment["payment_id"],
+                "amount": -payment["amount"],
+            })
         reservation["payment_history"].extend(refunds)
         reservation["status"] = "cancelled"
         return json.dumps(reservation)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

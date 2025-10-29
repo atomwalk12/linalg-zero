@@ -1,21 +1,21 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
 
 class GetOrderDetails(Tool):
     @staticmethod
-    def invoke(data: Dict[str, Any], order_id: str) -> str:
+    def invoke(data: dict[str, Any], order_id: str) -> str:
         orders = data["orders"]
         if order_id in orders:
             return json.dumps(orders[order_id])
         return "Error: order not found"
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import abc
 import json
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -51,7 +52,7 @@ def dict_equal(d1: dict, d2: dict) -> bool:
 def list_equal(l1: list, l2: list) -> bool:
     if len(l1) != len(l2):
         return False
-    for i1, i2 in zip(l1, l2):
+    for i1, i2 in zip(l1, l2, strict=False):
         if isinstance(i1, dict) and isinstance(i2, dict):
             if not dict_equal(i1, i2):
                 return False
@@ -72,7 +73,7 @@ def list_equal(l1: list, l2: list) -> bool:
 def set_equal(s1: set, s2: set) -> bool:
     if len(s1) != len(s2):
         return False
-    for i1, i2 in zip(s1, s2):
+    for i1, i2 in zip(s1, s2, strict=False):
         if isinstance(i1, dict) and isinstance(i2, dict):
             if not dict_equal(i1, i2):
                 return False
@@ -97,9 +98,7 @@ def str_equal(s1: str, s2: str) -> bool:
     def strip_and_lower(s: str) -> str:
         return s.lower().strip()
 
-    return strip_and_lower(remove_special_chars(s1)) == strip_and_lower(
-        remove_special_chars(s2)
-    )
+    return strip_and_lower(remove_special_chars(s1)) == strip_and_lower(remove_special_chars(s2))
 
 
 class EvaluationResult(BaseModel):
@@ -112,7 +111,7 @@ class EvaluationResult(BaseModel):
 
 class Datapoint(BaseModel, abc.ABC):
     @classmethod
-    def from_trace(cls, d: dict[str, Any]) -> "Datapoint":
+    def from_trace(cls, d: dict[str, Any]) -> Datapoint:
         if not _is_trace(d):
             raise ValueError(f"This is not a trace: {d}")
         response = d["response"]
@@ -120,7 +119,7 @@ class Datapoint(BaseModel, abc.ABC):
         return cls(response=response, **kwargs)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Datapoint":
+    def from_dict(cls, d: dict[str, Any]) -> Datapoint:
         if _is_trace(d):
             return cls.from_trace(d)
         return cls(**d)
@@ -135,7 +134,7 @@ class ClassifyDatapoint(Datapoint):
     text: str
     options: list[str]
     response: int | None = None
-    examples: list["ClassifyDatapoint"] | None = None
+    examples: list[ClassifyDatapoint] | None = None
 
     def evaluate(self, api: tau_bench.model_utils.API) -> EvaluationResult:
         return run_and_catch_api_error(
@@ -154,13 +153,11 @@ class BinaryClassifyDatapoint(Datapoint):
     instruction: str
     text: str
     response: bool | None = None
-    examples: list["BinaryClassifyDatapoint"] | None = None
+    examples: list[BinaryClassifyDatapoint] | None = None
 
     def evaluate(self, api: tau_bench.model_utils.API) -> EvaluationResult:
         return run_and_catch_api_error(
-            lambda: api.binary_classify(
-                instruction=self.instruction, text=self.text, examples=self.examples
-            ),
+            lambda: api.binary_classify(instruction=self.instruction, text=self.text, examples=self.examples),
             self.response,
             self.model_dump(),
         )
@@ -172,7 +169,7 @@ class ScoreDatapoint(Datapoint):
     min: int
     max: int
     response: int | None = None
-    examples: list["ScoreDatapoint"] | None = None
+    examples: list[ScoreDatapoint] | None = None
 
     def evaluate(self, api: tau_bench.model_utils.API) -> EvaluationResult:
         raise NotImplementedError
@@ -182,7 +179,7 @@ class ParseDatapoint(Datapoint):
     text: str
     typ: type[T] | dict[str, Any]
     response: dict[str, Any] | T | PartialObj | None = None
-    examples: list["ParseDatapoint"] | None = None
+    examples: list[ParseDatapoint] | None = None
 
     def evaluate(self, api: tau_bench.model_utils.API) -> EvaluationResult:
         return run_and_catch_api_error(
@@ -196,11 +193,9 @@ class GenerateDatapoint(Datapoint):
     instruction: str
     text: str
     response: str | None = None
-    examples: list["GenerateDatapoint"] | None = None
+    examples: list[GenerateDatapoint] | None = None
 
-    def evaluate(
-        self, api: tau_bench.model_utils.API
-    ) -> tau_bench.model_utils.EvaluationResult:
+    def evaluate(self, api: tau_bench.model_utils.API) -> tau_bench.model_utils.EvaluationResult:
         raise NotImplementedError
 
 
@@ -209,7 +204,7 @@ class ParseForceDatapoint(Datapoint):
     typ: type[T] | dict[str, Any]
     text: str | None = None
     response: dict[str, Any] | T | None = None
-    examples: list["ParseForceDatapoint"] | None = None
+    examples: list[ParseForceDatapoint] | None = None
 
     def evaluate(self, api: tau_bench.model_utils.API) -> EvaluationResult:
         return run_and_catch_api_error(
@@ -244,27 +239,17 @@ def datapoint_factory(d: dict[str, Any]) -> Datapoint:
         else:
             raise ValueError(f"Unknown method name: {method_name}")
     else:
-        if all(k in d for k in ["instruction", "text", "options"]) and isinstance(
-            d["response"], int
-        ):
+        if all(k in d for k in ["instruction", "text", "options"]) and isinstance(d["response"], int):
             return ClassifyDatapoint(**d)
-        elif all(k in d for k in ["instruction", "text"]) and isinstance(
-            d["response"], bool
-        ):
+        elif all(k in d for k in ["instruction", "text"]) and isinstance(d["response"], bool):
             return BinaryClassifyDatapoint(**d)
-        elif all(k in d for k in ["instruction", "text", "min", "max"]) and isinstance(
-            d["response"], int
-        ):
+        elif all(k in d for k in ["instruction", "text", "min", "max"]) and isinstance(d["response"], int):
             return ScoreDatapoint(**d)
-        elif all(k in d for k in ["instruction", "text", "typ"]) and isinstance(
-            d["response"], dict
-        ):
+        elif all(k in d for k in ["instruction", "text", "typ"]) and isinstance(d["response"], dict):
             return ParseForceDatapoint(**d)
         elif all(k in d for k in ["text", "typ"]) and isinstance(d["response"], dict):
             return ParseDatapoint(**d)
-        elif all(k in d for k in ["instruction", "text"]) and isinstance(
-            d["response"], str
-        ):
+        elif all(k in d for k in ["instruction", "text"]) and isinstance(d["response"], str):
             return GenerateDatapoint(**d)
         else:
             raise ValueError(f"Unknown datapoint: {d}")
@@ -297,7 +282,7 @@ def run_and_catch_api_error(
 
 
 def load_from_disk(path: str) -> list[Datapoint]:
-    with open(path, "r") as f:
+    with open(path) as f:
         if path.endswith(".jsonl"):
             data = [json.loads(line) for line in f]
         elif path.endswith(".json"):

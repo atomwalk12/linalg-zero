@@ -80,16 +80,12 @@ class VLLMChatModel(ChatModel):
             else PRICE_PER_INPUT_TOKEN_MAP.get(model, INPUT_PRICE_PER_TOKEN_FALLBACK)
         )
         self.capability = (
-            capability
-            if capability is not None
-            else CAPABILITY_SCORE_MAP.get(model, CAPABILITY_SCORE_FALLBACK)
+            capability if capability is not None else CAPABILITY_SCORE_MAP.get(model, CAPABILITY_SCORE_FALLBACK)
         )
         self.latency_ms_per_output_token = (
             latency_ms_per_output_token
             if latency_ms_per_output_token is not None
-            else LATENCY_MS_PER_OUTPUT_TOKEN_MAP.get(
-                model, LATENCY_MS_PER_OUTPUT_TOKEN_FALLBACK
-            )
+            else LATENCY_MS_PER_OUTPUT_TOKEN_MAP.get(model, LATENCY_MS_PER_OUTPUT_TOKEN_FALLBACK)
         )
         self.max_context_length = (
             max_context_length
@@ -103,9 +99,7 @@ class VLLMChatModel(ChatModel):
 
     def get_latency(self, dp: Datapoint) -> float:
         latency_per_output_token = self.latency_ms_per_output_token
-        return approx_cost_for_datapoint(
-            dp=dp, price_per_input_token=latency_per_output_token
-        )
+        return approx_cost_for_datapoint(dp=dp, price_per_input_token=latency_per_output_token)
 
     def get_capability(self) -> float:
         return CAPABILITY_SCORE_MAP.get(self.model, CAPABILITY_SCORE_FALLBACK)

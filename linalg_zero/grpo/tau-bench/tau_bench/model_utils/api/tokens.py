@@ -19,9 +19,7 @@ class TokenUsage(BaseModel):
     by_primitive: dict[str, "TokenUsage"]
 
 
-def batch_token_analysis(
-    dps: list[Datapoint], encoding_for_model: str = "gpt-4o"
-) -> TokenUsage:
+def batch_token_analysis(dps: list[Datapoint], encoding_for_model: str = "gpt-4o") -> TokenUsage:
     import tiktoken
 
     enc = tiktoken.encoding_for_model(encoding_for_model)
@@ -29,28 +27,18 @@ def batch_token_analysis(
     inputs_by_primitive: dict[str, list[str]] = {}
     outputs_by_primitive: dict[str, list[str]] = {}
     for dp in dps:
-        input = json.dumps(
-            {k: v for k, v in dp.model_dump().items() if k != "response"}
-        )
+        input = json.dumps({k: v for k, v in dp.model_dump().items() if k != "response"})
         inputs_by_primitive.setdefault(type(dp).__name__, []).append(input)
         if isinstance(dp, ClassifyDatapoint):
             output = f'{{"classification": {dp.response}}}'
         elif isinstance(dp, BinaryClassifyDatapoint):
             output = f'{{"classification": {0 if dp.response else 1}}}'
         elif isinstance(dp, ParseForceDatapoint):
-            output = (
-                json.dumps(dp.response)
-                if isinstance(dp.response, dict)
-                else dp.response.model_dump_json()
-            )
+            output = json.dumps(dp.response) if isinstance(dp.response, dict) else dp.response.model_dump_json()
         elif isinstance(dp, GenerateDatapoint):
             output = json.dumps(dp.response)
         elif isinstance(dp, ParseDatapoint):
-            output = (
-                json.dumps(dp.response)
-                if isinstance(dp.response, dict)
-                else dp.response.model_dump_json()
-            )
+            output = json.dumps(dp.response) if isinstance(dp.response, dict) else dp.response.model_dump_json()
         elif isinstance(dp, ScoreDatapoint):
             output = f"{{'score': {dp.response}}}"
         else:
@@ -73,8 +61,7 @@ def batch_token_analysis(
                 output_tokens=output_tokens_by_primitive.get(primitive, 0),
                 by_primitive={},
             )
-            for primitive in set(input_tokens_by_primitive.keys())
-            | set(output_tokens_by_primitive.keys())
+            for primitive in set(input_tokens_by_primitive.keys()) | set(output_tokens_by_primitive.keys())
         },
     )
 

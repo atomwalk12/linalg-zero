@@ -2,7 +2,7 @@
 
 import json
 from copy import deepcopy
-from typing import Any, Dict, List
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
@@ -10,15 +10,15 @@ from tau_bench.envs.tool import Tool
 class BookReservation(Tool):
     @staticmethod
     def invoke(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         user_id: str,
         origin: str,
         destination: str,
         flight_type: str,
         cabin: str,
-        flights: List[Dict[str, Any]],
-        passengers: List[Dict[str, Any]],
-        payment_methods: List[Dict[str, Any]],
+        flights: list[dict[str, Any]],
+        passengers: list[dict[str, Any]],
+        payment_methods: list[dict[str, Any]],
         total_baggages: int,
         nonfree_baggages: int,
         insurance: str,
@@ -59,9 +59,7 @@ class BookReservation(Tool):
                 return f"Error: flight {flight_number} not found"
             flight_data = data["flights"][flight_number]
             if flight["date"] not in flight_data["dates"]:
-                return (
-                    f"Error: flight {flight_number} not found on date {flight['date']}"
-                )
+                return f"Error: flight {flight_number} not found on date {flight['date']}"
             flight_date_data = flight_data["dates"][flight["date"]]
             if flight_date_data["status"] != "available":
                 return f"Error: flight {flight_number} not available on date {flight['date']}"
@@ -105,7 +103,7 @@ class BookReservation(Tool):
         return json.dumps(reservation)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

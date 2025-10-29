@@ -1,11 +1,11 @@
 import copy
-from typing import Any, Dict, List, Tuple, Type, TypeVar
+from typing import Any, TypeVar
 
+import art
 from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import Choice
 from pydantic import BaseModel, Field
 
-import art
 from tau_bench.rl_utils import update_openpipe_log
 from tau_bench.types import RunConfig, SolveResult
 
@@ -44,12 +44,12 @@ class RolloutScores(BaseModel):
     Model representing scores for a group of rollouts.
     """
 
-    rollout_scores: List[RolloutScore] = Field(
+    rollout_scores: list[RolloutScore] = Field(
         description="List of RolloutScore objects containing indices, explanations, and scores for each rollout"
     )
 
 
-GENERAL_RM_PROMPT = """All of the rollouts below have been given the same task. Your job is to consider each of them and give them a score between 0 and 1. Take into consideration your best judgement of the task's intended outcome. 
+GENERAL_RM_PROMPT = """All of the rollouts below have been given the same task. Your job is to consider each of them and give them a score between 0 and 1. Take into consideration your best judgement of the task's intended outcome.
 
 Grading standards:
 - A rollout that achieves its goal should always get a significantly higher score than a rollout that does not achieve its goal.
@@ -76,7 +76,7 @@ Output your score and a detailed explanation of your score.
 
 def keep_only_messages(
     messages_and_choices: art.MessagesAndChoices,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Keep only the messages from the messages_and_choices.
     """
@@ -91,7 +91,7 @@ def keep_only_messages(
 
 def create_and_split_messages(
     messages_and_choices: art.MessagesAndChoices,
-) -> Tuple[str, List[Dict[str, Any]]]:
+) -> tuple[str, list[dict[str, Any]]]:
     """
     Create a system message from the first message in the group and return the remaining messages.
     """
@@ -100,7 +100,7 @@ def create_and_split_messages(
 
 
 async def create_openai_response(
-    prompt: str, judge_model: str = "o3", response_format: Type[T] = RolloutScores
+    prompt: str, judge_model: str = "o3", response_format: type[T] = RolloutScores
 ) -> T | None:
     async with AsyncOpenAI() as client:
         response = await client.beta.chat.completions.parse(
@@ -111,15 +111,11 @@ async def create_openai_response(
         return response.choices[0].message.parsed
 
 
-async def create_general_rm_trajectory_groups(
-    group: art.TrajectoryGroup, config: RunConfig
-) -> art.TrajectoryGroup:
+async def create_general_rm_trajectory_groups(group: art.TrajectoryGroup, config: RunConfig) -> art.TrajectoryGroup:
     try:
         user_prompt = GENERAL_RM_PROMPT
 
-        system_message, remaining_messages = create_and_split_messages(
-            group.trajectories[0].messages_and_choices
-        )
+        system_message, remaining_messages = create_and_split_messages(group.trajectories[0].messages_and_choices)
         user_prompt += f"Here is the system prompt that was provided at the beginning of each of the rollouts:\n--- START OF SYSTEM PROMPT ---\n{system_message}\n--- END OF SYSTEM PROMPT ---\n\n Here are the tools that were available to the rollouts:\n--- START OF TOOLS ---\n{group.trajectories[0].tools}\n--- END OF TOOLS ---\n\n Here are the rollouts to evaluate:"
         for idx, trajectory in enumerate(group.trajectories):
             user_prompt += f"\n\n--- ROLLOUT {idx} ---\n"
@@ -127,9 +123,7 @@ async def create_general_rm_trajectory_groups(
             # Format conversation
             user_prompt = add_messages_to_prompt(user_prompt, messages)
 
-        if config.judge_model.startswith("o3") or config.judge_model.startswith(
-            "o4-mini"
-        ):
+        if config.judge_model.startswith("o3") or config.judge_model.startswith("o4-mini"):
             response = await create_openai_response(user_prompt, config.judge_model)
         else:
             raise ValueError(f"General RM model {config.judge_model} not supported")
@@ -145,9 +139,7 @@ async def create_general_rm_trajectory_groups(
             else:
                 new_trajectory.metrics["outcome_correct"] = new_trajectory.reward
                 new_trajectory.reward = response.rollout_scores[idx].score
-                new_trajectory.metadata["judge_explanation"] = response.rollout_scores[
-                    idx
-                ].explanation
+                new_trajectory.metadata["judge_explanation"] = response.rollout_scores[idx].explanation
             try:
                 await update_openpipe_log(new_trajectory)
             except Exception as e:
@@ -160,7 +152,7 @@ async def create_general_rm_trajectory_groups(
         return group
 
 
-def add_messages_to_prompt(user_prompt: str, messages: List[Dict[str, Any]]) -> str:
+def add_messages_to_prompt(user_prompt: str, messages: list[dict[str, Any]]) -> str:
     for msg in messages:
         role = msg.get("role", "unknown")
         content = msg.get("content", "")
@@ -176,7 +168,7 @@ def add_messages_to_prompt(user_prompt: str, messages: List[Dict[str, Any]]) -> 
     return user_prompt
 
 
-def create_correct_order_and_set_of_tools(actions: List[Dict[str, Any]]) -> str:
+def create_correct_order_and_set_of_tools(actions: list[dict[str, Any]]) -> str:
     """
     Create a string representation of the correct order and set of tools that the assistant could have used to achieve the user's objective.
     """
@@ -186,7 +178,7 @@ def create_correct_order_and_set_of_tools(actions: List[Dict[str, Any]]) -> str:
     return resp
 
 
-async def calculate_reward(result: SolveResult, config: RunConfig) -> Tuple[float, str]:
+async def calculate_reward(result: SolveResult, config: RunConfig) -> tuple[float, str]:
     # If the agent was forced to stop, it should get a score of -1, regardless of the reward type
     if result.info["forced_stop"]:
         return -1, "Max token trajectory"
@@ -206,9 +198,7 @@ async def calculate_reward(result: SolveResult, config: RunConfig) -> Tuple[floa
     if config.reward_type == "real+llm":
         try:
             user_objective = result.info["task"]["instruction"]
-            correct_order_and_set_of_tools = create_correct_order_and_set_of_tools(
-                result.info["task"]["actions"]
-            )
+            correct_order_and_set_of_tools = create_correct_order_and_set_of_tools(result.info["task"]["actions"])
             user_prompt = LLM_JUDGE_SINGLE_ROLLOUT_PROMPT
             user_prompt += f"\n\nSystem Prompt:\n--- START OF SYSTEM PROMPT ---\n{result.messages[0]['content']}\n--- END OF SYSTEM PROMPT ---\n\n"
             user_prompt += f"\n User Objective:\n--- START OF USER OBJECTIVE ---\n{user_objective}\n--- END OF USER OBJECTIVE ---\n\n"
@@ -216,9 +206,7 @@ async def calculate_reward(result: SolveResult, config: RunConfig) -> Tuple[floa
             user_prompt += "\n Rollout:\n--- START OF ROLLOUT ---\n"
             user_prompt = add_messages_to_prompt(user_prompt, result.messages)
             user_prompt += "\n--- END OF ROLLOUT ---\n\n"
-            response = await create_openai_response(
-                user_prompt, config.judge_model, response_format=RolloutScoreLLM
-            )
+            response = await create_openai_response(user_prompt, config.judge_model, response_format=RolloutScoreLLM)
             assert response is not None
             reward += response.score
             return reward, response.explanation

@@ -1,7 +1,7 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tau_bench.envs.tool import Tool
 
@@ -9,7 +9,7 @@ from tau_bench.envs.tool import Tool
 class ModifyPendingOrderPayment(Tool):
     @staticmethod
     def invoke(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         order_id: str,
         payment_method_id: str,
     ) -> str:
@@ -27,47 +27,33 @@ class ModifyPendingOrderPayment(Tool):
             return "Error: payment method not found"
 
         # Check that the payment history should only have one payment
-        if (
-            len(order["payment_history"]) > 1
-            or order["payment_history"][0]["transaction_type"] != "payment"
-        ):
+        if len(order["payment_history"]) > 1 or order["payment_history"][0]["transaction_type"] != "payment":
             return "Error: there should be exactly one payment for a pending order"
 
         # Check that the payment method is different
         if order["payment_history"][0]["payment_method_id"] == payment_method_id:
-            return (
-                "Error: the new payment method should be different from the current one"
-            )
+            return "Error: the new payment method should be different from the current one"
 
         amount = order["payment_history"][0]["amount"]
-        payment_method = data["users"][order["user_id"]]["payment_methods"][
-            payment_method_id
-        ]
+        payment_method = data["users"][order["user_id"]]["payment_methods"][payment_method_id]
 
         # Check if the new payment method has enough balance if it is a gift card
-        if (
-            payment_method["source"] == "gift_card"
-            and payment_method["balance"] < amount
-        ):
+        if payment_method["source"] == "gift_card" and payment_method["balance"] < amount:
             return "Error: insufficient gift card balance to pay for the order"
 
         # Modify the payment method
-        order["payment_history"].extend(
-            [
-                {
-                    "transaction_type": "payment",
-                    "amount": amount,
-                    "payment_method_id": payment_method_id,
-                },
-                {
-                    "transaction_type": "refund",
-                    "amount": amount,
-                    "payment_method_id": order["payment_history"][0][
-                        "payment_method_id"
-                    ],
-                },
-            ]
-        )
+        order["payment_history"].extend([
+            {
+                "transaction_type": "payment",
+                "amount": amount,
+                "payment_method_id": payment_method_id,
+            },
+            {
+                "transaction_type": "refund",
+                "amount": amount,
+                "payment_method_id": order["payment_history"][0]["payment_method_id"],
+            },
+        ])
 
         # If payment is made by gift card, update the balance
         if payment_method["source"] == "gift_card":
@@ -85,7 +71,7 @@ class ModifyPendingOrderPayment(Tool):
         return json.dumps(order)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {
