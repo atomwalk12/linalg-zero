@@ -296,7 +296,7 @@ class UserStrategy(enum.Enum):
     REACT = "react"
     VERIFY = "verify"
     REFLECTION = "reflection"
-    LOCAL = "local"
+    MATH = "mathematician"
 
 
 def load_user(
@@ -308,7 +308,7 @@ def load_user(
         user_strategy = UserStrategy(user_strategy)
     if user_strategy == UserStrategy.HUMAN:
         return HumanUserSimulationEnv()
-    elif user_strategy == UserStrategy.LOCAL:
+    elif user_strategy == UserStrategy.MATH:
         return LocalSimulationEnv()
     elif user_strategy == UserStrategy.LLM:
         if model is None:

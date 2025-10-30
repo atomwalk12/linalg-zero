@@ -8,9 +8,9 @@ from linalg_zero.shared.lib import determinant
 
 class Determinant(Tool):
     @staticmethod
-    def invoke(data: dict[str, Any], expression: str) -> str:
+    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
         try:
-            return str(determinant(**data))
+            return str(determinant(**kwargs))
         except Exception as e:
             return f"Error: {e}"
 

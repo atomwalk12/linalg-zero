@@ -23,10 +23,11 @@ class Task(BaseModel):
     def from_dataset_entry(cls, entry: dict[str, Any]) -> "Task":
         return cls(
             user_id=entry.get("user_id", "user"),
-            actions=[], # will be populated during rollout execution
+            actions=[],
             instruction=entry["query"],
-            outputs=entry.get("ground_truth", [])
+            outputs=[entry["ground_truth"]],  # Keep as list of strings
         )
+
 
 class RewardOutputInfo(BaseModel):
     r_outputs: float
@@ -110,6 +111,7 @@ class RunConfig(BaseModel):
     is_multi_gpu: bool = False
     add_no_think: bool = False
     plot_tensors: bool = False
+    in_process: bool = False
 
 
 class TauBenchTrainingConfig(BaseModel):

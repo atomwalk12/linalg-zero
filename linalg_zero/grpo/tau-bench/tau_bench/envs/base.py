@@ -5,6 +5,9 @@ from collections.abc import Callable
 from hashlib import sha256
 from typing import Any, Union
 
+from linalg_zero.grpo.verifiers.xml_parser import (
+    XMLParser,
+)
 from tau_bench.envs.tool import Tool
 from tau_bench.envs.user import UserStrategy, load_user
 from tau_bench.types import (
@@ -20,10 +23,10 @@ from tau_bench.types import (
 )
 
 ToHashable = Union[str, int, float, dict[str, "ToHashable"], list["ToHashable"], set["ToHashable"]]
-Hashable = Union[str, int, float, tuple["Hashable"], tuple[tuple[str, "Hashable"]]]
+HashableItem = Union[str, int, float, tuple[Any, ...]]
 
 
-def to_hashable(item: ToHashable) -> Hashable:
+def to_hashable(item: ToHashable) -> HashableItem:
     if isinstance(item, dict):
         return tuple((key, to_hashable(value)) for key, value in sorted(item.items()))
     elif isinstance(item, list):
@@ -35,7 +38,7 @@ def to_hashable(item: ToHashable) -> Hashable:
 
 
 def consistent_hash(
-    value: Hashable,
+    value: HashableItem,
 ) -> str:
     return sha256(str(value).encode("utf-8")).hexdigest()
 
@@ -89,7 +92,7 @@ class Env:
         if action.name == RESPOND_ACTION_NAME:
             observation = await self.user.step(action.kwargs["content"])
             info.source = "user"
-            done = "###STOP###" in observation
+            done = XMLParser()._extract_last_answer(observation) is not None
         elif action.name in self.tools_map:
             try:
                 observation = self.tools_map[action.name].invoke(data=self.data, **action.kwargs)

@@ -8,9 +8,9 @@ from linalg_zero.shared.lib import matrix_cofactor
 
 class Cofactor(Tool):
     @staticmethod
-    def invoke(data: dict[str, Any], expression: str) -> str:
+    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
         try:
-            return str(matrix_cofactor(**data))
+            return str(matrix_cofactor(**kwargs))
         except Exception as e:
             return f"Error: {e}"
 

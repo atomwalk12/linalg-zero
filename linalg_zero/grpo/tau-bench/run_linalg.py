@@ -6,24 +6,22 @@ os.environ["LITELLM_LOG"] = "DEBUG"
 import asyncio
 
 import art
-import litellm
 import torch
 from dotenv import load_dotenv
 from run import RunConfig
 from run_rl import train
 from tau_bench.types import TauBenchPolicyConfig, TauBenchTrainingConfig
 
-litellm._turn_on_debug()
-
 if __name__ == "__main__":
     """Script entry point for SFT training."""
     load_dotenv()
-
+    BASE_MODEL = "Qwen/Qwen3-4B"
+    # BASE_MODEL = "Qwen/Qwen2.5-3B-Instruct"
     MODEL_NAME = "003"
     model = art.TrainableModel(
         name=MODEL_NAME,
         project="tau-bench",
-        base_model="Qwen/Qwen2.5-3B-Instruct",
+        base_model=BASE_MODEL,
         config=TauBenchPolicyConfig(
             training_config=TauBenchTrainingConfig(
                 trajectories_per_group=16,
@@ -36,16 +34,18 @@ if __name__ == "__main__":
                 train_mode="sync_rl",
             ),
             run_config=RunConfig(
+                env="linear_algebra",
                 model_provider="hosted_vllm",
                 user_model_provider="openai",
                 model=MODEL_NAME,
-                user_strategy="local",
+                user_strategy="mathematician",
                 user_model="gpt-4o",
                 agent_strategy="tool-calling-rl",
                 temperature=1.0,
                 task_split="test",
                 log_dir="rl_results",
                 skip_eval=False,
+                in_process=True,
             ),
         ),
         _internal_config=art.dev.InternalModelConfig(
