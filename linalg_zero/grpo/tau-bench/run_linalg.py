@@ -14,6 +14,7 @@ from tau_bench.types import TauBenchPolicyConfig, TauBenchTrainingConfig
 
 if __name__ == "__main__":
     """Script entry point for SFT training."""
+    # litellm._turn_on_debug()
     load_dotenv()
     BASE_MODEL = "Qwen/Qwen3-4B"
     # BASE_MODEL = "Qwen/Qwen2.5-3B-Instruct"
@@ -45,7 +46,7 @@ if __name__ == "__main__":
                 task_split="test",
                 log_dir="rl_results",
                 skip_eval=False,
-                in_process=True,
+                in_process=False,
             ),
         ),
         _internal_config=art.dev.InternalModelConfig(
@@ -53,7 +54,9 @@ if __name__ == "__main__":
                 tensor_parallel_size=torch.cuda.device_count(), gpu_memory_utilization=0.65
             ),
             torchtune_args=art.dev.TorchtuneArgs(
-                model="qwen2_5_32b_instruct", model_type="QWEN2", async_weight_syncing=True
+                model="qwen3_4b_base",  # ✓ Correct model
+                model_type="QWEN3",  # ✓ Correct model type
+                async_weight_syncing=True,
             ),
         ),
     )

@@ -63,7 +63,7 @@ async def rollout_tau_bench_task(
         user_strategy=config.user_strategy,
         user_model=config.user_model,
         user_provider=config.user_model_provider,
-        task_split=config.task_split,
+        task_split=phase,
         task_index=task_index,
     )
     if config.add_no_think:
@@ -185,7 +185,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
     if training_config is None:
         raise ValueError("Training config is not set")
 
-    with LocalBackend() as backend:
+    with LocalBackend(in_process=config.in_process) as backend:
         # Setup model with backend
         await model.register(backend)
         config.api_key = model.inference_api_key

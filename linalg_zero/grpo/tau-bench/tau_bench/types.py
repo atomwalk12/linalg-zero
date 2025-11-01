@@ -1,8 +1,12 @@
 # Copyright Sierra
 
+import ast
+import json
 from typing import Any, Literal
 
 from pydantic import BaseModel
+
+from linalg_zero.shared.types import LibTypes
 
 RESPOND_ACTION_NAME = "respond"
 RESPOND_ACTION_FIELD_NAME = "content"
@@ -11,21 +15,27 @@ RESPOND_ACTION_FIELD_NAME = "content"
 class Action(BaseModel):
     name: str
     kwargs: dict[str, Any]
+    content: str | None = None
 
 
 class Task(BaseModel):
     user_id: str
     actions: list[Action]
     instruction: str
-    outputs: list[str]
+    outputs: list[LibTypes]
 
     @classmethod
     def from_dataset_entry(cls, entry: dict[str, Any]) -> "Task":
+        stepwise = json.loads(entry["stepwise_ground_truths"])
         return cls(
             user_id=entry.get("user_id", "user"),
-            actions=[],
+            actions=[
+                Action(name=fn_name, kwargs={"matrix": ground_truth})
+                for step in stepwise
+                for fn_name, ground_truth in step.items()
+            ],
             instruction=entry["query"],
-            outputs=[entry["ground_truth"]],  # Keep as list of strings
+            outputs=[ast.literal_eval(entry["ground_truth"])],  # Keep as list of strings
         )
 
 

@@ -67,6 +67,7 @@ class ToolCallingAgent(Agent):
         avg_completion_tokens = 0
         max_completion_tokens = 0
         forced_stop = True
+        curr_step_number = 0
         for curr_step_number in range(max_num_steps):
             res = await self.llm_completion(self.messages)
             final_prompt_tokens = res.usage.prompt_tokens  # type: ignore
@@ -125,7 +126,7 @@ class ToolCallingRLAgent(ToolCallingAgent):
         self.base_model = kwargs.get("base_model")
         self.choices = []
 
-    async def llm_completion(self, messages: list[dict[str, Any]]):
+    async def llm_completion(self, messages: list[dict[str, Any]]) -> ModelResponse:
         response = await acompletion_with_limit_concurrency(
             messages=messages,
             model=self.model,
@@ -140,6 +141,7 @@ class ToolCallingRLAgent(ToolCallingAgent):
             # if "Qwen3-" in self.base_model
             # else {},
         )
+        assert isinstance(response, ModelResponse), f"Response is not a ModelResponse: {response}"
         choice = response.choices[0]  # type: ignore
         assert isinstance(choice, Choices), f"Choice is not a Choices object: {choice}"
         self.choices.append(convert_litellm_choice_to_openai(choice))
@@ -151,16 +153,16 @@ class ToolCallingRLAgent(ToolCallingAgent):
         for message in self.messages:
             if message["role"] == "assistant":
                 choice = self.choices[choice_idx]
-                if "Qwen3-" in self.base_model:
+                if self.base_model and "Qwen3-" in self.base_model:
                     if hasattr(choice.message, "content") and choice.message.content is None:
                         choice.message.content = ""
                 messages_and_choices.append(choice)
                 choice_idx += 1
             else:
-                if "Qwen3-" in self.base_model:
+                if self.base_model and "Qwen3-" in self.base_model:
                     if "content" in message and message["content"] is None:
                         message["content"] = ""
-                    for key in message.keys():
+                    for key in message:
                         if message[key] is None:
                             message.pop(key)
                 messages_and_choices.append(message)
@@ -180,6 +182,7 @@ def message_to_action(
         return Action(
             name=tool_call["function"]["name"],
             kwargs=json.loads(tool_call["function"]["arguments"]),
+            content=message["content"],
         )
     else:
-        return Action(name=RESPOND_ACTION_NAME, kwargs={"content": message["content"]})
+        return Action(name=RESPOND_ACTION_NAME, content=message["content"], kwargs={})
