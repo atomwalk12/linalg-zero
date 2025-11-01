@@ -33,14 +33,14 @@ class XMLParser:
             return result
         return None
 
-    def _extract_last_answer(self, message: str) -> str | None:
+    def extract_last_answer(self, message: str) -> str | None:
         """Extract answer content from <answer> tags.
 
         Primary path: properly closed <answer>...</answer> (last occurrence).
         Fallback: if an opening <answer> exists but closing is missing (e.g.,
         stop sequences), return content from after <answer> to end of message.
         """
-        contents = self._extract_tag_contents(message, "answer", last_only=True)
+        contents = self.extract_tag_contents(message, "answer", last_only=True)
         return contents[0] if contents else None
 
     def _check_format(self, message: str, regex: str, expected_groups: int) -> bool:
@@ -82,7 +82,7 @@ class XMLParser:
             return message
         return "<think>" + message
 
-    def _extract_tag_contents(
+    def extract_tag_contents(
         self,
         message: str,
         tag: str,
@@ -113,7 +113,7 @@ class XMLParser:
 
     def _extract_last_tool_call(self, message: str) -> str | None:
         """Extract <tool_call>...</tool_call> block contents."""
-        contents = self._extract_tag_contents(message, "tool_call", last_only=True)
+        contents = self.extract_tag_contents(message, "tool_call", last_only=True)
         return contents[0] if contents else None
 
     def _extract_thought(self, message: str) -> str | None:
@@ -124,7 +124,7 @@ class XMLParser:
         leading "<think><think>". In such case, we still return the content of
         the last properly closed think block.
         """
-        contents = self._extract_tag_contents(message, "think", last_only=True)
+        contents = self.extract_tag_contents(message, "think", last_only=True)
         return contents[0] if contents else None
 
     def analyze_message(
@@ -156,7 +156,7 @@ class XMLParser:
         diagnostics = XMLDiagnostics(self)
 
         thought = self._extract_thought(message)
-        answer = self._extract_last_answer(message)
+        answer = self.extract_last_answer(message)
         tool_block = self._extract_last_tool_call(message)
 
         result: dict = {}
@@ -167,9 +167,9 @@ class XMLParser:
         result["has_answer"] = bool(answer)
 
         # Counts of properly closed blocks (uniqueness diagnostics)
-        result["think_count"] = len(self._extract_tag_contents(message, "think"))
-        result["tool_call_count"] = len(self._extract_tag_contents(message, "tool_call"))
-        result["answer_count"] = len(self._extract_tag_contents(message, "answer"))
+        result["think_count"] = len(self.extract_tag_contents(message, "think"))
+        result["tool_call_count"] = len(self.extract_tag_contents(message, "tool_call"))
+        result["answer_count"] = len(self.extract_tag_contents(message, "answer"))
 
         # Format validity
         result["is_valid_think_then_tool_or_answer"] = self._is_valid_think_then_tool_or_answer(message)
@@ -234,7 +234,7 @@ class XMLParser:
         return result
 
     def is_answer_policy_valid(self, context: list[dict], message: str) -> bool:
-        answer = self._extract_last_answer(message)
+        answer = self.extract_last_answer(message)
         if not answer:
             return True
         skipped_current_assistant = False
@@ -322,7 +322,7 @@ class XMLDiagnostics:
         return close_token not in after_open
 
     def _has_code_fences_in_last_tool(self, message: str) -> bool:
-        block = self.parser._extract_tag_contents(message, "tool_call", last_only=True)
+        block = self.parser.extract_tag_contents(message, "tool_call", last_only=True)
         if not block:
             return False
         return "```" in block[0]

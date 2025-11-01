@@ -6,8 +6,20 @@ from tau_bench.envs.base import Env
 from tau_bench.envs.linear_algebra.tasks import load_tasks
 from tau_bench.envs.linear_algebra.tools import ALL_TOOLS
 from tau_bench.envs.user import UserStrategy
-from tau_bench.types import Task
+from tau_bench.types import (
+    RESPOND_ACTION_NAME,
+    RewardOutputInfo,
+    RewardResult,
+    Task,
+)
 
+from linalg_zero.grpo.compute_score import calculate_reward
+from linalg_zero.grpo.reward_funcs import (
+    answer_correct,
+    think_correct,
+    validate_answer,
+)
+from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.shared.system_prompts import get_math_system_prompt
 
 
@@ -42,16 +54,18 @@ class LinearAlgebraEnv(Env):
             user_model=user_model,
             user_provider=user_provider,
             task_index=task_index,
+            parser=XMLParser(),
         )
         self.terminate_tools = []
 
     def _get_tasks(self, hf_path: str, task_split: str) -> tuple[Task, ...]:
         """Get tasks for the specified split."""
+        # NOTE: Development mode uses limited train set
         split_mapping = {
             "test": ("test", False),
             "train": ("train", False),
-            "valid": ("validation", False),
-            "dev": ("train", True),  # Development mode uses limited train set
+            "val": ("validation", False),
+            "dev": ("train", True),
         }
 
         if task_split not in split_mapping:
@@ -59,3 +73,51 @@ class LinearAlgebraEnv(Env):
 
         split, dev = split_mapping[task_split]
         return _load_tasks_cached(hf_path, split, dev)
+
+    async def calculate_reward(self) -> RewardResult:
+        assert self.parser is not None
+
+        # Extract the produced tool calls and answer.
+        tool_calls = self.actions[:-1]
+        answer = self.actions[-1]
+
+        # These invariants hold because as soon as the answer produces
+        # an <answer> tag, we assume the task is complete.
+        assert all(action.name != RESPOND_ACTION_NAME for action in tool_calls)
+        assert answer.name == RESPOND_ACTION_NAME
+
+        # Calculate answer reward (1.0 for correctness + 0.2 for format).
+        answer_rewards = [(validate_answer, 1.0), (think_correct, 0.1), (answer_correct, 0.2)]
+        answer_reward, meta = calculate_reward(
+            self.parser,
+            ground_truth=self.task.outputs[0],
+            completion=answer.content,
+            reward_funcs_with_weights=answer_rewards,
+        )
+        answer_found = meta["validate_answer"]
+
+        # Now, calculate local penalties for intermediate tool calls.
+        tool_rewards = [
+            (think_correct, 0.1),
+            # Tool call reward is implicit. If we reach this phase, the outcome
+            # may result in a non-zero reward, otherwise if tool calls are
+            # malformed, reward is implicitly 0.
+            # (tool_call_correct, 0.2)
+        ]
+        penalty = 0.0
+        for action in tool_calls:
+            _, metadata = calculate_reward(
+                self.parser, completion=action.content, reward_funcs_with_weights=tool_rewards
+            )
+            if not metadata["think_correct"]:
+                penalty += 0.1
+
+        # By substracting we ensures the task is solved in the least
+        # amount of tool calls possible.
+        reward = max(0, answer_reward - penalty)
+
+        return RewardResult(
+            reward=reward,
+            info=RewardOutputInfo(r_outputs=answer_reward, outputs={"answer_found": answer_found}),
+            actions=tool_calls,
+        )

@@ -55,9 +55,11 @@ class Env:
         user_model: str,
         user_provider: str | None = None,
         task_index: int | None = None,
+        parser: XMLParser | None = None,
     ) -> None:
         super().__init__()
         self.data_load_func = data_load_func
+        self.parser = parser
         self.data = data_load_func()
         self.tools_map: dict[str, type[Tool]] = {tool.get_info()["function"]["name"]: tool for tool in tools}
         self.tools_info = [tool.get_info() for tool in tools]
@@ -90,9 +92,12 @@ class Env:
         reward = 0
         done = False
         if action.name == RESPOND_ACTION_NAME:
-            observation = await self.user.step(action.kwargs["content"])
+            observation = await self.user.step(action.content)
             info.source = "user"
-            done = XMLParser()._extract_last_answer(observation) is not None
+            if self.parser:
+                done = self.parser.extract_last_answer(observation) is not None
+            else:
+                done = "###STOP###" in observation
         elif action.name in self.tools_map:
             try:
                 observation = self.tools_map[action.name].invoke(data=self.data, **action.kwargs)
