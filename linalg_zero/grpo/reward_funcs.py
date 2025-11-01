@@ -8,6 +8,21 @@ def reward_tool_output(*, ground_truth: LibTypes, tool_output: LibTypes) -> floa
     return 1.0 if verify_answers(ground_truth, tool_output) else 0.0
 
 
+def think_correct(parser: XMLParser, *, ground_truth: LibTypes, completion: str) -> float:
+    has_think = parser.extract_tag_contents(completion, "think", last_only=True)
+    return 1.0 if has_think else 0.0
+
+
+def tool_call_correct(parser: XMLParser, *, ground_truth: LibTypes, completion: str) -> float:
+    has_tool = parser.extract_tag_contents(completion, "tool_call", last_only=True)
+    return 1.0 if has_tool else 0.0
+
+
+def answer_correct(parser: XMLParser, *, ground_truth: LibTypes, completion: str) -> float:
+    has_answer = parser.extract_tag_contents(completion, "answer", last_only=True)
+    return 1.0 if has_answer else 0.0
+
+
 def reward_response_format(parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str) -> float:
     if isinstance(completion, list):
         # Extract the last assistant message to score during a user-assistant interaction
@@ -25,7 +40,7 @@ def reward_response_format(parser: XMLParser, *, ground_truth: LibTypes, complet
     return 1.0 if analysis["is_valid_think_then_answer"] else 0.0
 
 
-def reward_final_answer(parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str) -> float:
+def validate_answer(parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str) -> float:
     """Reward function that checks if the completion answer matches the ground truth."""
     if isinstance(completion, list):
         assistant_messages = parser.get_messages(completion, role="assistant")

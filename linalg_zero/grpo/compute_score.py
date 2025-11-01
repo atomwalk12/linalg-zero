@@ -3,9 +3,9 @@ from collections.abc import Callable
 from typing import Any
 
 from linalg_zero.grpo.reward_funcs import (
-    reward_final_answer,
     reward_response_format,
     reward_tool_output,
+    validate_answer,
 )
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.shared.types import LibTypes
@@ -32,6 +32,36 @@ def get_tool_reward(*, ground_truth: LibTypes, tool_output: LibTypes) -> tuple[f
     return reward, metadata
 
 
+def calculate_reward(
+    parser: XMLParser,
+    *,
+    completion: list[dict] | str,
+    reward_funcs_with_weights: list[tuple[Callable[..., float], float]],
+    ground_truth: LibTypes | None = None,
+) -> tuple[float, dict]:
+    """
+    Computes the reward for a completion using configurable reward functions.
+
+    Args:
+        parser: XMLParser instance for parsing message content
+        completion: Either a list of message dicts or a string completion
+        reward_funcs_with_weights: List of (reward_function, weight) tuples.
+            If None, uses default: [(reward_response_format, 1.0)]
+        ground_truth: The expected ground truth value
+
+    Returns:
+        Tuple of (total_reward, metadata_dict)
+    """
+    reward = 0.0
+    metadata: dict[str, str | float] = {}
+    for reward_func, weight in reward_funcs_with_weights:
+        score = reward_func(parser, ground_truth=ground_truth, completion=completion)
+        reward += score * weight
+        metadata[reward_func.__name__] = 1.0 - 1e-6 <= score <= 1.0 + 1e-6
+
+    return reward, metadata
+
+
 def get_interaction_reward(
     parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str
 ) -> tuple[float, dict]:
@@ -40,7 +70,7 @@ def get_interaction_reward(
     a user that provides feedback based on the tool response.
     """
     reward_funcs_with_weights: list[tuple[Callable[..., float], float]] = [
-        (reward_final_answer, 1.0),
+        (validate_answer, 1.0),
         (reward_response_format, 0.2),
     ]
 
