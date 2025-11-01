@@ -194,16 +194,25 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
 
         print("Loading training tasks...")
         # Get environment to access tasks
-        env = get_env(
+        train_env = get_env(
             config.env,
             user_strategy=config.user_strategy,
             user_model=config.user_model,
             user_provider=config.user_model_provider,
-            task_split=config.task_split,
+            task_split="train",
+        )
+
+        # Load validation environment
+        val_env = get_env(
+            config.env,
+            user_strategy=config.user_strategy,
+            user_model=config.user_model,
+            user_provider=config.user_model_provider,
+            task_split="val",
         )
 
         # Create list of task indices for training
-        end_index = min(config.end_index, len(env.tasks)) if config.end_index != -1 else len(env.tasks)
+        end_index = min(config.end_index, len(train_env.tasks)) if config.end_index != -1 else len(train_env.tasks)
         if config.task_ids:
             train_task_indices = config.task_ids
         else:
@@ -215,12 +224,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             )
 
         # Validation task indices
-        val_task_indices = list(
-            range(
-                len(train_task_indices),
-                len(train_task_indices) + training_config.val_set_size,
-            )
-        )
+        val_task_indices = list(range(len(val_env.tasks)))
 
         print(f"Training on {len(train_task_indices)} tasks")
         print(f"Validation on {len(val_task_indices)} tasks")
