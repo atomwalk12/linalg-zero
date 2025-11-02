@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
@@ -176,13 +176,13 @@ name = "anthropic"
 version = "0.49.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "anyio", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "distro", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "httpx", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "jiter", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "pydantic", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "sniffio", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "typing-extensions", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "httpx" },
+    { name = "jiter" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/86/e3/a88c8494ce4d1a88252b9e053607e885f9b14d0a32273d47b727cbee4228/anthropic-0.49.0.tar.gz", hash = "sha256:c09e885b0f674b9119b4f296d8508907f6cff0009bc20d5cf6b35936c40b4398", size = 210016, upload-time = "2025-02-28T19:35:47.01Z" }
 wheels = [
@@ -270,19 +270,18 @@ name = "attrs"
 version = "24.3.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "extra != 'group-11-linalg-zero-distillation' and extra != 'group-11-linalg-zero-grpo'",
+    "python_full_version >= '3.12' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "python_full_version == '3.11.*' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "python_full_version < '3.11' and sys_platform == 'darwin'",
+    "python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/48/c8/6260f8ccc11f0917360fc0da435c5c9c7504e3db174d5a12a1494887b045/attrs-24.3.0.tar.gz", hash = "sha256:8f5c07333d543103541ba7be0e2ce16eeee8130cb0b3f9238ab904ce1e85baff", size = 805984, upload-time = "2024-12-16T06:59:29.899Z" }
 wheels = [
@@ -609,7 +608,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593, upload-time = "2024-12-21T18:38:44.339Z" }
 wheels = [
@@ -1083,19 +1082,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dinterpol"
-version = "0.3.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "enclosed", marker = "extra == 'group-11-linalg-zero-distillation'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/6b/b5/c05253316deb2b310df2efaba27644ec9fc30e6f7f395b17dd1bb677f02b/dinterpol-0.3.5.tar.gz", hash = "sha256:7fca18a75fb0eaa5a82f38ee964fb92f71efab65a4795da56d41083b6af590c4", size = 6139, upload-time = "2020-05-03T16:49:29.326Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1f/bf/1f190885f839a3dd9a033fa679cd81b271b3a1103bcf7a4b99afa5f93215/dinterpol-0.3.5-py3-none-any.whl", hash = "sha256:8176be0ab5d5135babb4b9d43f3b9dcc22184f6b32b30d039ecdde6dc0c39802", size = 10660, upload-time = "2020-05-03T16:49:28.276Z" },
-]
-
-[[package]]
 name = "diskcache"
 version = "5.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1215,15 +1201,6 @@ wheels = [
 ]
 
 [[package]]
-name = "enclosed"
-version = "0.0.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1e/ac/01b550e809e8c05b15aad39b5f487df1914e38bf1e3d4631d8b70df7ff57/enclosed-0.0.3.tar.gz", hash = "sha256:e686ff8b8adf8c1db90bd8b88f03c85d9ecfdedbbd5746a6448660eb77079246", size = 6758, upload-time = "2022-06-05T13:44:36.523Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/84/2e96fefb2a0d12f72fc7198507306da355b1cceeefdfdeee97702576bb95/enclosed-0.0.3-py3-none-any.whl", hash = "sha256:fd149a798b392926e0cda6f419e5112a829c8710e55212410e324686530226ed", size = 5607, upload-time = "2022-06-05T13:44:35.232Z" },
-]
-
-[[package]]
 name = "eval-type-backport"
 version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1237,7 +1214,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-distillation' and extra != 'group-11-linalg-zero-grpo')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [
@@ -1605,7 +1582,7 @@ wheels = [
 
 [[package]]
 name = "gql"
-version = "4.0.0"
+version = "3.5.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1613,9 +1590,9 @@ dependencies = [
     { name = "graphql-core" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/06/9f/cf224a88ed71eb223b7aa0b9ff0aa10d7ecc9a4acdca2279eb046c26d5dc/gql-4.0.0.tar.gz", hash = "sha256:f22980844eb6a7c0266ffc70f111b9c7e7c7c13da38c3b439afc7eab3d7c9c8e", size = 215644, upload-time = "2025-08-17T14:32:35.397Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/ed/44ffd30b06b3afc8274ee2f38c3c1b61fe4740bf03d92083e43d2c17ac77/gql-3.5.3.tar.gz", hash = "sha256:393b8c049d58e0d2f5461b9d738a2b5f904186a40395500b4a84dd092d56e42b", size = 180504, upload-time = "2025-05-20T12:34:08.954Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/94/30bbd09e8d45339fa77a48f5778d74d47e9242c11b3cd1093b3d994770a5/gql-4.0.0-py3-none-any.whl", hash = "sha256:f3beed7c531218eb24d97cb7df031b4a84fdb462f4a2beb86e2633d395937479", size = 89900, upload-time = "2025-08-17T14:32:34.029Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/50/2f4e99b216821ac921dbebf91c644ba95818f5d07857acadee17220221f3/gql-3.5.3-py2.py3-none-any.whl", hash = "sha256:e1fcbde2893fcafdd28114ece87ff47f1cc339a31db271fc4e1d528f5a1d4fbc", size = 74348, upload-time = "2025-05-20T12:34:07.687Z" },
 ]
 
 [package.optional-dependencies]
@@ -2235,8 +2212,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "backoff" },
     { name = "httpx" },
-    { name = "openai", version = "1.90.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "openai", version = "1.99.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-distillation'" },
+    { name = "openai", version = "1.90.0", source = { registry = "https://pypi.org/simple" } },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-sdk" },
@@ -2289,11 +2265,6 @@ wheels = [
 name = "linalg-zero"
 version = "0.0.1"
 source = { editable = "." }
-dependencies = [
-    { name = "langfuse" },
-    { name = "openpipe", version = "1.3.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "openpipe", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -2353,7 +2324,10 @@ grpo = [
     { name = "accelerate" },
     { name = "bitsandbytes" },
     { name = "distilabel", extra = ["instructor", "openai", "outlines"], marker = "extra == 'group-11-linalg-zero-grpo'" },
+    { name = "gql" },
+    { name = "langfuse" },
     { name = "math-verify" },
+    { name = "openpipe" },
     { name = "openpipe-art" },
     { name = "peft" },
     { name = "polars" },
@@ -2366,13 +2340,10 @@ grpo = [
     { name = "unsloth" },
     { name = "unsloth-zoo" },
     { name = "vllm", version = "0.10.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "weave" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "langfuse", specifier = ">=3.8.1" },
-    { name = "openpipe", specifier = ">=1.3.1" },
-]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2432,8 +2403,11 @@ grpo = [
     { name = "accelerate", specifier = ">=1.7.0" },
     { name = "bitsandbytes", specifier = ">=0.45.2" },
     { name = "distilabel", extras = ["openai", "outlines", "instructor"], specifier = ">=1.5.3" },
+    { name = "gql", specifier = "<4" },
+    { name = "langfuse", specifier = ">=3.8.1" },
     { name = "math-verify" },
-    { name = "openpipe-art", specifier = ">=0.5.0" },
+    { name = "openpipe", specifier = ">=1.3.1" },
+    { name = "openpipe-art", specifier = ">=0.5.1" },
     { name = "peft", specifier = ">=0.14.0" },
     { name = "polars", specifier = ">=1.34.0" },
     { name = "setproctitle", specifier = ">=1.3.7" },
@@ -2445,6 +2419,7 @@ grpo = [
     { name = "unsloth", specifier = "==2025.10.3" },
     { name = "unsloth-zoo", specifier = "==2025.10.3" },
     { name = "vllm", specifier = "==0.10.0" },
+    { name = "weave", specifier = "==0.51.56" },
 ]
 
 [[package]]
@@ -2828,7 +2803,7 @@ version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo')" },
     { name = "ghp-import" },
     { name = "jinja2" },
     { name = "markdown" },
@@ -3816,29 +3791,28 @@ name = "openai"
 version = "1.90.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "extra != 'group-11-linalg-zero-distillation' and extra != 'group-11-linalg-zero-grpo'",
+    "python_full_version >= '3.12' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "python_full_version == '3.11.*' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "python_full_version < '3.11' and sys_platform == 'darwin'",
+    "python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux'",
 ]
 dependencies = [
-    { name = "anyio", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "distro", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "httpx", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "jiter", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "pydantic", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "sniffio", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "tqdm", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "typing-extensions", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
+    { name = "anyio", marker = "extra == 'group-11-linalg-zero-grpo'" },
+    { name = "distro", marker = "extra == 'group-11-linalg-zero-grpo'" },
+    { name = "httpx", marker = "extra == 'group-11-linalg-zero-grpo'" },
+    { name = "jiter", marker = "extra == 'group-11-linalg-zero-grpo'" },
+    { name = "pydantic", marker = "extra == 'group-11-linalg-zero-grpo'" },
+    { name = "sniffio", marker = "extra == 'group-11-linalg-zero-grpo'" },
+    { name = "tqdm", marker = "extra == 'group-11-linalg-zero-grpo'" },
+    { name = "typing-extensions", marker = "extra == 'group-11-linalg-zero-grpo'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2d/30/0bdb712f5e25e823a76828136de6043f28bd69363886c417e05d7021420e/openai-1.90.0.tar.gz", hash = "sha256:9771982cdd5b6631af68c6a603da72ed44cd2caf73b49f717a72b71374bc565b", size = 471896, upload-time = "2025-06-20T20:22:18.349Z" }
 wheels = [
@@ -3944,63 +3918,14 @@ wheels = [
 
 [[package]]
 name = "openpipe"
-version = "1.3.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version >= '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux'",
-    "python_full_version >= '3.12' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux'",
-    "python_full_version == '3.11.*' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and platform_machine != 'aarch64' and sys_platform == 'linux'",
-    "python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux'",
-    "python_full_version < '3.11' and sys_platform == 'darwin'",
-    "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux'",
-]
-dependencies = [
-    { name = "click", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "colorama", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "dinterpol", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "pip", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "pygments", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "pyyaml", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "terminaltables", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "wasabi", marker = "extra == 'group-11-linalg-zero-distillation'" },
-    { name = "xmltodict", marker = "extra == 'group-11-linalg-zero-distillation'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/87/52/a548a242103dc2810178796ae7a196d16474a4b02405b4850473a8ac8eaa/openpipe-1.3.1.tar.gz", hash = "sha256:c6e41e215aafc62e3bfb40ae0ad6da396fcfa1b963355991fbde801c979397b1", size = 440351, upload-time = "2020-03-01T21:26:13.335Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/29/11489f6fd02cb21c100f9c2eb2057f1319b3c255bda043b739229a8ee19c/openpipe-1.3.1-py3-none-any.whl", hash = "sha256:1a7f2226af211b036275390371e748ec4b03ec42b7f22e68696806e8e0ef02d7", size = 74769, upload-time = "2020-03-01T21:26:10.666Z" },
-]
-
-[[package]]
-name = "openpipe"
 version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.12' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and sys_platform == 'darwin' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo'",
-    "extra != 'group-11-linalg-zero-distillation' and extra != 'group-11-linalg-zero-grpo'",
-]
 dependencies = [
-    { name = "anthropic", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "attrs", version = "24.3.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "httpx", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "openai", version = "1.90.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
-    { name = "python-dateutil", marker = "extra == 'group-11-linalg-zero-grpo' or extra != 'group-11-linalg-zero-distillation'" },
+    { name = "anthropic" },
+    { name = "attrs", version = "24.3.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "httpx" },
+    { name = "openai", version = "1.90.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "python-dateutil" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7c/34/b487bc0ff60d3ed634e6f7bc34b5138f04e6ae319cc6578001822df93901/openpipe-5.0.0.tar.gz", hash = "sha256:040acc526fece42ba505fcedd8cd584f42482c9bd01f16b2538c9ea9c82882f4", size = 98910, upload-time = "2025-07-31T01:36:29.482Z" }
 wheels = [
@@ -4009,7 +3934,7 @@ wheels = [
 
 [[package]]
 name = "openpipe-art"
-version = "0.5.0"
+version = "0.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "litellm" },
@@ -4017,9 +3942,9 @@ dependencies = [
     { name = "typer" },
     { name = "weave" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/b6/3b795ec467a84d41928663607f43bc7014e27c0d2c4db7c9f47054c804a8/openpipe_art-0.5.0.tar.gz", hash = "sha256:6cb7261613ccb22bc3aba5a32a5877949d60b8160c0a82f75b8f0adc0a3fc95c", size = 7974571, upload-time = "2025-10-07T05:57:17.588Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/cb/44ec1546b29b67299042812249659337e4e9357710ea228cb08b3fbe8b03/openpipe_art-0.5.1.tar.gz", hash = "sha256:dc9a51cc912d6e7f2e84f6787fefc852d136a9352cc881ffbc7b3821cd16422d", size = 7978357, upload-time = "2025-10-22T15:58:37.951Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ff/f9/dd96534ee0eb166d937de1cb83ca1d399687be1f9e7588286d259a469bfa/openpipe_art-0.5.0-py3-none-any.whl", hash = "sha256:0092a2c5f35a7dab714bab955425593bfc4756f4883f75645d2b04007a397352", size = 165009, upload-time = "2025-10-07T05:57:15.779Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/8c/dc0752a523b0635f1bec5eb84b2c669774681356d535441693d250d554db/openpipe_art-0.5.1-py3-none-any.whl", hash = "sha256:a3e04520166b13c25b1761f57f65faa732b35b6393d540cc22ffc13af6043337", size = 166998, upload-time = "2025-10-22T15:58:36.221Z" },
 ]
 
 [[package]]
@@ -4505,15 +4430,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/31/5e/03966aedfbfcbb4d5f8aa042452d3361f325b963ebbadddac05b122e47dd/pillow-11.3.0-pp311-pypy311_pp73-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:5418b53c0d59b3824d05e029669efa023bbef0f3e92e75ec8428f3799487f361", size = 4957170, upload-time = "2025-07-01T09:16:23.762Z" },
     { url = "https://files.pythonhosted.org/packages/cc/2d/e082982aacc927fc2cab48e1e731bdb1643a1406acace8bed0900a61464e/pillow-11.3.0-pp311-pypy311_pp73-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:504b6f59505f08ae014f724b6207ff6222662aab5cc9542577fb084ed0676ac7", size = 5581505, upload-time = "2025-07-01T09:16:25.593Z" },
     { url = "https://files.pythonhosted.org/packages/34/e7/ae39f538fd6844e982063c3a5e4598b8ced43b9633baa3a85ef33af8c05c/pillow-11.3.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:c84d689db21a1c397d001aa08241044aa2069e7587b398c8cc63020390b1c1b8", size = 6984598, upload-time = "2025-07-01T09:16:27.732Z" },
-]
-
-[[package]]
-name = "pip"
-version = "25.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fe/6e/74a3f0179a4a73a53d66ce57fdb4de0080a8baa1de0063de206d6167acc2/pip-25.3.tar.gz", hash = "sha256:8d0538dbbd7babbd207f261ed969c65de439f6bc9e5dbd3b3b9a77f25d95f343", size = 1803014, upload-time = "2025-10-25T00:55:41.394Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/3c/d717024885424591d5376220b5e836c2d5293ce2011523c9de23ff7bf068/pip-25.3-py3-none-any.whl", hash = "sha256:9655943313a94722b7774661c21049070f6bbb0a1516bf02f7c8d5d9201514cd", size = 1778622, upload-time = "2025-10-25T00:55:39.247Z" },
 ]
 
 [[package]]
@@ -5126,13 +5042,13 @@ name = "pytest"
 version = "8.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo')" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.11' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo')" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },
     { name = "pygments" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "tomli", marker = "python_full_version < '3.11' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/08/ba/45911d754e8eba3d5a841a5ce61a65a685ff1798421ac054f85aa8747dfb/pytest-8.4.1.tar.gz", hash = "sha256:7c67fd69174877359ed9371ec3af8a3d2b04741818c51e5e99cc1742251fa93c", size = 1517714, upload-time = "2025-06-18T05:48:06.109Z" }
 wheels = [
@@ -5531,7 +5447,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py" },
     { name = "pygments" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a1/53/830aa4c3066a8ab0ae9a9955976fb770fe9c6102117c8ec4ab3ea62d89e8/rich-14.0.0.tar.gz", hash = "sha256:82f1bc23a6a21ebca4ae0c45af9bdbc492ed20231dcb63f297d6d1021a9d5725", size = 224078, upload-time = "2025-03-30T14:15:14.23Z" }
 wheels = [
@@ -6198,15 +6114,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/4c/24/dd6d1874cda92749cd8ddd9a77f82a758f2cd5ece0d376417f662543badf/tensordict-0.9.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:5a5b436784d2d19f94a7e6023da8430b93efc202f4daadcb247985569b384461", size = 424861, upload-time = "2025-07-14T12:52:16.239Z" },
     { url = "https://files.pythonhosted.org/packages/89/68/0d801f339ff43aaaecad26d87f74bacb20503d9bcb1bdf7f76486c1f0b86/tensordict-0.9.1-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:ba30eacb5630dc1ee47159a66baa9dc6c5cec3f130b39b7589ff712f9e45777a", size = 430242, upload-time = "2025-07-14T12:52:17.643Z" },
     { url = "https://files.pythonhosted.org/packages/8a/07/3950b9c61be10dc1bf44c8f686c88dd715b803cb78a02b8f0c378c9f80b0/tensordict-0.9.1-cp312-cp312-win_amd64.whl", hash = "sha256:040c7d79f97dcc7e1f99ce7914a01b1fb74b4861d11291d998e4dc47cad4c106", size = 474256, upload-time = "2025-07-14T12:52:19.18Z" },
-]
-
-[[package]]
-name = "terminaltables"
-version = "3.1.10"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f5/fc/0b73d782f5ab7feba8d007573a3773c58255f223c5940a7b7085f02153c3/terminaltables-3.1.10.tar.gz", hash = "sha256:ba6eca5cb5ba02bba4c9f4f985af80c54ec3dccf94cfcd190154386255e47543", size = 12264, upload-time = "2021-12-07T19:03:35.758Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/fb/ea621e0a19733e01fe4005d46087d383693c0f4a8f824b47d8d4122c87e0/terminaltables-3.1.10-py2.py3-none-any.whl", hash = "sha256:e4fdc4179c9e4aab5f674d80f09d76fa436b96fdc698a8505e0a36bf0804a874", size = 15155, upload-time = "2021-12-07T19:03:34.013Z" },
 ]
 
 [[package]]
@@ -7404,18 +7311,6 @@ wheels = [
 ]
 
 [[package]]
-name = "wasabi"
-version = "1.1.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "(sys_platform == 'win32' and extra == 'group-11-linalg-zero-distillation') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo')" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/f9/054e6e2f1071e963b5e746b48d1e3727470b2a490834d18ad92364929db3/wasabi-1.1.3.tar.gz", hash = "sha256:4bb3008f003809db0c3e28b4daf20906ea871a2bb43f9914197d540f4f2e0878", size = 30391, upload-time = "2024-05-31T16:56:18.99Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/7c/34330a89da55610daa5f245ddce5aab81244321101614751e7537f125133/wasabi-1.1.3-py3-none-any.whl", hash = "sha256:f76e16e8f7e79f8c4c8be49b4024ac725713ab10cd7f19350ad18a8e3f71728c", size = 27880, upload-time = "2024-05-31T16:56:16.699Z" },
-]
-
-[[package]]
 name = "watchdog"
 version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -7788,15 +7683,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/99/9c/39bb38680be3b6d6aa11b8a46a69fb43e2537d6728710b299fa9fc231ff0/xgrammar-0.1.25-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c519518ebc65f75053123baaf23776a21bda58f64101a64c2fc4aa467c9cd480", size = 8519097, upload-time = "2025-09-21T05:58:40.831Z" },
     { url = "https://files.pythonhosted.org/packages/c6/c2/695797afa9922c30c45aa94e087ad33a9d87843f269461b622a65a39022a/xgrammar-0.1.25-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:47fdbfc6007df47de2142613220292023e88e4a570546b39591f053e4d9ec33f", size = 8712184, upload-time = "2025-09-21T05:58:43.142Z" },
     { url = "https://files.pythonhosted.org/packages/e4/7f/aa80d1d4c4632cd3d8d083f1de8b470fcb3df23d9165992a3ced019f1b93/xgrammar-0.1.25-cp312-cp312-win_amd64.whl", hash = "sha256:c9b3defb6b45272e896da401f43b513f5ac12104ec3101bbe4d3a7d02bcf4a27", size = 698264, upload-time = "2025-09-21T05:58:44.787Z" },
-]
-
-[[package]]
-name = "xmltodict"
-version = "1.0.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6a/aa/917ceeed4dbb80d2f04dbd0c784b7ee7bba8ae5a54837ef0e5e062cd3cfb/xmltodict-1.0.2.tar.gz", hash = "sha256:54306780b7c2175a3967cad1db92f218207e5bc1aba697d887807c0fb68b7649", size = 25725, upload-time = "2025-09-17T21:59:26.459Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/20/69a0e6058bc5ea74892d089d64dfc3a62ba78917ec5e2cfa70f7c92ba3a5/xmltodict-1.0.2-py3-none-any.whl", hash = "sha256:62d0fddb0dcbc9f642745d8bbf4d81fd17d6dfaec5a15b5c1876300aad92af0d", size = 13893, upload-time = "2025-09-17T21:59:24.859Z" },
 ]
 
 [[package]]
