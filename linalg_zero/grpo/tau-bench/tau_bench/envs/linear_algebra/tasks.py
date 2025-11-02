@@ -20,9 +20,7 @@ def load_tasks(hf_path: str, split: str, dev: bool = False) -> list[Task]:
 
     # Convert dataset entries to Task instances
     tasks = []
-    selected_dataset = dataset.select(range(10)) if dev else dataset
-
-    for entry in selected_dataset:
+    for entry in dataset:
         task = Task.from_dataset_entry(entry)
         tasks.append(task)
 

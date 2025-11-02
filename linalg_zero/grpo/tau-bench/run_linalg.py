@@ -54,8 +54,8 @@ if __name__ == "__main__":
                 tensor_parallel_size=torch.cuda.device_count(), gpu_memory_utilization=0.65
             ),
             torchtune_args=art.dev.TorchtuneArgs(
-                model="qwen3_4b_base",  # ✓ Correct model
-                model_type="QWEN3",  # ✓ Correct model type
+                model="qwen3_4b_base",
+                model_type="QWEN3",
                 async_weight_syncing=True,
             ),
         ),

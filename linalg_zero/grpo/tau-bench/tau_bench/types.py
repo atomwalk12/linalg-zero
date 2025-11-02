@@ -35,7 +35,7 @@ class Task(BaseModel):
                 for fn_name, ground_truth in step.items()
             ],
             instruction=entry["query"],
-            outputs=[ast.literal_eval(entry["ground_truth"])],  # Keep as list of strings
+            outputs=[ast.literal_eval(entry["ground_truth"])],
         )
 
 
@@ -102,6 +102,9 @@ class RunConfig(BaseModel):
     start_index: int = 0
     end_index: int = -1
     task_ids: list[int] | None = None
+    start_val_index: int = 0
+    end_val_index: int = -1
+    val_task_ids: list[int] | None = None
     log_dir: str = "results"
     max_concurrency: int = 1
     seed: int = 10
@@ -133,6 +136,7 @@ class TauBenchTrainingConfig(BaseModel):
     eval_steps: int = 10
     val_set_size: int = 85
     training_dataset_size: int = 30
+    val_dataset_size: int = 30
     num_epochs: int = 50
     train_mode: str = "sync_rl"
     importance_sampling_level: Literal["token", "sequence"] = "token"

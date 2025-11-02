@@ -95,11 +95,7 @@ class ToolCallingAgent(Agent):
                     "name": next_message["tool_calls"][0]["function"]["name"],
                     "content": env_response.observation,
                 })
-            else:
-                self.messages.append({
-                    "role": "user",
-                    "content": env_response.observation,
-                })
+
             if env_response.done:
                 forced_stop = False
                 break

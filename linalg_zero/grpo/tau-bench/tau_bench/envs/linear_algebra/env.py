@@ -24,9 +24,9 @@ from linalg_zero.shared.system_prompts import get_math_system_prompt
 
 
 @cache
-def _load_tasks_cached(hf_path: str, split: str, dev: bool = False) -> tuple[Task, ...]:
+def _load_tasks_cached(hf_path: str, split: str) -> tuple[Task, ...]:
     """Cache tasks loading to avoid repeated HuggingFace calls."""
-    return tuple(load_tasks(hf_path, split=split, dev=dev))
+    return tuple(load_tasks(hf_path, split=split))
 
 
 class LinearAlgebraEnv(Env):
@@ -48,8 +48,8 @@ class LinearAlgebraEnv(Env):
             data_load_func=lambda: {},  # Linear algebra doesn't need external data
             tools=ALL_TOOLS,
             tasks=list(tasks),
-            wiki=get_math_system_prompt(include_examples=False),  # Linear algebra uses system prompts instead
-            rules=[],  # Rules embedded in system prompts
+            wiki=get_math_system_prompt(include_examples=False),
+            rules=[],
             user_strategy=user_strategy,
             user_model=user_model,
             user_provider=user_provider,
@@ -60,19 +60,17 @@ class LinearAlgebraEnv(Env):
 
     def _get_tasks(self, hf_path: str, task_split: str) -> tuple[Task, ...]:
         """Get tasks for the specified split."""
-        # NOTE: Development mode uses limited train set
         split_mapping = {
-            "test": ("test", False),
-            "train": ("train", False),
-            "val": ("validation", False),
-            "dev": ("train", True),
+            "test": "test",
+            "train": "train",
+            "val": "validation",
         }
 
         if task_split not in split_mapping:
             raise ValueError(f"Unknown task split: {task_split}. Valid splits: {list(split_mapping.keys())}")
 
-        split, dev = split_mapping[task_split]
-        return _load_tasks_cached(hf_path, split, dev)
+        split = split_mapping[task_split]
+        return _load_tasks_cached(hf_path, split)
 
     async def calculate_reward(self) -> RewardResult:
         assert self.parser is not None
@@ -118,6 +116,6 @@ class LinearAlgebraEnv(Env):
 
         return RewardResult(
             reward=reward,
-            info=RewardOutputInfo(r_outputs=answer_reward, outputs={"answer_found": answer_found}),
+            info=RewardOutputInfo(r_outputs=answer_reward, outputs={"answer_found": answer_found, "penalty": penalty}),
             actions=tool_calls,
         )

@@ -35,6 +35,21 @@ def clean_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return cleaned_messages
 
 
+def _get_task_indices(
+    task_ids: list[int] | None,
+    start_index: int,
+    end_index: int,
+    tasks_length: int,
+    dataset_size: int,
+) -> list[int]:
+    """Get task indices either from explicit IDs or computed range."""
+    if task_ids:
+        return task_ids
+
+    actual_end = min(end_index, tasks_length) if end_index != -1 else tasks_length
+    return list(range(start_index, min(actual_end, dataset_size)))
+
+
 @limit_concurrency(1)
 async def rollout_tau_bench_task(
     model: art.Model[TauBenchPolicyConfig],
@@ -211,20 +226,21 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             task_split="val",
         )
 
-        # Create list of task indices for training
-        end_index = min(config.end_index, len(train_env.tasks)) if config.end_index != -1 else len(train_env.tasks)
-        if config.task_ids:
-            train_task_indices = config.task_ids
-        else:
-            train_task_indices = list(
-                range(
-                    config.start_index,
-                    min(end_index, training_config.training_dataset_size),
-                )
-            )
+        train_task_indices = _get_task_indices(
+            config.task_ids,
+            config.start_index,
+            config.end_index,
+            len(train_env.tasks),
+            training_config.training_dataset_size,
+        )
 
-        # Validation task indices
-        val_task_indices = list(range(len(val_env.tasks)))
+        val_task_indices = _get_task_indices(
+            config.val_task_ids,
+            config.start_val_index,
+            config.end_val_index,
+            len(val_env.tasks),
+            training_config.val_dataset_size,
+        )
 
         print(f"Training on {len(train_task_indices)} tasks")
         print(f"Validation on {len(val_task_indices)} tasks")
