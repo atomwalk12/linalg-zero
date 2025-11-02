@@ -17,6 +17,62 @@ from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfi
 from linalg_zero.sft.utils import get_unsloth_model, init_wandb_training
 from linalg_zero.shared.utils import get_logger, setup_logging
 
+# Toggle between datasets
+USE_MATH_DATASET = True  # Set to False to use linalg_zero dataset
+
+
+def load_math_dataset(tokenizer, logger):
+    """Load open-r1/DAPO-Math-17k-Processed dataset exactly as in working implementation"""
+
+    import numpy as np
+
+    logger.info("Loading dataset from open-r1/DAPO-Math-17k-Processed...")
+    dataset = load_dataset("open-r1/DAPO-Math-17k-Processed", "en", split="train")
+
+    def extract_hash_answer(text):
+        # if "####" not in text: return None
+        # return text.split("####")[1].strip()
+        return text
+
+    reasoning_start = "<start_working_out>"  # Acts as <think>
+    reasoning_end = "<end_working_out>"  # Acts as </think>
+    solution_start = "<SOLUTION>"
+    solution_end = "</SOLUTION>"
+
+    # Get system prompt
+    system_prompt = f"""You are given a problem.
+    Think about the problem and provide your working out.
+    Place it between {reasoning_start} and {reasoning_end}.
+    Then, provide your solution between {solution_start}{solution_end}"""
+
+    dataset = dataset.map(
+        lambda x: {
+            "prompt": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": x["prompt"]},
+            ],
+            "answer": extract_hash_answer(x["solution"]),
+        },
+        remove_columns=dataset.column_names,
+    )
+
+    # Filter by length (90th percentile)
+    tokenized = dataset.map(
+        lambda x: {"tokens": tokenizer.apply_chat_template(x["prompt"], add_generation_prompt=True, tokenize=True)},
+        batched=True,
+    )
+    tokenized = tokenized.map(lambda x: {"L": len(x["tokens"])})
+
+    maximum_length = int(np.quantile(tokenized["L"], 0.9))
+    print(f"Maximum prompt length (90th percentile): {maximum_length}")
+    logger.info(f"Maximum prompt length (90th percentile): {maximum_length}")
+
+    # Filter only samples smaller than 90% max length
+    dataset = dataset.select(np.where(np.array(tokenized["L"]) <= maximum_length)[0])
+    del tokenized
+
+    return dataset, maximum_length
+
 
 def match_format_approximately(completions, **kwargs):
     scores = []
@@ -76,23 +132,36 @@ def main(  # noqa: C901
     ######################################
     # Load dataset, tokenizer, and model #
     ######################################
-    logger.info(f"Loading dataset from {script_args.dataset_name}...")
-    dataset = load_dataset(script_args.dataset_name, script_args.dataset_config)
-
-    if not isinstance(dataset, DatasetDict):
-        raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
-
     # Model, tokenizer, dataset
     logger.info("Loading model and tokenizer...")
     model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args, use_vllm=True)
     tokenizer.tools = get_tools()
 
+    # Load dataset based on flag
+    if USE_MATH_DATASET:
+        dataset, maximum_length = load_math_dataset(tokenizer, logger)
+        # Calculate lengths exactly as in working implementation
+        max_seq_length = 2048  # Same as working script
+        max_prompt_length = maximum_length + 1  # + 1 just in case!
+        max_completion_length = max_seq_length - max_prompt_length
+        logger.info(
+            f"Using max_seq_length={max_seq_length}, max_prompt_length={max_prompt_length}, max_completion_length={max_completion_length}"
+        )
+    else:
+        logger.info(f"Loading dataset from {script_args.dataset_name}...")
+        dataset = load_dataset(script_args.dataset_name, script_args.dataset_config)
+
+        if not isinstance(dataset, DatasetDict):
+            raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
+
+        # Use original lengths for linalg_zero dataset
+        max_prompt_length = 4096
+        max_completion_length = 2048
+
     ##############################
     # Initialize the SFT Trainer #
     ##############################
     logger.info("Initializing SFT Trainer...")
-    max_prompt_length = 4096
-    max_completion_length = 2048
 
     vllm_sampling_params = SamplingParams(
         min_p=0.1,
@@ -138,7 +207,7 @@ def main(  # noqa: C901
         processing_class=tokenizer,
         reward_funcs=[match_format_approximately],
         args=training_args,
-        train_dataset=dataset["train"],
+        train_dataset=dataset["train"] if not USE_MATH_DATASET else dataset,
         # For optional training + evaluation
         # train_dataset = new_dataset["train"],
         # eval_dataset = new_dataset["test"],
