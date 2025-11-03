@@ -30,7 +30,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
     ) -> None:
         """Initialize independent matrix-vector multiplication generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.ONE_MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
+        assert self.problem_type == Task.ONE_MATRIX_VECTOR_MULTIPLICATION
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
@@ -89,7 +89,7 @@ class MatrixVectorMultiplicationGenerator(MatrixVectorBaseGenerator):
         # Convert to primitives (this applies precision constraints)
         a_list = self.formatter.sympy_to_primitive(matrix_a, precision=self.precision)
         b_list = self.formatter.sympy_to_primitive(vector_b, precision=self.precision)
-        assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
+        assert isinstance(a_list, list) and isinstance(b_list, list)
 
         # Calculate using lib.py with the primitives
         lib_result = self.lib["multiply_matrices"](a_list, b_list)
@@ -158,7 +158,7 @@ class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
             **kwargs,
         )
 
-        assert self.problem_type == Task.ONE_MATRIX_VECTOR_MULTIPLICATION  # noqa: S101
+        assert self.problem_type == Task.ONE_MATRIX_VECTOR_MULTIPLICATION
         self.input_vector_b = input_vector_b
         self.input_vector_b_index = input_vector_b_index
 
@@ -184,7 +184,7 @@ class MatrixVectorMultiplicationGeneratorDependent(MatrixVectorMultiplicationGen
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        assert self.input_vector_b == kwargs["matrix_b"]  # noqa: S101
+        assert self.input_vector_b == kwargs["matrix_b"]
         base_data.update({
             "dependent_on": {"input_vector_b": self.input_vector_b_index},
             "input_vector_b": MathFormatter.sympy_to_primitive(self.input_vector_b, precision=self.precision),

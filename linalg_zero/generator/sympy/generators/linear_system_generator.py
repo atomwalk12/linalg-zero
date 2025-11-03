@@ -42,7 +42,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
             **kwargs: Additional keyword arguments
         """
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.ONE_LINEAR_SYSTEM_SOLVER  # noqa: S101
+        assert self.problem_type == Task.ONE_LINEAR_SYSTEM_SOLVER
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
@@ -109,7 +109,7 @@ class LinearSystemGenerator(MatrixVectorBaseGenerator):
         # Convert to primitives (this applies precision constraints)
         matrix_a_sympy = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
         vector_b_sympy = MathFormatter.sympy_to_primitive(vector_b, precision=self.precision)
-        assert isinstance(matrix_a_sympy, list) and isinstance(vector_b_sympy, list)  # noqa: S101
+        assert isinstance(matrix_a_sympy, list) and isinstance(vector_b_sympy, list)
 
         # Calculate using lib.py
         lib_result = self.lib["solve_linear_system"](matrix_a_sympy, vector_b_sympy)
@@ -189,7 +189,7 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
             **kwargs,
         )
 
-        assert self.problem_type == Task.ONE_LINEAR_SYSTEM_SOLVER  # noqa: S101
+        assert self.problem_type == Task.ONE_LINEAR_SYSTEM_SOLVER
 
         # Keep instance variables for other methods that need them
         self.input_vector_b = input_vector_b
@@ -226,7 +226,7 @@ class LinearSystemGeneratorDependent(LinearSystemGenerator):
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        assert self.input_vector_b == kwargs["vector_b"]  # noqa: S101
+        assert self.input_vector_b == kwargs["vector_b"]
         base_data.update({
             "dependent_on": {"input_vector_b": self.input_vector_b_index},
             "input_vector_b": MathFormatter.sympy_to_primitive(self.input_vector_b, precision=self.precision),

@@ -24,8 +24,8 @@ def load_datasets(src_train: str, src_test: str) -> DatasetDict:
     test_dataset = load_dataset(src_test, split="validation")
 
     # Prepare results
-    assert isinstance(train_dataset, Dataset)  # noqa: S101
-    assert isinstance(test_dataset, Dataset)  # noqa: S101
+    assert isinstance(train_dataset, Dataset)
+    assert isinstance(test_dataset, Dataset)
 
     return DatasetDict({"train": train_dataset, "validation": test_dataset})
 
@@ -77,8 +77,8 @@ def process_dataset(dataset: DatasetDict) -> DatasetDict:
     test_dataset = test_dataset.cast(train_dataset.features)
 
     # Prepare results
-    assert isinstance(train_dataset, Dataset)  # noqa: S101
-    assert isinstance(test_dataset, Dataset)  # noqa: S101
+    assert isinstance(train_dataset, Dataset)
+    assert isinstance(test_dataset, Dataset)
 
     return DatasetDict({"train": train_dataset, "test": test_dataset})
 

@@ -28,7 +28,7 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
     ) -> None:
         """Initialize independent matrix-matrix multiplication generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.ONE_MATRIX_MATRIX_MULTIPLICATION  # noqa: S101
+        assert self.problem_type == Task.ONE_MATRIX_MATRIX_MULTIPLICATION
 
         # Validate that this problem type uses exactly 1 tool call
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
@@ -102,7 +102,7 @@ class MatrixMatrixMultiplicationGenerator(MatrixVectorBaseGenerator):
         # Convert to primitives (this applies precision constraints)
         a_list = self.formatter.sympy_to_primitive(matrix_a, precision=self.precision)
         b_list = self.formatter.sympy_to_primitive(matrix_b, precision=self.precision)
-        assert isinstance(a_list, list) and isinstance(b_list, list)  # noqa: S101
+        assert isinstance(a_list, list) and isinstance(b_list, list)
 
         # Calculate using lib.py with the primitives
         lib_result = self.lib["multiply_matrices"](a_list, b_list)
@@ -177,7 +177,7 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGen
             **kwargs,
         )
 
-        assert self.problem_type == Task.ONE_MATRIX_MATRIX_MULTIPLICATION  # noqa: S101
+        assert self.problem_type == Task.ONE_MATRIX_MATRIX_MULTIPLICATION
         self.input_matrix_A = input_matrix_A
         self.input_matrix_B = input_matrix_B
         self.input_matrix_A_index = input_matrix_A_index
@@ -232,7 +232,7 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGen
         input_variables["matrix_A"] = (self.input_matrix_A, self.input_matrix_A_index)
 
         if self.input_matrix_B is not None:
-            assert self.input_matrix_B_index is not None  # noqa: S101
+            assert self.input_matrix_B_index is not None
             input_variables["matrix_B"] = (self.input_matrix_B, self.input_matrix_B_index)
         else:
             input_variables["matrix_B"] = (template.context_info["matrix_B"], self.local_index)
@@ -294,7 +294,7 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGen
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        assert self.input_matrix_A == kwargs["matrix_a"]  # noqa: S101
+        assert self.input_matrix_A == kwargs["matrix_a"]
 
         dependent_on = {"input_matrix_A": self.input_matrix_A_index}
         base_data.update({
@@ -302,8 +302,8 @@ class MatrixMatrixMultiplicationGeneratorDependent(MatrixMatrixMultiplicationGen
         })
 
         if self.input_matrix_B is not None:
-            assert self.input_matrix_B == kwargs["matrix_b"]  # noqa: S101
-            assert self.input_matrix_B_index is not None  # noqa: S101
+            assert self.input_matrix_B == kwargs["matrix_b"]
+            assert self.input_matrix_B_index is not None
             dependent_on["input_matrix_B"] = self.input_matrix_B_index
             base_data["input_matrix_B"] = MathFormatter.sympy_to_primitive(
                 self.input_matrix_B, precision=self.precision

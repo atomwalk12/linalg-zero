@@ -36,7 +36,7 @@ class FrobeniusNormGenerator(MatrixVectorBaseGenerator):
             **kwargs: Additional keyword arguments
         """
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.ONE_FROBENIUS_NORM  # noqa: S101
+        assert self.problem_type == Task.ONE_FROBENIUS_NORM
 
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
 
@@ -87,7 +87,7 @@ class FrobeniusNormGenerator(MatrixVectorBaseGenerator):
         """Calculate Frobenius norm using both SymPy and lib.py function."""
         # Convert to primitives (this applies precision constraints)
         matrix_a_primitive = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
-        assert isinstance(matrix_a_primitive, list)  # noqa: S101
+        assert isinstance(matrix_a_primitive, list)
 
         # Calculate using lib.py with the primitives
         lib_result = self.lib["frobenius_norm"](matrix_a_primitive)
@@ -119,7 +119,7 @@ class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
 
-        assert self.problem_type == Task.ONE_FROBENIUS_NORM  # noqa: S101
+        assert self.problem_type == Task.ONE_FROBENIUS_NORM
         self.input_matrix = input_matrix
         self.input_matrix_index = input_matrix_index
 
@@ -130,7 +130,7 @@ class FrobeniusNormGeneratorDependent(FrobeniusNormGenerator):
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        assert self.input_matrix == kwargs["matrix"]  # noqa: S101
+        assert self.input_matrix == kwargs["matrix"]
         base_data.update({
             "dependent_on": {"input_matrix": self.input_matrix_index},
             "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),

@@ -72,7 +72,7 @@ def get_libpath() -> Path:
 def load_module_from_path(path: Path) -> "ModuleType":
     """Loads a python module from a given path."""
     spec = importlib.util.spec_from_file_location("module.name", path)
-    assert spec is not None and spec.loader is not None  # noqa: S101
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

@@ -27,7 +27,7 @@ class MatrixRankGenerator(MatrixVectorBaseGenerator):
     def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix rank generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.ONE_RANK  # noqa: S101
+        assert self.problem_type == Task.ONE_RANK
 
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
 
@@ -84,7 +84,7 @@ class MatrixRankGenerator(MatrixVectorBaseGenerator):
         # Convert to primitives for lib.py calculation
 
         matrix_a_primitive = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
-        assert isinstance(matrix_a_primitive, list)  # noqa: S101
+        assert isinstance(matrix_a_primitive, list)
 
         # Calculate using lib.py with the primitives
         lib_result = self.lib["matrix_rank"](matrix_a_primitive)
@@ -93,7 +93,7 @@ class MatrixRankGenerator(MatrixVectorBaseGenerator):
         # This ensures both calculations work with the same precision
         matrix_a_precision_matched = Matrix(matrix_a_primitive)
         sympy_result = matrix_a_precision_matched.rank()
-        assert isinstance(sympy_result, int)  # noqa: S101
+        assert isinstance(sympy_result, int)
 
         return Integer(sympy_result), lib_result
 
@@ -110,7 +110,7 @@ class MatrixRankGeneratorDependent(MatrixRankGenerator):
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
 
-        assert self.problem_type == Task.ONE_RANK  # noqa: S101
+        assert self.problem_type == Task.ONE_RANK
         self.input_matrix = input_matrix
         self.input_matrix_index = input_matrix_index
 
@@ -121,7 +121,7 @@ class MatrixRankGeneratorDependent(MatrixRankGenerator):
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        assert self.input_matrix == kwargs["matrix"]  # noqa: S101
+        assert self.input_matrix == kwargs["matrix"]
         base_data.update({
             "dependent_on": {"input_matrix": self.input_matrix_index},
             "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),

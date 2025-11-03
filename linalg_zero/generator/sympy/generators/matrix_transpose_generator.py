@@ -27,7 +27,7 @@ class MatrixTransposeGenerator(MatrixVectorBaseGenerator):
     def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize matrix transpose generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.ONE_TRANSPOSE  # noqa: S101
+        assert self.problem_type == Task.ONE_TRANSPOSE
 
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
 
@@ -83,7 +83,7 @@ class MatrixTransposeGenerator(MatrixVectorBaseGenerator):
         """Calculate matrix transpose using both SymPy and lib.py function."""
         # Convert to primitives for lib.py calculation
         matrix_a_primitive = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
-        assert isinstance(matrix_a_primitive, list)  # noqa: S101
+        assert isinstance(matrix_a_primitive, list)
 
         # Calculate using lib.py with the primitives
         lib_result = self.lib["matrix_transpose"](matrix_a_primitive)
@@ -109,7 +109,7 @@ class MatrixTransposeGeneratorDependent(MatrixTransposeGenerator):
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
 
-        assert self.problem_type == Task.ONE_TRANSPOSE  # noqa: S101
+        assert self.problem_type == Task.ONE_TRANSPOSE
         self.input_matrix = input_matrix
         self.input_matrix_index = input_matrix_index
 
@@ -120,7 +120,7 @@ class MatrixTransposeGeneratorDependent(MatrixTransposeGenerator):
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        assert self.input_matrix == kwargs["matrix"]  # noqa: S101
+        assert self.input_matrix == kwargs["matrix"]
         base_data.update({
             "dependent_on": {"input_matrix": self.input_matrix_index},
             "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),

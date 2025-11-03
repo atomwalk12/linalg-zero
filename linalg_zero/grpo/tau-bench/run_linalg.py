@@ -20,10 +20,10 @@ def main(cfg: DictConfig) -> None:
     engine_args = OmegaConf.to_container(cfg.engine, resolve=True)
     torchtune_args = OmegaConf.to_container(cfg.torchtune, resolve=True)
 
-    assert isinstance(engine_args, dict), "Engine args must be provided"  # noqa: S101
-    assert isinstance(torchtune_args, dict), "Torchtune args must be provided"  # noqa: S101
-    assert isinstance(run_config, dict), "Run config must be provided"  # noqa: S101
-    assert isinstance(training_config, dict), "Training config must be provided"  # noqa: S101
+    assert isinstance(engine_args, dict), "Engine args must be provided"
+    assert isinstance(torchtune_args, dict), "Torchtune args must be provided"
+    assert isinstance(run_config, dict), "Run config must be provided"
+    assert isinstance(training_config, dict), "Training config must be provided"
 
     # Set dynamic values
     if "tensor_parallel_size" not in engine_args:

@@ -291,6 +291,7 @@ ignore = [
 "tests/*" = ["S101"]
 "linalg_zero/distillation/components/multi_turn_generation.py" = ["A002"]
 "linalg_zero/distillation/components/multi_turn_generation_base.py" = ["A001", "PGH003", "S101"]
+"linalg_zero/*" = ["S101"]
 
 [tool.ruff.format]
 preview = true

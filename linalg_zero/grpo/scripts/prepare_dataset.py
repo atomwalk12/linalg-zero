@@ -29,9 +29,9 @@ def load_datasets(src_train: str, src_test: str) -> DatasetDict:
     test_dataset = base_dataset["test"]
 
     # Prepare results with proper three splits
-    assert isinstance(train_dataset, Dataset)  # noqa: S101
-    assert isinstance(validation_dataset, Dataset)  # noqa: S101
-    assert isinstance(test_dataset, Dataset)  # noqa: S101
+    assert isinstance(train_dataset, Dataset)
+    assert isinstance(validation_dataset, Dataset)
+    assert isinstance(test_dataset, Dataset)
 
     return DatasetDict({"train": train_dataset, "validation": validation_dataset, "test": test_dataset})
 
@@ -110,9 +110,9 @@ def process_dataset_for_grpo(dataset: DatasetDict) -> DatasetDict:
     test_dataset = test_dataset.cast(train_dataset.features)
 
     # Prepare results with all three splits
-    assert isinstance(train_dataset, Dataset)  # noqa: S101
-    assert isinstance(validation_dataset, Dataset)  # noqa: S101
-    assert isinstance(test_dataset, Dataset)  # noqa: S101
+    assert isinstance(train_dataset, Dataset)
+    assert isinstance(validation_dataset, Dataset)
+    assert isinstance(test_dataset, Dataset)
 
     return DatasetDict({"train": train_dataset, "validation": validation_dataset, "test": test_dataset})
 

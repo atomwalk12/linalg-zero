@@ -56,7 +56,7 @@ class SequentialComposition(CompositionStrategy):
             for comp in components:
                 override: EntropyConstraints = comp.entropy_constraints
                 entropy = override.sample_entropy()
-                assert entropy is not None  # noqa: S101
+                assert entropy is not None
                 allocations.append(float(entropy))
 
             for alloc, weight, comp in zip(allocations, weights, components, strict=True):
@@ -226,8 +226,8 @@ class CompositeProblem(SympyProblemGenerator):
         """Verify the problem is mathematically correct."""
         lib_results = template.lib_result
         sympy_solutions = template.sympy_solution
-        assert isinstance(sympy_solutions, list)  # noqa: S101
-        assert isinstance(lib_results, list)  # noqa: S101
+        assert isinstance(sympy_solutions, list)
+        assert isinstance(lib_results, list)
 
         component_results: list[ComponentResult] = template.context_info["component_results"]
 
@@ -235,8 +235,8 @@ class CompositeProblem(SympyProblemGenerator):
             precision = result.generator.precision
             sympy_solution = self.formatter.sympy_to_primitive(sympy_solution, precision=precision)
 
-            assert isinstance(lib_result, LibTypes)  # noqa: S101
-            assert isinstance(sympy_solution, LibTypes)  # noqa: S101
+            assert isinstance(lib_result, LibTypes)
+            assert isinstance(sympy_solution, LibTypes)
 
             if not verify_answers(sympy_solution, lib_result):
                 raise ValueError(f"Verification failed: sympy={sympy_solution} vs lib={lib_result}")

@@ -24,14 +24,14 @@ class Diagnostics:
         Returns the cleaned message list.
         """
         user_idx = next((i for i, msg in enumerate(messages) if msg.get("role") == "user"), None)
-        assert user_idx in (0, 1), "User message not found"  # noqa: S101
+        assert user_idx in (0, 1), "User message not found"
 
         indices_to_skip = set()
         for i, msg in enumerate(messages):
             if self.is_diagnostic_user_message(msg) and i != user_idx:
                 indices_to_skip.add(i)
                 if self.append_assistant:
-                    assert messages[i - 1]["role"] == "assistant", "Preceding message must be assistant"  # noqa: S101
+                    assert messages[i - 1]["role"] == "assistant", "Preceding message must be assistant"
                     indices_to_skip.add(i - 1)
 
         cleaned: list[dict[str, Any]] = []
@@ -87,7 +87,7 @@ class Diagnostics:
                     indices_to_remove.add(i)
                     # Also remove the preceding malformed assistant message if it exists
                     if self.append_assistant:
-                        assert conversation[i - 1]["role"] == "assistant"  # noqa: S101
+                        assert conversation[i - 1]["role"] == "assistant"
                         indices_to_remove.add(i - 1)
 
             conversation[:] = [m for i, m in enumerate(conversation) if i not in indices_to_remove]

@@ -38,7 +38,7 @@ class LinalgZeroTool(BaseTool):
         if ground_truth is None:
             raise ValueError("Ground truth is required for tool creation")
         stepwise_ground_truth = kwargs.get("stepwise_ground_truth")
-        assert isinstance(stepwise_ground_truth, str)  # noqa: S101
+        assert isinstance(stepwise_ground_truth, str)
         # Store state in a dictionary
         self._instance_dict[instance_id] = {
             "tool_result": None,
@@ -134,7 +134,7 @@ class LinalgZeroTool(BaseTool):
     ) -> dict:
         """Extract stepwise metrics calculation into separate method."""
         stepwise_ground_truth = instance_data.get("stepwise_ground_truth")
-        assert stepwise_ground_truth is not None  # noqa: S101
+        assert stepwise_ground_truth is not None
 
         # Early return if not executing or missing stepwise data
         if not is_executing or step_index is None:

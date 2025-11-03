@@ -216,7 +216,7 @@ def extract_all_numerical_values(statistics: dict[tuple, dict[str, Any]], use_mi
         all_values.extend(values)
 
     for value in all_values:
-        assert value is not None, "Value is None"  # noqa: S101
+        assert value is not None, "Value is None"
 
     return all_values
 
@@ -239,7 +239,7 @@ def extract_values_by_combination(
         values_by_combination[combination] = values
 
     for key, items in values_by_combination.items():
-        assert all(value is not None for value in items), f"Values are None for combination {key}"  # noqa: S101
+        assert all(value is not None for value in items), f"Values are None for combination {key}"
 
     return values_by_combination
 

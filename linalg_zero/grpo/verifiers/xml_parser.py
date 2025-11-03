@@ -29,7 +29,7 @@ class XMLParser:
         role_messages = self.get_messages(messages, role)
         if role_messages:
             result = role_messages[-1]["content"]
-            assert isinstance(result, str)  # noqa: S101
+            assert isinstance(result, str)
             return result
         return None
 
@@ -98,7 +98,7 @@ class XMLParser:
           contents in document order.
         - Whitespace around extracted content is stripped.
         """
-        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
+        assert tag in ["tool_call", "answer", "think"]
         if not message:
             return []
 
@@ -310,7 +310,7 @@ class XMLDiagnostics:
         self.parser = parser
 
     def _has_unclosed_tag(self, message: str, tag: str) -> bool:
-        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
+        assert tag in ["tool_call", "answer", "think"]
         if not message:
             return False
         open_token = f"<{tag}>"
@@ -338,7 +338,7 @@ class XMLDiagnostics:
 
     def _has_unopened_tag(self, message: str, tag: str) -> bool:
         """Return True if a closing </tag> appears without any prior opening <tag>."""
-        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
+        assert tag in ["tool_call", "answer", "think"]
         if not message:
             return False
         open_token = f"<{tag}>"
