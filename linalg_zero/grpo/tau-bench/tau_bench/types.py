@@ -2,8 +2,10 @@
 
 import ast
 import json
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Any
 
+from hydra.core.config_store import ConfigStore
 from pydantic import BaseModel
 
 from linalg_zero.shared.types import LibTypes
@@ -89,7 +91,10 @@ class EnvRunResult(BaseModel):
     trial: int
 
 
-class RunConfig(BaseModel):
+@dataclass
+class RunConfig:
+    project_id: str
+    project: str
     model_provider: str
     user_model_provider: str
     model: str = "gpt-4.1"
@@ -127,7 +132,8 @@ class RunConfig(BaseModel):
     in_process: bool = False
 
 
-class TauBenchTrainingConfig(BaseModel):
+@dataclass
+class TauBenchTrainingConfig:
     """Training configuration for ART RL on tau-bench tasks"""
 
     trajectories_per_group: int = 6
@@ -139,14 +145,21 @@ class TauBenchTrainingConfig(BaseModel):
     val_dataset_size: int = 30
     num_epochs: int = 50
     train_mode: str = "sync_rl"
-    importance_sampling_level: Literal["token", "sequence"] = "token"
+    importance_sampling_level: str = "token"  # or "sequence"
 
 
 class TauBenchPolicyConfig(BaseModel):
     """Policy configuration for tau-bench agent"""
 
+    # Run config
+    run_config: RunConfig
+
     # Training configuration
     training_config: TauBenchTrainingConfig | None = None
 
-    # tau-bench specific configs
-    run_config: RunConfig
+
+# Note: Both EngineArgs and TorchtuneArgs from art.dev are TypedDicts, not dataclasses,
+# so we cannot register them with ConfigStore. Use plain dict configuration in YAML instead.
+cs = ConfigStore.instance()
+cs.store(name="training_schema", node=TauBenchTrainingConfig, group="training")
+cs.store(name="run_schema", node=RunConfig, group="run")

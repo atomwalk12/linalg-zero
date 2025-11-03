@@ -153,3 +153,4 @@ vllm-cache/
 uv-cache/
 unsloth_compiled_cache/
 .*o
+outputs
