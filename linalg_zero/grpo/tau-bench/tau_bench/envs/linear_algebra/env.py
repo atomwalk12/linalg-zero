@@ -114,8 +114,9 @@ class LinearAlgebraEnv(Env):
         # amount of tool calls possible.
         reward = max(0, answer_reward - penalty)
 
+        # NOTE: it is possible to extract the reward configuration from info.
         return RewardResult(
             reward=reward,
-            info=RewardOutputInfo(r_outputs=answer_reward, outputs={"answer_found": answer_found, "penalty": penalty}),
+            info=RewardOutputInfo(r_outputs=answer_reward, outputs={"answer_found": answer_found}),
             actions=tool_calls,
         )

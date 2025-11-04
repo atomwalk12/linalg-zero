@@ -1,6 +1,7 @@
 # Copyright Sierra
 
 import argparse
+import logging
 
 from dotenv import load_dotenv
 from litellm import provider_list
@@ -10,9 +11,14 @@ from tau_bench.types import RunConfig
 
 load_dotenv(override=True)
 
+# Suppress LiteLLM logging spam
+logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+
 
 def parse_args() -> RunConfig:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--project-id", type=int, default=0)
+    parser.add_argument("--project-name", type=str, default="linalgzero-grpo-eval")
     parser.add_argument("--num-trials", type=int, default=1)
     parser.add_argument("--env", type=str, choices=["retail", "airline"], default="retail")
     parser.add_argument(
@@ -88,6 +94,8 @@ def parse_args() -> RunConfig:
     args = parser.parse_args()
     print(args)
     return RunConfig(
+        project_id=args.project_id,
+        project=args.project_name,
         model_provider=args.model_provider,
         user_model_provider=args.user_model_provider,
         model=args.model,

@@ -3,6 +3,12 @@ from dotenv import load_dotenv
 # For debugging purposes apply dotenv file
 load_dotenv()
 
+# Enable PyTorch memory fragmentation fix for better GPU memory management
+# os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
+# Suppress LiteLLM logging spam
+# logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+
 import asyncio
 
 import art
@@ -13,7 +19,7 @@ from run_rl import train
 from tau_bench.types import TauBenchPolicyConfig
 
 
-@hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen3-4B", config_name="config")
+@hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen3-1.7B", config_name="config")
 def main(cfg: DictConfig) -> None:
     # Convert all configs to plain dicts
     init_config = OmegaConf.to_container(cfg.init, resolve=True)
@@ -24,6 +30,7 @@ def main(cfg: DictConfig) -> None:
     engine_args = OmegaConf.to_container(cfg.engine, resolve=True)
     # Use peft config for LoRA training instead of:
     # torchtune_args = OmegaConf.to_container(cfg.torchtune, resolve=True)
+    print(f"Training model {cfg.run.base_model}")
 
     assert isinstance(init_config, dict), "Init config must be provided"
     assert isinstance(training_config, dict), "Training config must be provided"

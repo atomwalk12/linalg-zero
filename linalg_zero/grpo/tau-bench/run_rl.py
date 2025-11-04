@@ -5,6 +5,7 @@ import asyncio
 import concurrent.futures
 import copy
 import json
+import logging
 import random
 from typing import Any
 
@@ -25,6 +26,9 @@ from tqdm.asyncio import tqdm_asyncio
 
 # Load environment variables
 load_dotenv(override=True)
+
+# Suppress LiteLLM logging spam
+logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 
 
 def clean_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -50,7 +54,7 @@ def _get_task_indices(
     return list(range(start_index, min(actual_end, dataset_size)))
 
 
-@limit_concurrency(1)
+@limit_concurrency(256)
 async def rollout_tau_bench_task(
     model: art.Model[TauBenchPolicyConfig],
     task_index: int,
