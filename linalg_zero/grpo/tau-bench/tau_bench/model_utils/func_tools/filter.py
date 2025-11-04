@@ -13,6 +13,6 @@ def filter(
     iterable: Iterable[T],
     max_concurrency: int | None = None,
 ) -> Iterable[T]:
-    assert max_concurrency is None or max_concurrency > 0
+    assert max_concurrency is None or max_concurrency > 0, "Max concurrency must be greater than 0"
     bits = map(func, iterable=iterable, max_concurrency=max_concurrency)
     return [x for x, y in zip(iterable, bits, strict=False) if y]

@@ -164,7 +164,7 @@ class API:
         datapoint: Datapoint,
         sampling_strategy: SamplingStrategy,
     ) -> T:
-        assert len(models) > 0
+        assert len(models) > 0, "Models cannot be empty"
 
         def _run_datapoint(model: AnyModel, temp: float | None = None) -> T:
             if isinstance(datapoint, ClassifyDatapoint):

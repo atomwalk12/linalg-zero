@@ -19,7 +19,7 @@ from run_rl import train
 from tau_bench.types import TauBenchPolicyConfig
 
 
-@hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen3-1.7B", config_name="config")
+@hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen3-0.6B", config_name="config")
 def main(cfg: DictConfig) -> None:
     # Convert all configs to plain dicts
     init_config = OmegaConf.to_container(cfg.init, resolve=True)

@@ -132,7 +132,7 @@ def build_parse_force_state(
                 t=example.text,
                 response=example.response,
             )
-            assert isinstance(example_msgs, list) and all(isinstance(msg, Message) for msg in example_msgs)
+            assert isinstance(example_msgs, list) and all(isinstance(msg, Message) for msg in example_msgs), "Example messages must be a list of Message objects"
             messages.extend(example_msgs)
     messages.append(display_sample(instr=instruction, ty=typ, t=text))
     return messages
@@ -331,7 +331,7 @@ class ChatModel(GeneralModel):
         return msgs
 
     def _handle_classify_response(self, res: Message, decode_map: dict[str, int]) -> int:
-        assert res.obj is not None
+        assert res.obj is not None, "Response object cannot be None"
         if "classification" not in res.obj:
             raise ModelError(f"Invalid response from model: {res.content}")
         choice = res.obj["classification"]
@@ -363,7 +363,7 @@ class ChatModel(GeneralModel):
     ) -> T | PartialObj | dict[str, Any]:
         messages = build_parse_state(text, typ, examples=examples)
         res = self.generate_message(messages, force_json=True, temperature=temperature)
-        assert res.obj is not None
+        assert res.obj is not None, "Response object cannot be None"
         return json_response_to_obj_or_partial_obj(response=res.obj, typ=typ)
 
     def generate(
@@ -377,7 +377,7 @@ class ChatModel(GeneralModel):
         return self.generate_message(messages, force_json=False, temperature=temperature).content
 
     def _handle_parse_force_response(self, res: Message, typ: type[T] | dict[str, Any]) -> T | dict[str, Any]:
-        assert res.obj is not None
+        assert res.obj is not None, "Response object cannot be None"
         obj = json_response_to_obj_or_partial_obj(response=res.obj, typ=typ)
         if not isinstance(typ, dict) and isinstance(obj, dict):
             raise ModelError(f"Invalid response from model: {res.content}")

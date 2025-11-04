@@ -12,7 +12,7 @@ def map(
     max_concurrency: int | None = None,
     use_tqdm: bool = False,
 ) -> Iterable[U]:
-    assert max_concurrency is None or max_concurrency > 0
+    assert max_concurrency is None or max_concurrency > 0, "Max concurrency must be greater than 0"
     with ThreadPoolExecutor(max_workers=max_concurrency) as executor:
         if use_tqdm:
             from tqdm import tqdm

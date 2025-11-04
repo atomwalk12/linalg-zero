@@ -32,5 +32,5 @@ def generate_request(
     elif len(json_res["text"]) == 0:
         raise ValueError(f"Empty response: {json_res}")
     text = json_res["text"][0]
-    assert isinstance(text, str)
+    assert isinstance(text, str), "Text must be a string"
     return text.removeprefix(prompt)

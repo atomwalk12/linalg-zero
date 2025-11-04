@@ -169,7 +169,7 @@ class VerifyUserSimulationEnv(LLMUserSimulationEnv):
                 self.messages.append(cur_message.model_dump())
                 return cur_message.content
             attempts += 1
-        assert cur_message is not None
+        assert cur_message is not None, "Current message cannot be None"
         return cur_message.content
 
     async def reset(self, instruction: str | None = None) -> str:

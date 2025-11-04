@@ -73,7 +73,7 @@ class LinearAlgebraEnv(Env):
         return _load_tasks_cached(hf_path, split)
 
     async def calculate_reward(self) -> RewardResult:
-        assert self.parser is not None
+        assert self.parser is not None, "Parser cannot be None"
 
         # Extract the produced tool calls and answer.
         tool_calls = self.actions[:-1]
@@ -81,8 +81,8 @@ class LinearAlgebraEnv(Env):
 
         # These invariants hold because as soon as the answer produces
         # an <answer> tag, we assume the task is complete.
-        assert all(action.name != RESPOND_ACTION_NAME for action in tool_calls)
-        assert answer.name == RESPOND_ACTION_NAME
+        assert all(action.name != RESPOND_ACTION_NAME for action in tool_calls), "Tool calls cannot contain respond action"
+        assert answer.name == RESPOND_ACTION_NAME, "Answer must be a respond action"
 
         # Calculate answer reward (1.0 for correctness + 0.2 for format).
         answer_rewards = [(validate_answer, 1.0), (think_correct, 0.1), (answer_correct, 0.2)]

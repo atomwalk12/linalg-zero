@@ -66,6 +66,6 @@ def execute_and_filter_model_errors(
         else:
             values.append(res.value)
     if len(values) == 0:
-        assert len(errors) > 0
+        assert len(errors) > 0, "Errors cannot be empty"
         raise errors[0]
     return values

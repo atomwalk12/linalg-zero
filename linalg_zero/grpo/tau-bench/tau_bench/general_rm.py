@@ -128,8 +128,8 @@ async def create_general_rm_trajectory_groups(group: art.TrajectoryGroup, config
         else:
             raise ValueError(f"General RM model {config.judge_model} not supported")
 
-        assert response is not None
-        assert len(response.rollout_scores) == len(group.trajectories)
+        assert response is not None, "Response cannot be None"
+        assert len(response.rollout_scores) == len(group.trajectories), "Response rollout scores length does not match group trajectories length"
 
         new_trajectories = []
         for idx, trajectory in enumerate(group.trajectories):
@@ -207,7 +207,7 @@ async def calculate_reward(result: SolveResult, config: RunConfig) -> tuple[floa
             user_prompt = add_messages_to_prompt(user_prompt, result.messages)
             user_prompt += "\n--- END OF ROLLOUT ---\n\n"
             response = await create_openai_response(user_prompt, config.judge_model, response_format=RolloutScoreLLM)
-            assert response is not None
+            assert response is not None, "Response cannot be None"
             reward += response.score
             return reward, response.explanation
         except Exception as e:

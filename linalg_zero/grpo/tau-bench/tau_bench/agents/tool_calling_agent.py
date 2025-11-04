@@ -50,7 +50,7 @@ class ToolCallingAgent(Agent):
             tools=self.tools_info,
             temperature=self.temperature,
         )
-        assert isinstance(completion_obj, ModelResponse)
+        assert isinstance(completion_obj, ModelResponse), "Completion object is not a ModelResponse"
         return completion_obj
 
     async def solve(self, env: Env, task_index: int | None = None, max_num_steps: int = 30) -> SolveResult:

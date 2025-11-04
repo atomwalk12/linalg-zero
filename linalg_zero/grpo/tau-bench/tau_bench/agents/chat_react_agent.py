@@ -50,8 +50,8 @@ class ChatReActAgent(Agent):
                 "name": RESPOND_ACTION_NAME,
                 "arguments": {RESPOND_ACTION_FIELD_NAME: action_str},
             }
-        assert "name" in action_parsed
-        assert "arguments" in action_parsed
+        assert "name" in action_parsed, "Name cannot be None"
+        assert "arguments" in action_parsed, "Arguments cannot be None"
         action = Action(name=action_parsed["name"], kwargs=action_parsed["arguments"])
         return message.model_dump(), action, res._hidden_params["response_cost"]
 

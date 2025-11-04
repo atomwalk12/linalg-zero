@@ -185,7 +185,7 @@ def build_classify_state(
                 if v == response:
                     label = k
                     break
-            assert label is not None
+            assert label is not None, "Label cannot be None"
             # the json markdown block is opened in the prompt
             json_display = f'{{"classification": "{label}"}}\n```'
             return f"{prompt}\n{json_display}"
@@ -495,7 +495,7 @@ def approx_cost_for_datapoint(
 ) -> float:
     """For now, we approximate the cost of a datapoint as the cost of the input (output tokens are priced as input tokens as well)."""
     prompt = approx_prompt_str(dp, include_response=True)
-    assert isinstance(prompt, str)
+    assert isinstance(prompt, str), "Prompt must be a string"
     return price_per_input_token * approx_num_tokens(prompt)
 
 

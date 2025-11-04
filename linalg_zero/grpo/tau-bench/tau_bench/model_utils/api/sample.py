@@ -43,13 +43,13 @@ def catch_model_errors(func: Callable[..., T]) -> Callable[..., T]:
 class SingleSamplingStrategy(SamplingStrategy):
     @catch_model_errors
     def execute(self, invocable_or_invokables: Callable[..., T]) -> T:
-        assert isinstance(invocable_or_invokables, Callable)
+        assert isinstance(invocable_or_invokables, Callable), "Invocable or invokables must be a callable"
         return invocable_or_invokables()
 
 
 class RedundantSamplingStrategy(SamplingStrategy):
     def __init__(self, n: int = 2) -> None:
-        assert n > 0
+        assert n > 0, "N must be greater than 0"
         self.n = n
 
     @catch_model_errors
@@ -59,18 +59,18 @@ class RedundantSamplingStrategy(SamplingStrategy):
             if isinstance(invocable_or_invokables, Callable)
             else invocable_or_invokables
         )
-        assert len(results) > 0
+        assert len(results) > 0, "Results cannot be empty"
         return results[0]
 
 
 class RetrySamplingStrategy(SamplingStrategy):
     def __init__(self, max_retries: int = 5) -> None:
-        assert max_retries > 0
+        assert max_retries > 0, "Max retries must be greater than 0"
         self.max_retries = max_retries
 
     @catch_model_errors
     def execute(self, invocable_or_invokables: Callable[..., T]) -> T:
-        assert isinstance(invocable_or_invokables, Callable)
+        assert isinstance(invocable_or_invokables, Callable), "Invocable or invokables must be a callable"
         first_error = None
         for _ in range(self.max_retries):
             try:
@@ -78,7 +78,7 @@ class RetrySamplingStrategy(SamplingStrategy):
             except ModelError as e:
                 if first_error is None:
                     first_error = e
-        assert first_error is not None
+        assert first_error is not None, "First error cannot be None"
         raise first_error
 
 

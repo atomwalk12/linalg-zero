@@ -271,7 +271,7 @@ async def analyze_failed_task(
                 messages=[{"role": "user", "content": prompt}],
                 response_format=ErrorAnalysis,
             )
-            assert response.choices[0].message.parsed is not None
+            assert response.choices[0].message.parsed is not None, "Response parsed cannot be None"
             return response.choices[0].message.parsed, prompt
 
     except Exception as e:
