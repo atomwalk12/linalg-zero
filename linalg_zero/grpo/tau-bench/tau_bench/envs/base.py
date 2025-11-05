@@ -95,7 +95,7 @@ class Env:
             observation = await self.user.step(action.content)
             info.source = "user"
             if self.parser:
-                done = self.parser.extract_last_answer(observation) is not None
+                done = True
             else:
                 done = "###STOP###" in observation
         elif action.name in self.tools_map:

@@ -43,7 +43,7 @@ class Task(BaseModel):
 
 class RewardOutputInfo(BaseModel):
     r_outputs: float
-    outputs: dict[str, bool]
+    outputs: dict[str, bool | str]
 
 
 class RewardActionInfo(BaseModel):

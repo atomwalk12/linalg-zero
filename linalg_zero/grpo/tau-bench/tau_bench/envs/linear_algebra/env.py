@@ -79,10 +79,25 @@ class LinearAlgebraEnv(Env):
         tool_calls = self.actions[:-1]
         answer = self.actions[-1]
 
-        # These invariants hold because as soon as the answer produces
-        # an <answer> tag, we assume the task is complete.
-        assert all(action.name != RESPOND_ACTION_NAME for action in tool_calls), "Tool calls cannot contain respond action"
-        assert answer.name == RESPOND_ACTION_NAME, "Answer must be a respond action"
+        if len(tool_calls) == 0:
+            return RewardResult(
+                reward=0.0,
+                info=RewardOutputInfo(
+                    r_outputs=0.0,
+                    outputs={"structural_error": "no_tool_calls", "answer_found": False},
+                ),
+                actions=tool_calls,
+            )
+
+        if answer.name != RESPOND_ACTION_NAME:
+            return RewardResult(
+                reward=0.0,
+                info=RewardOutputInfo(
+                    r_outputs=0.0,
+                    outputs={"structural_error": "no_respond_action", "answer_found": False},
+                ),
+                actions=tool_calls,
+            )
 
         # Calculate answer reward (1.0 for correctness + 0.2 for format).
         answer_rewards = [(validate_answer, 1.0), (think_correct, 0.1), (answer_correct, 0.2)]

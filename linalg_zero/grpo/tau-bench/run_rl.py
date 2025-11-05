@@ -1,5 +1,3 @@
-# Copyright OpenPipe
-
 import argparse
 import asyncio
 import concurrent.futures
@@ -7,6 +5,7 @@ import copy
 import json
 import logging
 import random
+import traceback
 from typing import Any
 
 import art
@@ -146,6 +145,7 @@ async def rollout_tau_bench_task(
         print(f"Error in rollout for task {task_index}: {e}")
         traj.reward = -1.0
         traj.metadata["error"] = str(e)
+        traj.metadata["traceback"] = traceback.format_exc()
         traj.messages_and_choices = agent.create_messages_and_choices()  # type: ignore
         result = SolveResult(
             reward=-1.0,

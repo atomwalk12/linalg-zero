@@ -9,8 +9,8 @@ init:
   max_lora_rank: 32
 
 training:
-  trajectories_per_group: 32
-  groups_per_step: 4
+  trajectories_per_group: 3 # instead of 32 default
+  groups_per_step: 1        # instead of 4 default (128 total)
   learning_rate: 5e-6
   eval_steps: 10
   val_set_size: 60
@@ -33,8 +33,8 @@ run:
   task_split: test
   log_dir: rl_results
   skip_eval: False
-  in_process: True
-  val_task_ids: [1]
+  in_process: False
+  val_task_ids: []
 
 peft:
   r: 32
@@ -51,9 +51,10 @@ trainer:
   learning_rate: 5e-6
   # Note that per_device_train_batch_size must be divisible by num_generations.
   per_device_train_batch_size: 2
-  gradient_accumulation_steps: 2
+  gradient_accumulation_steps: 1   # if != 1, deadlocks occur
   num_generations: 2
 
 engine:
-  gpu_memory_utilization: 0.45
+  gpu_memory_utilization: 0.25
   max_lora_rank: 32
+  enable_sleep_mode: true
