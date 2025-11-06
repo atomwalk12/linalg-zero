@@ -26,7 +26,7 @@ warnings.filterwarnings(
 
 
 def run(config: RunConfig) -> list[EnvRunResult]:
-    assert config.env in ["retail", "airline"], "Only retail and airline envs are supported"
+    assert config.env in ["retail", "airline", "linear_algebra"], "Only retail and airline envs are supported"
     assert config.model_provider in provider_list, "Invalid model provider"
     assert config.user_model_provider in provider_list, "Invalid user model provider"
     assert config.agent_strategy in ["tool-calling", "act", "react", "few-shot"], "Invalid agent strategy"
@@ -119,7 +119,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
                 )
             log_trace_to_langfuse(result, idx, config)
             print(
-                "✅" if result.reward == 1 else "❌",
+                "✅" if result.reward == 1.3 else "❌",
                 f"task_id={idx}",
                 result.info,
             )

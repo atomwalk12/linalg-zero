@@ -34,7 +34,7 @@ run:
   log_dir: rl_results
   skip_eval: False
   in_process: False
-#  val_task_ids: []
+  val_task_ids: [1,2,3]
 
 peft:
   r: 32
@@ -59,6 +59,6 @@ trainer:
   num_generations: 2
 
 engine:
-  gpu_memory_utilization: 0.25
+  gpu_memory_utilization: 0.75
   max_lora_rank: 32
   enable_sleep_mode: true

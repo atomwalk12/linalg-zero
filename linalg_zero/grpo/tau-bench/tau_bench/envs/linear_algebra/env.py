@@ -73,6 +73,15 @@ class LinearAlgebraEnv(Env):
         return _load_tasks_cached(hf_path, split)
 
     async def calculate_reward(self) -> RewardResult:
+        """
+        Comments:
+          - Format-only credit allows partial reward for wrong answers (<think>/<answer>).
+          - Tool-call penalties ignore correctness (arguments/results); only check <think>.
+          - No per-call penalty scaling/cap; model can spam tool calls cheaply.
+          - RESPOND ends episode regardless of answer-policy/adjacency to tool output.
+          - Reward can exceed 1.0; may misalign with success thresholds/metrics.
+          - No stepwise tool-output verification against ground-truth tool results.
+        """
         assert self.parser is not None, "Parser cannot be None"
 
         # Extract the produced tool calls and answer.
@@ -125,7 +134,7 @@ class LinearAlgebraEnv(Env):
             if not metadata["think_correct"]:
                 penalty += 0.1
 
-        # By substracting we ensures the task is solved in the least
+        # By subtracting we ensure the task is solved in the least
         # amount of tool calls possible.
         reward = max(0, answer_reward - penalty)
 

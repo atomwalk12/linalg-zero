@@ -53,7 +53,7 @@ def _get_task_indices(
     return list(range(start_index, min(actual_end, dataset_size)))
 
 
-@limit_concurrency(256)
+@limit_concurrency(1)
 async def rollout_tau_bench_task(
     model: art.Model[TauBenchPolicyConfig],
     task_index: int,
@@ -177,8 +177,17 @@ async def evaluate_model(
 
     total_reward = 0.0
 
+    model_step = await model.get_step()
+    eval_step = max(step, model_step)
+
     trajectories = await art.gather_trajectories(
-        rollout_tau_bench_task(model, val_task_index, step, "val", reward_type=config.reward_type)
+        rollout_tau_bench_task(
+            model,
+            val_task_index,
+            eval_step,
+            "val",
+            reward_type=config.reward_type,
+        )
         for val_task_index in val_task_indices
     )
     await model.log(trajectories=trajectories, split="val")
@@ -250,7 +259,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
         print(f"Validation on {len(val_task_indices)} tasks")
 
         if training_config.train_mode == "async_rl":
-            global_step = 0
+            global_step = await model.get_step()
             train_task_indices_async_rl = []
             for _ in range(training_config.num_epochs):
                 train_task_indices_async_rl.extend(random.sample(train_task_indices, len(train_task_indices)))
@@ -267,12 +276,13 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 ),
                 batch_size=training_config.groups_per_step,
                 max_concurrent_batches=3,
-                skip_batches=await model.get_step(),
+                skip_batches=global_step,
             ):
                 # NOT UPDATED FOR TRAINING WITH SHADOW TRAJECTORIES
-                if global_step % training_config.eval_steps == 0 and not config.skip_eval:
-                    print(f"\n--- Evaluating at Step {global_step} ---")
-                    await evaluate_model(model, config, global_step, val_task_indices)
+                step_for_iteration = global_step
+                if step_for_iteration % training_config.eval_steps == 0 and not config.skip_eval:
+                    print(f"\n--- Evaluating at Step {step_for_iteration} ---")
+                    await evaluate_model(model, config, step_for_iteration, val_task_indices)
                     # await model.delete_checkpoints()
 
                 if config.reward_type == "general_rm":
@@ -285,7 +295,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                     trajectory_groups = updated_groups
 
                 try:
-                    await update_steps_for_openpipe_logs(trajectory_groups, global_step)
+                    await update_steps_for_openpipe_logs(trajectory_groups, step_for_iteration)
                 except Exception as e:
                     print(f"Error updating steps for openpipe logs: {e}")
 
@@ -298,7 +308,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 )
                 if config.is_multi_gpu:
                     await model.delete_checkpoints()
-                global_step += 1
+                global_step = await model.get_step()
         else:
             # Training iterator
             train_iterator = iterate_dataset(
@@ -309,12 +319,17 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             )
 
             for batch in train_iterator:
-                print(f"\n--- Training Step {batch.step} (Epoch {batch.epoch}, Step {batch.epoch_step}) ---")
+                model_step = await model.get_step()
+                current_step = max(batch.step, model_step)
+
+                print(
+                    f"\n--- Training Step {current_step} (Dataset Step {batch.step}, Epoch {batch.epoch}, Step {batch.epoch_step}) ---"
+                )
 
                 # Evaluation
                 if batch.step % training_config.eval_steps == 0 and not config.skip_eval:
-                    print(f"\n--- Evaluating at Step {batch.step} ---")
-                    await evaluate_model(model, config, batch.step, val_task_indices)
+                    print(f"\n--- Evaluating at Step {current_step} ---")
+                    await evaluate_model(model, config, current_step, val_task_indices)
                     await model.delete_checkpoints()
 
                 # Generate trajectory groups
@@ -324,7 +339,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                         rollout_tau_bench_task(
                             model,
                             task_index,
-                            batch.step,
+                            current_step,
                             "train",
                             reward_type=config.reward_type,
                             is_shadow=config.add_shadow_trajectory
@@ -356,11 +371,13 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 if config.is_multi_gpu:
                     await model.delete_checkpoints()
 
+                post_train_step = await model.get_step()
+
                 # Log progress
                 total_reward = sum(sum(traj.reward for traj in group.trajectories) for group in groups)
                 num_trajectories = sum(len(group.trajectories) for group in groups)
                 avg_reward = total_reward / num_trajectories if num_trajectories > 0 else 0
-                print(f"Step {batch.step}: Average training reward = {avg_reward}")
+                print(f"Step {post_train_step}: Average training reward = {avg_reward}")
 
         # Final evaluation
         print("\n--- Final Evaluation ---")
