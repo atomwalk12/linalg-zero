@@ -9,19 +9,19 @@ init:
   max_lora_rank: 32
 
 training:
-  trajectories_per_group: 3 # instead of 32 default
-  groups_per_step: 1        # instead of 4 default (128 total)
+  trajectories_per_group: 8
+  groups_per_step: 4
   learning_rate: 5e-6
-  eval_steps: 10
-  val_set_size: 60
-  training_dataset_size: 32
-  num_epochs: 1000
+  eval_steps: 100
+  val_set_size: 1000
+  training_dataset_size: 8000
+  num_epochs: 2
   train_mode: sync_rl
 
 run:
   project_id: 001
   project: linalgzero-grpo
-  base_model: Qwen/Qwen3-0.6B
+  base_model: Qwen/Qwen2.5-3B
   env: linear_algebra
   model_provider: hosted_vllm
   user_model_provider: openai
@@ -34,7 +34,7 @@ run:
   log_dir: rl_results
   skip_eval: False
   in_process: False
-  val_task_ids: []
+#  val_task_ids: []
 
 peft:
   r: 32
@@ -47,10 +47,14 @@ peft:
 #   model_type: QWEN3
 #   async_weight_syncing: True
 
+# Other parameters:
+# kl_coef: 0.02
+# temperature: 0.8
+
 trainer:
   learning_rate: 5e-6
   # Note that per_device_train_batch_size must be divisible by num_generations.
-  per_device_train_batch_size: 2
+  per_device_train_batch_size: 8
   gradient_accumulation_steps: 1   # if != 1, deadlock occurs
   num_generations: 2
 
