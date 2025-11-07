@@ -53,7 +53,7 @@ def _get_task_indices(
     return list(range(start_index, min(actual_end, dataset_size)))
 
 
-@limit_concurrency(1)
+@limit_concurrency(256)
 async def rollout_tau_bench_task(
     model: art.Model[TauBenchPolicyConfig],
     task_index: int,
