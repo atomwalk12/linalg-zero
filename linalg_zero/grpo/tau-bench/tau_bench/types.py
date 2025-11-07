@@ -136,6 +136,7 @@ class RunConfig:
 class TauBenchTrainingConfig:
     """Training configuration for ART RL on tau-bench tasks"""
 
+    chat_template: str | None = None
     trajectories_per_group: int = 6
     groups_per_step: int = 10
     learning_rate: float = 1.2e-5
@@ -156,7 +157,7 @@ class TauBenchPolicyConfig(BaseModel):
     run_config: RunConfig
 
     # Training configuration
-    training_config: TauBenchTrainingConfig | None = None
+    training_config: TauBenchTrainingConfig
 
 
 # Note: Both EngineArgs and TorchtuneArgs from art.dev are TypedDicts, not dataclasses,

@@ -213,9 +213,15 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
     if training_config is None:
         raise ValueError("Training config is not set")
 
+    register_kwargs = {}
+    if model.config.training_config.chat_template is not None:
+        register_kwargs["_openai_client_config"] = art.dev.OpenAIServerConfig(
+            server_args=art.dev.ServerArgs(chat_template=model.config.training_config.chat_template)
+        )
+
     with LocalBackend(in_process=config.in_process) as backend:
         # Setup model with backend
-        await model.register(backend)
+        await model.register(backend, **register_kwargs)
         config.api_key = model.inference_api_key
         config.base_url = model.inference_base_url
         config.base_model = model.base_model
