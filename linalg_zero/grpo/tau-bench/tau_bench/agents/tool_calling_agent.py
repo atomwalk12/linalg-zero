@@ -53,7 +53,7 @@ class ToolCallingAgent(Agent):
         assert isinstance(completion_obj, ModelResponse), "Completion object is not a ModelResponse"
         return completion_obj
 
-    async def solve(self, env: Env, task_index: int | None = None, max_num_steps: int = 30) -> SolveResult:
+    async def solve(self, env: Env, task_index: int | None = None, max_assistant_turns: int = 30) -> SolveResult:
         total_cost = 0.0
         env_reset_res = await env.reset(task_index=task_index)
         obs = env_reset_res.observation
@@ -68,7 +68,7 @@ class ToolCallingAgent(Agent):
         max_completion_tokens = 0
         forced_stop = True
         curr_step_number = 0
-        for curr_step_number in range(max_num_steps):
+        for curr_step_number in range(max_assistant_turns):
             res = await self.llm_completion(self.messages)
             final_prompt_tokens = res.usage.prompt_tokens  # type: ignore
             avg_completion_tokens += res.usage.completion_tokens  # type: ignore

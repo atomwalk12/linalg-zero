@@ -12,6 +12,7 @@ training:
   trajectories_per_group: 8
   groups_per_step: 4
   learning_rate: 5e-6
+  beta: 0.0
   eval_steps: 100
   val_set_size: 1000
   training_dataset_size: 8000
@@ -35,6 +36,7 @@ run:
   skip_eval: False
   in_process: False
   val_task_ids: [1,2,3]
+  max_assistant_turns: 7
 
 peft:
   r: 32

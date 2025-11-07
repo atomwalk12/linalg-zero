@@ -121,7 +121,7 @@ class RunConfig:
     base_url: str | None = None
     reward_type: str = "real"
     judge_model: str = "o3"
-    max_num_steps: int = 30
+    max_assistant_turns: int = 30
     skip_eval: bool = False
     add_shadow_trajectory: bool = False
     messages_only: bool = False
@@ -139,6 +139,7 @@ class TauBenchTrainingConfig:
     trajectories_per_group: int = 6
     groups_per_step: int = 10
     learning_rate: float = 1.2e-5
+    beta: float = 0.0
     eval_steps: int = 10
     val_set_size: int = 85
     training_dataset_size: int = 30

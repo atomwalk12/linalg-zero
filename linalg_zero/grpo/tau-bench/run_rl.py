@@ -118,7 +118,7 @@ async def rollout_tau_bench_task(
         result = await agent.solve(
             env=env,
             task_index=task_index,
-            max_num_steps=config.max_num_steps,
+            max_assistant_turns=config.max_assistant_turns,
         )
         outcome_correct = 1 if result.reward == 1 else 0
 
@@ -303,7 +303,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 print(f"Training on {len(trajectory_groups)} trajectory groups...")
                 await model.train(
                     trajectory_groups,
-                    config=art.TrainConfig(learning_rate=training_config.learning_rate),
+                    config=art.TrainConfig(learning_rate=training_config.learning_rate, beta=training_config.beta),
                     _config=art.dev.TrainConfig(plot_tensors=config.plot_tensors),
                 )
                 if config.is_multi_gpu:
@@ -362,7 +362,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 print(f"Training on {len(groups)} trajectory groups...")
                 await model.train(
                     groups,
-                    config=art.TrainConfig(learning_rate=training_config.learning_rate),
+                    config=art.TrainConfig(learning_rate=training_config.learning_rate, beta=training_config.beta),
                     _config=art.dev.TrainConfig(
                         importance_sampling_level=training_config.importance_sampling_level,
                         allow_training_without_logprobs=True if config.messages_only else False,
