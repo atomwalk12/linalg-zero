@@ -10,10 +10,10 @@ init:
   dtype: bfloat16
 
 training:
-  trajectories_per_group: 8
-  groups_per_step: 8
+  trajectories_per_group: 8 # scale first to 16 if memory permits
+  groups_per_step: 8 # change to 4 if memory isn't sufficient
   learning_rate: 5e-6
-  beta: 0.0
+  beta: 0.0 # 0.001
   eval_steps: 8
   val_set_size: 1000
   training_dataset_size: 8000
@@ -21,13 +21,13 @@ training:
   train_mode: sync_rl
 
 run:
-  project_id: Qwen3-4B
+  project_id: Qwen2.5-3B-Instruct
   project: linalgzero-grpo
-  base_model: Qwen/Qwen3-4B
+  base_model: Qwen/Qwen2.5-3B-Instruct
   env: linear_algebra
   model_provider: hosted_vllm
   user_model_provider: openai
-  model: Qwen3-4B
+  model: Qwen2.5-3B-Instruct
   user_strategy: mathematician
   user_model: gpt-4o
   agent_strategy: tool-calling-rl
@@ -40,8 +40,8 @@ run:
   max_assistant_turns: 7
 
 peft:
-  r: 1
-  lora_alpha: 2
+  r: 32
+  lora_alpha: 64
   use_gradient_checkpointing: "unsloth"
 
 # Use peft instead of torchtune for lora training
@@ -66,7 +66,7 @@ trainer:
   save_total_limit: 20
 
 engine:
-  gpu_memory_utilization: 0.3
+  gpu_memory_utilization: 0.25
   max_lora_rank: 32
   enable_sleep_mode: true
   max_model_len: 8192

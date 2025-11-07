@@ -58,11 +58,11 @@ peft:
 trainer:
   learning_rate: 5e-6
   # Note that per_device_train_batch_size must be divisible by num_generations.
-  per_device_train_batch_size: 8
+  per_device_train_batch_size: 2
   gradient_accumulation_steps: 1   # if != 1, deadlock occurs
   num_generations: 2
-  max_prompt_length: 8192
-  max_completion_length: 4096
+  max_prompt_length: 6144
+  max_completion_length: 2048
   report_to: ["wandb"]
   save_total_limit: 20
 
@@ -70,4 +70,4 @@ engine:
   gpu_memory_utilization: 0.25
   max_lora_rank: 32
   enable_sleep_mode: true
-  max_model_len: 12288
+  max_model_len: 8192 # 4096 # 8192
