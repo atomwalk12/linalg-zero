@@ -1,0 +1,60 @@
+defaults:
+  - /training@training: training_schema
+  - /run@run: run_schema
+  - _self_
+  # Note: _self_ at end means local overrides take precedence
+  # engine and torchtune configs use plain dicts (TypedDicts from art.dev, not dataclasses)
+
+init:
+  max_lora_rank: 32
+  max_seq_length: 2048  # Reduced from default 6144 to fit in 24GB GPU
+  gpu_memory_utilization: 0.4  # Conservative memory usage for training
+
+training:
+  trajectories_per_group: 16  # Reduced from 32 to save memory
+  groups_per_step: 2  # Reduced from 4 to save memory
+  learning_rate: 5e-6
+  eval_steps: 10
+  val_set_size: 60
+  training_dataset_size: 32
+  num_epochs: 1000
+  train_mode: sync_rl
+
+run:
+  project_id: 001
+  project: linalgzero-grpo
+  base_model: Qwen/Qwen3-0.6B
+  env: linear_algebra
+  model_provider: hosted_vllm
+  user_model_provider: openai
+  model: 001
+  user_strategy: mathematician
+  user_model: gpt-4o
+  agent_strategy: tool-calling-rl
+  temperature: 1.0
+  task_split: test
+  log_dir: rl_results
+  skip_eval: False
+  in_process: True
+  val_task_ids: []
+
+peft:
+  r: 16  # Reduced from 32 to save memory
+  lora_alpha: 32  # Adjusted proportionally
+  use_gradient_checkpointing: "unsloth"  # Enable gradient checkpointing
+
+# Use peft instead of torchtune for lora training
+# torchtune:
+#   model: qwen3_4b_base
+#   model_type: QWEN3
+#   async_weight_syncing: True
+
+trainer:
+  learning_rate: 5e-6
+  per_device_train_batch_size: 1  # Reduced from 4 to save memory
+  gradient_accumulation_steps: 4  # Maintain effective batch size of 4
+
+engine:
+  gpu_memory_utilization: 0.4  # Reduced from 0.5 for more headroom
+  max_lora_rank: 32
+  max_model_len: 2048  # Match max_seq_length

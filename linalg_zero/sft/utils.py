@@ -1,14 +1,18 @@
 import logging
 import os
+from pathlib import Path
 
 import torch
 from datasets import DatasetDict
 from datasets import load_dataset as hf_load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
-from trl import ModelConfig, get_kbit_device_map, get_quantization_config
+from trl.trainer.model_config import ModelConfig
+from trl.trainer.utils import get_kbit_device_map, get_quantization_config
+from unsloth import FastLanguageModel
+from unsloth.tokenizer_utils import SFTConfig
 
-from linalg_zero.config.data import ScriptArguments, SFTConfig
+from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +26,7 @@ def is_using_deepspeed() -> bool:
     )
 
 
-def init_wandb_training(training_args: SFTConfig) -> None:
+def init_wandb_training(training_args: SFTRunConfig) -> None:
     """Initialize Weights & Biases for training logging."""
     try:
         # Set environment variables for wandb
@@ -39,7 +43,7 @@ def init_wandb_training(training_args: SFTConfig) -> None:
         logger.exception("Failed to initialize wandb environment")
 
 
-def get_tokenizer(model_args: ModelConfig, training_args: SFTConfig) -> PreTrainedTokenizer:
+def get_tokenizer(model_args: ModelConfig, training_args: SFTRunConfig) -> PreTrainedTokenizer:
     """Get the tokenizer for the model."""
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
@@ -53,7 +57,39 @@ def get_tokenizer(model_args: ModelConfig, training_args: SFTConfig) -> PreTrain
     return tokenizer
 
 
-def get_model(model_args: ModelConfig, training_args: SFTConfig) -> AutoModelForCausalLM:
+def get_unsloth_model(
+    model_args: SFTModelConfig, training_args: SFTRunConfig, trl_training_args: SFTConfig, use_vllm: bool = False
+) -> tuple[FastLanguageModel, PreTrainedTokenizer]:
+    """Fetch the model and optimizer."""
+
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=model_args.model_name_or_path,
+        max_seq_length=training_args.max_seq_length,
+        load_in_4bit=model_args.load_in_4bit,
+        load_in_8bit=model_args.load_in_8bit,
+        max_lora_rank=model_args.lora_r,
+        enforce_eager=model_args.enforce_eager,
+        fast_inference=use_vllm,
+        gpu_memory_utilization=training_args.gpu_memory_utilization,
+    )
+
+    model = FastLanguageModel.get_peft_model(
+        model,
+        r=model_args.lora_r,
+        target_modules=model_args.lora_target_modules,
+        lora_alpha=model_args.lora_alpha,
+        use_gradient_checkpointing="unsloth",
+        random_state=3407,
+    )
+
+    if trl_training_args.chat_template_path is not None:
+        template_path = Path(trl_training_args.chat_template_path)
+        tokenizer.chat_template = template_path.read_text()
+
+    return model, tokenizer
+
+
+def get_model(model_args: ModelConfig, training_args: SFTRunConfig) -> AutoModelForCausalLM:
     """Get the model"""
     torch_dtype = (
         model_args.torch_dtype if model_args.torch_dtype in ["auto", None] else getattr(torch, model_args.torch_dtype)
@@ -78,7 +114,7 @@ def get_model(model_args: ModelConfig, training_args: SFTConfig) -> AutoModelFor
         "device_map": device_map,
         "quantization_config": quantization_config,
     }
-    model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(  # type: ignore[assignment]
+    model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         **model_kwargs,
     )

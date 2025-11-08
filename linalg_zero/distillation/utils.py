@@ -551,7 +551,7 @@ def push_argilla_dataset(argilla_client: rg.Argilla, distiset: Distiset, args: D
 
 def push_datasets_to_huggingface(distiset: Distiset, args: DistillationConfig) -> None:
     """Push two datasets to Hugging Face: one with all entries and one with only correct entries."""
-    assert args.hf_output_dataset is not None  # noqa: S101
+    assert args.hf_output_dataset is not None
     private = args.private
 
     # Push all entries dataset
@@ -620,7 +620,7 @@ def load_dataset_split(
         logger.info(f"Loading '{dataset_name}' (config: {dataset_config}, split: {split}) dataset.")
 
         dataset = hf_load_dataset(dataset_name, dataset_config, split=split)
-        assert isinstance(dataset, Dataset)  # noqa: S101
+        assert isinstance(dataset, Dataset)
 
         logger.info("Dataset loaded!")
     except Exception as err:

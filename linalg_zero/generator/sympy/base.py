@@ -155,7 +155,7 @@ class SympyProblemGenerator(ABC):
         sympy_solution = template.sympy_solution
 
         ground_truth = self.formatter.sympy_to_primitive(sympy_solution, precision=self.precision)
-        assert isinstance(ground_truth, LibTypes)  # noqa: S101
+        assert isinstance(ground_truth, LibTypes)
 
         if not verify_answers(ground_truth, lib_result):
             raise ValueError(f"Verification failed: sympy={ground_truth} vs lib={lib_result}")

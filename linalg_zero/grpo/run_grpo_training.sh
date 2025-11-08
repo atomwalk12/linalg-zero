@@ -74,7 +74,6 @@ python3 -m verl.trainer.main_ppo \
     trainer.nnodes=1 \
     trainer.save_freq=20 \
     trainer.test_freq=5 \
-    trainer.total_epochs=1
     data.train_files=$HOME/data/linalg-zero/train.parquet \
     data.val_files=$HOME/data/linalg-zero/test.parquet \
     custom_reward_function.path="../compute_score.py" \

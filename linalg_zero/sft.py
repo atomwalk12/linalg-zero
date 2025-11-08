@@ -9,7 +9,7 @@ from datasets.utils.logging import set_verbosity
 from transformers.trainer_utils import get_last_checkpoint, set_seed
 from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config, setup_chat_format
 
-from linalg_zero.config.data import ScriptArguments, SFTConfig
+from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
 from linalg_zero.distillation.utils import hf_load_dataset
 from linalg_zero.grpo.process_dataset import remove_redundant_columns
 from linalg_zero.sft.callbacks import get_callbacks
@@ -40,7 +40,7 @@ def get_small_dataset(dataset: DatasetDict) -> DatasetDict:
     return dataset
 
 
-def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: ModelConfig) -> None:  # noqa: C901
+def main(script_args: ScriptArguments, training_args: SFTRunConfig, model_args: ModelConfig) -> None:  # noqa: C901
     """Main training function."""
     set_seed(training_args.seed)
 
@@ -79,10 +79,6 @@ def main(script_args: ScriptArguments, training_args: SFTConfig, model_args: Mod
     ######################################
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
     dataset = hf_load_dataset(script_args.dataset_name, script_args.dataset_config)
-
-    # Optional, for debugging
-    if script_args.debug:
-        dataset = get_small_dataset(dataset)
 
     if not isinstance(dataset, DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
@@ -198,9 +194,9 @@ if __name__ == "__main__":
     """Script entry point for SFT training."""
     if "--config" not in sys.argv:
         sys.argv.append("--config")
-        sys.argv.append("linalg_zero/config/sft/sft_debug_config.yaml")
+        sys.argv.append("linalg_zero/config/sft/qwen3-4b-base/sft_debug_config.yaml")
 
-    parser = TrlParser((ScriptArguments, SFTConfig, ModelConfig))
+    parser = TrlParser((ScriptArguments, SFTRunConfig, SFTModelConfig))
     script_args, training_args, model_args = parser.parse_args_and_config()
 
     main(script_args, training_args, model_args)

@@ -70,7 +70,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         **kwargs: Any,
     ) -> None:
         is_independent = constraints.get("is_independent")
-        assert isinstance(is_independent, bool)  # noqa: S101
+        assert isinstance(is_independent, bool)
         super().__init__(name, is_independent=is_independent, entropy_constraints=entropy_constraints, **kwargs)
         self.constraints = constraints
         self.gen_constraints = gen_constraints

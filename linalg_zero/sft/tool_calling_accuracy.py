@@ -309,15 +309,15 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
     def add_message(self, role: str, context: list[dict[str, Any]], message: ThoughtSchema | dict[str, str]) -> None:
         if role == "assistant":
-            assert isinstance(message, ThoughtSchema)  # noqa: S101
+            assert isinstance(message, ThoughtSchema)
             msg = self.model_config.format_assistant_message(message)
         elif role == "tool":
-            assert isinstance(message, dict)  # noqa: S101
+            assert isinstance(message, dict)
             msg = self.model_config.create_tool_message(context, message)
         else:
             raise ValueError(f"Invalid role: {role}")
 
-        assert msg is not None, f"Message is None for role: {role}"  # noqa: S101
+        assert msg is not None, f"Message is None for role: {role}"
         context.append(msg)
 
     def _calculate_conversation_metrics(
