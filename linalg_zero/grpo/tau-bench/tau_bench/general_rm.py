@@ -129,7 +129,9 @@ async def create_general_rm_trajectory_groups(group: art.TrajectoryGroup, config
             raise ValueError(f"General RM model {config.judge_model} not supported")
 
         assert response is not None, "Response cannot be None"
-        assert len(response.rollout_scores) == len(group.trajectories), "Response rollout scores length does not match group trajectories length"
+        assert len(response.rollout_scores) == len(group.trajectories), (
+            "Response rollout scores length does not match group trajectories length"
+        )
 
         new_trajectories = []
         for idx, trajectory in enumerate(group.trajectories):

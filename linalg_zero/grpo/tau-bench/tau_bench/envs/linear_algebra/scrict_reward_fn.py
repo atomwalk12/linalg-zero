@@ -14,6 +14,83 @@ from linalg_zero.grpo.reward_funcs import (
     validate_answer,
 )
 
+########################### OLD REWARD FUNCTION ################################
+
+
+async def calculate_reward(self) -> RewardResult:
+    """
+    Comments:
+        - Format-only credit allows partial reward for wrong answers (<think>/<answer>).
+        - Tool-call penalties ignore correctness (arguments/results); only check <think>.
+        - No per-call penalty scaling/cap; model can spam tool calls cheaply.
+        - RESPOND ends episode regardless of answer-policy/adjacency to tool output.
+        - Reward can exceed 1.0; may misalign with success thresholds/metrics.
+        - No stepwise tool-output verification against ground-truth tool results.
+    """
+    assert self.parser is not None, "Parser cannot be None"
+
+    # Extract the produced tool calls and answer.
+    tool_calls = self.actions[:-1]
+    answer = self.actions[-1]
+
+    if len(tool_calls) == 0:
+        return RewardResult(
+            reward=0.0,
+            info=RewardOutputInfo(
+                r_outputs=0.0,
+                outputs={"structural_error": "no_tool_calls", "answer_found": False},
+            ),
+            actions=tool_calls,
+        )
+
+    if answer.name != RESPOND_ACTION_NAME:
+        return RewardResult(
+            reward=0.0,
+            info=RewardOutputInfo(
+                r_outputs=0.0,
+                outputs={"structural_error": "no_respond_action", "answer_found": False},
+            ),
+            actions=tool_calls,
+        )
+
+    # Calculate answer reward (1.0 for correctness + 0.2 for format).
+    answer_rewards = [(validate_answer, 1.0), (think_correct, 0.1), (answer_correct, 0.2)]
+    answer_reward, meta = calculate_reward(
+        self.parser,
+        ground_truth=self.task.outputs[0],
+        completion=answer.content,
+        reward_funcs_with_weights=answer_rewards,
+    )
+    answer_found = meta["validate_answer"]
+
+    # Now, calculate local penalties for intermediate tool calls.
+    tool_rewards = [
+        (think_correct, 0.1),
+        # Tool call reward is implicit. If we reach this phase, the outcome
+        # may result in a non-zero reward, otherwise if tool calls are
+        # malformed, reward is implicitly 0.
+        # (tool_call_correct, 0.2)
+    ]
+    penalty = 0.0
+    for action in tool_calls:
+        _, metadata = calculate_reward(self.parser, completion=action.content, reward_funcs_with_weights=tool_rewards)
+        if not metadata["think_correct"]:
+            penalty += 0.1
+
+    # By subtracting we ensure the task is solved in the least
+    # amount of tool calls possible.
+    reward = max(0, answer_reward - penalty)
+
+    # NOTE: it is possible to extract the reward configuration from info.
+    return RewardResult(
+        reward=reward,
+        info=RewardOutputInfo(r_outputs=answer_reward, outputs={"answer_found": answer_found}),
+        actions=tool_calls,
+    )
+
+
+################################################################################
+
 
 def _coerce_to_python(value):
     if isinstance(value, str):

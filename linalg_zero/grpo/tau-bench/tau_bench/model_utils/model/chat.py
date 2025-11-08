@@ -132,7 +132,9 @@ def build_parse_force_state(
                 t=example.text,
                 response=example.response,
             )
-            assert isinstance(example_msgs, list) and all(isinstance(msg, Message) for msg in example_msgs), "Example messages must be a list of Message objects"
+            assert isinstance(example_msgs, list) and all(isinstance(msg, Message) for msg in example_msgs), (
+                "Example messages must be a list of Message objects"
+            )
             messages.extend(example_msgs)
     messages.append(display_sample(instr=instruction, ty=typ, t=text))
     return messages

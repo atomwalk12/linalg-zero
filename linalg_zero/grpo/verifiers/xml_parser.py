@@ -116,7 +116,7 @@ class XMLParser:
         contents = self.extract_tag_contents(message, "tool_call", last_only=True)
         return contents[0] if contents else None
 
-    def _extract_thought(self, message: str) -> str | None:
+    def extract_last_thought(self, message: str) -> str | None:
         """Extract thought content from properly formed <think></think> tags.
 
         Supports normalization when the message begins with an auto-seeded
@@ -155,7 +155,7 @@ class XMLParser:
 
         diagnostics = XMLDiagnostics(self)
 
-        thought = self._extract_thought(message)
+        thought = self.extract_last_thought(message)
         answer = self.extract_last_answer(message)
         tool_block = self._extract_last_tool_call(message)
 
