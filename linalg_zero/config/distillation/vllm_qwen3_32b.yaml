@@ -1,6 +1,6 @@
 # Dataset parameters
 dataset_name: "atomwalk12/linalgzero"
-debug_mode: False
+debug_mode: True
 dataset_config: null
 n_turns: 8
 

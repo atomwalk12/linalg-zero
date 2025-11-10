@@ -91,14 +91,12 @@ distillation-llamacpp: ## Start the llama.cpp server
 .PHONY: distillation-vllm
 distillation-vllm: ## Start the vLLM server
 	@echo "🚀 Starting vLLM server"
-	@source env.sh
-	@uv run python linalg_zero/distillation/launch_server.py --config ${VLLM_CONFIG}
+	@. ./env.sh && uv run python linalg_zero/distillation/launch_server.py --config ${VLLM_CONFIG}
 
 .PHONY: distillation
 distillation: ## Run the distillation pipeline using the vllm config
 	@echo "🚀 Running distillation pipeline"
-	@source env.sh
-	@uv run python linalg_zero/distillation.py --config ${VLLM_CONFIG}
+	@. ./env.sh && uv run python linalg_zero/distillation.py --config ${VLLM_CONFIG}
 
 .PHONY: distillation-vllm-local
 distillation-vllm-local: ## Start the vLLM server

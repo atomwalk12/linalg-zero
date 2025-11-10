@@ -151,3 +151,8 @@ distilabel_cache/
 hf-cache/
 vllm-cache/
 uv-cache/
+tau-bench/outputs/
+.kiro
+unsloth_compiled_cache/
+.hydra
+distillation-cache/
