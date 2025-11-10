@@ -115,6 +115,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     if argilla_client and args.argilla_output_dataset:
         logger.info(f"Creating Argilla dataset: {args.argilla_output_dataset}")
         push_argilla_dataset(argilla_client, distiset, args)
+        distiset.save_to_disk(f"./results/{args.argilla_output_dataset}")
 
     if args.hf_output_dataset:
         logger.info(f"Pushing dataset to: {args.hf_output_dataset}")
