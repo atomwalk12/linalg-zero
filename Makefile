@@ -4,7 +4,7 @@
 .PHONY: install
 install: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
-	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
+#	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
 	@uv sync --locked
 	@uv pip install setuptools flash-attn --no-build-isolation
 	@uv run pre-commit install
@@ -91,7 +91,7 @@ distillation-llamacpp: ## Start the llama.cpp server
 .PHONY: distillation-vllm
 distillation-vllm: ## Start the vLLM server
 	@echo "🚀 Starting vLLM server"
-	@. ./env.sh && uv run python linalg_zero/distillation/launch_server.py --config ${VLLM_CONFIG}
+	@. ./env.sh && CUDA_LAUNCH_BLOCKING=1 uv run python linalg_zero/distillation/launch_server.py --config ${VLLM_CONFIG}
 
 .PHONY: distillation
 distillation: ## Run the distillation pipeline using the vllm config
