@@ -103,6 +103,7 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument("--n_one", type=int, default=700, help="Per-generator 1-step samples")
     parser.add_argument("--n_two", type=int, default=900, help="Per-generator 2-step samples")
     parser.add_argument("--n_three", type=int, default=600, help="Per-generator 3-step samples")
+    parser.add_argument("-scale", type=int, default=1.1, help="Scale the dataset by a factor")
     argv = parser.parse_args()
     if argv.seed is not None:
         set_seed(argv.seed)
@@ -111,4 +112,8 @@ if __name__ == "__main__":  # pragma: no cover
             # Importing module and setting its global is sufficient
             dc.DETERMINISTIC_BASE_SEED = int(argv.seed)
 
-    main(argv.push_dataset, argv.use_optimized_registry, argv.dataset_name, argv.n_one, argv.n_two, argv.n_three)
+    n_one = int(argv.n_one * argv.scale)
+    n_two = int(argv.n_two * argv.scale)
+    n_three = int(argv.n_three * argv.scale)
+
+    main(argv.push_dataset, argv.use_optimized_registry, argv.dataset_name, n_one, n_two, n_three)
