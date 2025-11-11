@@ -155,3 +155,4 @@ unsloth_compiled_cache/
 .*o
 outputs
 500
+distillation-cache
