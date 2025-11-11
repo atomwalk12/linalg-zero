@@ -46,7 +46,7 @@ class Diagnostics:
             f"{DIAG_PREFIX} Format error: {reason}.\n"
             "Required format: <think>reasoning</think>, then either\n"
             '<tool_call>{"name":"<function_name>","arguments":{"<param>":"<value>"}}</tool_call>\n'
-            "or <answer>result</answer>."
+            "OR <answer>result</answer>."
         )
 
     def analyze_and_build_hint(
