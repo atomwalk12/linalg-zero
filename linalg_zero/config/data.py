@@ -171,6 +171,10 @@ class VllmServerConfig:
         default=None,
         metadata={"help": "Quantization to use"},
     )
+    api_key: str = field(
+        default="not-used",
+        metadata={"help": "API key for authentication (use 'not-used' for local development)"},
+    )
 
     # Memory / performance tuning parameters
     dtype: str | None = field(
@@ -280,7 +284,10 @@ class DistillationConfig:
     n_turns: int = field(
         metadata={"help": "Number of turns to generate"},
     )
-
+    min_successful_completions: int | None = field(
+        default=None,
+        metadata={"help": "Minimum number of successful completions to generate"},
+    )
     # Optional stopping sequences (must come after non-default fields)
     stop: list[str] | None = field(
         default=None,

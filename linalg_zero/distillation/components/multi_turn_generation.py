@@ -2,17 +2,51 @@ from typing import TYPE_CHECKING, Any
 
 from distilabel.steps.tasks.base import GeneratorTask
 from pydantic import Field
+from tqdm import tqdm
 
 from linalg_zero.distillation.components.multi_turn_generation_base import MultiTurnWithToolUseBase
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from distilabel.typing import GeneratorStepOutput, StepColumns
+
+
+def update_progress(
+    pbar: tqdm,
+    batch_results: list[dict[str, Any]],
+    batch_size: int,
+    successful_count: int,
+    processed: int,
+    dataset_size: int,
+    target_successes: int | None,
+) -> int:
+    """Update progress bar with batch results and return updated success count."""
+    batch_successes = sum(1 for conv in batch_results if conv.get("is_correct", False))
+    successful_count += batch_successes
+
+    # Update progress based on tracking mode
+    if target_successes is not None:
+        pbar.n = successful_count
+    else:
+        pbar.update(batch_size)
+
+    # Update status display
+    pbar.set_postfix_str(f"✓ {successful_count}/{processed} ({successful_count}/{dataset_size} total)")
+    return successful_count
 
 
 class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
     """Simplified multi-turn generator that combines planning, execution, and summarization."""
 
     dataset: list[dict[str, Any]] = Field(description="Linear algebra problems to process")
+
+    def model_post_init(self, __context: "Any") -> None:
+        # Ensure base initialization is executed
+        super().model_post_init(__context)
+        # Do not include this runtime knob in the step signature (cache key)
+        # so it can be tuned between runs without invalidating cached outputs.
+        self.exclude_from_signature.add("min_successful_completions")
 
     @property
     def outputs(self) -> "StepColumns":
@@ -38,19 +72,43 @@ class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
         """
         generated = offset
         dataset_size = len(self.dataset)
+        successful_count = 0
+
+        # Determine total for progress bar based on stopping criteria
+        total = self.min_successful_completions if self.min_successful_completions is not None else dataset_size
+        pbar = tqdm(
+            total=total,
+            desc="Generation",
+            disable=False,
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
+        )
 
         while generated < dataset_size:
-            # Send batch_size problems to the LLM at once
             batch_size = getattr(self, "batch_size", 8)
             rows_to_generate = min(batch_size, dataset_size - generated)
-
-            # Get the next batch of problems
             batch_problems = self.dataset[generated : generated + rows_to_generate]
-
-            # Simulate the conversation with the LLM
             batch_conversations = self._generate_with_pre_query_template(batch_problems)
 
             generated += rows_to_generate
-            is_last_batch = generated >= dataset_size
+            successful_count = update_progress(
+                pbar,
+                batch_conversations,
+                rows_to_generate,
+                successful_count,
+                generated,
+                dataset_size,
+                self.min_successful_completions,
+            )
 
-            yield (batch_conversations, is_last_batch)
+            # Check if we should stop
+            stop = (
+                self.min_successful_completions is not None and successful_count >= self.min_successful_completions
+            ) or generated >= dataset_size
+
+            yield (batch_conversations, stop)
+
+            if stop:
+                break
+
+        if pbar:
+            pbar.close()

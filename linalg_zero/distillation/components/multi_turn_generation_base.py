@@ -56,8 +56,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         description="Whether to use structured output for the generation.",
     )
     enable_hint_injection: RuntimeParameter[bool] = Field(
-        default=True,
-        description="If true (and immediate recovery is disabled), inject a user hint about the previous issue to guide the next turn.",
+        default=False,
+        description="If true, inject a user hint about malformed outputs to guide the next turn. If false, track diagnostics only without modifying conversations.",
     )
     max_diagnostic_messages: RuntimeParameter[int | None] = Field(
         default=1,
@@ -66,6 +66,11 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     strict_format: RuntimeParameter[bool] = Field(
         default=True,
         description=f"If true, enforce strict '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure gate in parsing.",
+    )
+    min_successful_completions: RuntimeParameter[int | None] = Field(
+        default=None,
+        exclude=True,
+        description="If set, continue generating until this many successful completions are achieved (ignores dataset size).",
     )
     model_name: str = Field(
         description="The name of the model.",
@@ -175,7 +180,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         parsed_active_msgs: list[ThoughtSchema | None],
         raw_messages: list[str | None],
     ) -> dict[int, tuple[str, str]]:
-        """Append a brief user hint to conversations with malformed assistant outputs to guide the next turn.
+        """Track diagnostic reasons and optionally inject hint messages for malformed outputs.
         Returns a mapping from global sample index to (diagnostic reason, raw message).
         """
         reasons: dict[int, tuple[str, str]] = {}
@@ -189,8 +194,13 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 hint = diag.analyze_and_build_hint(context=conv, message=raw, tool_names=self.library)
                 if hint:
                     reasons[global_idx] = (hint, raw)
-                    diag.apply_hint(conv, hint, max_hints=self.max_diagnostic_messages)
-                    self._logger.info(f"Injected recovery hint for turn {global_idx}: {hint}")
+                    if self.enable_hint_injection:
+                        # Inject hint message into conversation to guide next turn
+                        diag.apply_hint(conv, hint, max_hints=self.max_diagnostic_messages)
+                        self._logger.info(f"Injected recovery hint for sample {global_idx}: {hint}")
+                    else:
+                        # Track diagnostic only without modifying conversation
+                        self._logger.info(f"Tracked malformed output for sample {global_idx}: {hint}")
 
         return reasons
 
@@ -241,8 +251,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         # Inject hint for failed messages to guide next turn
         diagnostics: dict[int, tuple[str, str]] = {}
-        if self.enable_hint_injection:
-            diagnostics = self._inject_hints(conversations, active_indices, parsed_active_msgs, list(messages))
+        diagnostics = self._inject_hints(conversations, active_indices, parsed_active_msgs, list(messages))
 
         # Keep samples active even if message is None (retry next turn)
         new_active_indices = [
@@ -573,9 +582,12 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 **output,
                 "model_name": self.llm.model_name,
             }
+            # Ensure stats_tools has at least one field to avoid Parquet serialization errors
+            tool_stats = stats_tools if isinstance(stats_tools, dict) and stats_tools else {"_empty": 0}
+
             generation["distilabel_metadata"] = {
                 f"statistics_gen_{self.name}": stats_gen.get("gen_stats", []),
-                f"statistics_tools_{self.name}": stats_tools if isinstance(stats_tools, dict) else {},
+                f"statistics_tools_{self.name}": tool_stats,
                 f"malformed_turns_{self.name}": int(stats_gen.get("malformed_turns", 0) or 0),
                 f"tool_errors_{self.name}": int(stats_gen.get("tool_errors", 0) or 0),
                 f"tool_calls_total_{self.name}": int(

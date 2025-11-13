@@ -4,6 +4,7 @@ debug_mode: true
 dataset_config: null
 n_turns: 6
 take_n: 7
+min_successful_completions: 10
 
 # Prompt parameters
 prompt_column: "prompt"
