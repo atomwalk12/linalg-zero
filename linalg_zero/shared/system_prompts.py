@@ -70,7 +70,7 @@ For each step:
 
 Example 1 - Detailed reasoning (no manual calculations):
 User: What is the rank of matrix A = [[2, 3], [2, -4]]?
-Assistant: {think_open}I need to determine the rank of matrix A. The rank represents the maximum number of linearly independent rows or columns. For a 2x2 matrix, the rank could be 0, 1, or 2. The matrix_rank tool is designed specifically for this computation—it will analyze the row space and determine linear independence. I could alternatively compute the determinant and infer rank from whether it's zero, but calling matrix_rank directly is more straightforward and gives the explicit rank value.{think_close}
+Assistant: {think_open}I need the rank of matrix A. The matrix_rank tool computes the number of linearly independent rows/columns directly. This is more straightforward than computing the determinant and inferring rank.{think_close}
 {tool_call_open}{{"name": "matrix_rank", "arguments": {{"matrix": [[2, 3], [2, -4]]}}}}{tool_call_close}
 System: {tool_response_open}2{tool_response_close}
 Assistant: {think_open}The matrix_rank tool returned 2, indicating both rows are linearly independent and the matrix has full rank.{think_close}
@@ -88,16 +88,19 @@ System: {tool_response_open}5.0{tool_response_close}
 Assistant: {think_open}I have the trace from the tool response. Both steps are complete.{think_close}
 {answer_open}5.0{answer_close}
 
-Example 3 - Using tool results (single result as final answer - no aggregation from previous steps):
-User: Find the cofactor matrix of A = [[5, 2], [1, 3]], then find its determinant.
-Assistant: {think_open}I need the cofactor matrix of A. The matrix_cofactor tool computes this. The result will be used to find the determinant in the next step.{think_close}
+Example 3 - Multi-step problem with matrix transformations (single result as final answer - no aggregation from previous steps):
+User: Step 1: Find the cofactor matrix of A = [[5, 2], [1, 3]]. Step 2: Find the transpose of B = the result from step 1. Step 3: Find the Frobenius norm of C = the result from step 2.
+Assistant: {think_open}I need the cofactor matrix of A. The matrix_cofactor tool computes this. The result will be used in the next step.{think_close}
 {tool_call_open}{{"name": "matrix_cofactor", "arguments": {{"matrix": [[5, 2], [1, 3]]}}}}{tool_call_close}
 System: {tool_response_open}[[3, -1], [-2, 5]]{tool_response_close}
-Assistant: {think_open}I need the determinant of the cofactor matrix. The determinant tool computes this from the matrix [[3, -1], [-2, 5]]. This will give the final answer.{think_close}
-{tool_call_open}{{"name": "determinant", "arguments": {{"matrix": [[3, -1], [-2, 5]]}}}}{tool_call_close}
-System: {tool_response_open}13.0{tool_response_close}
-Assistant: {think_open}I have the determinant from the tool response. The task is complete.{think_close}
-{answer_open}13.0{answer_close}
+Assistant: {think_open}I need the transpose of the cofactor matrix [[3, -1], [-2, 5]]. The matrix_transpose tool will swap rows and columns. The result will be used to find the Frobenius norm in step 3.{think_close}
+{tool_call_open}{{"name": "matrix_transpose", "arguments": {{"matrix": [[3, -1], [-2, 5]]}}}}{tool_call_close}
+System: {tool_response_open}[[3, -2], [-1, 5]]{tool_response_close}
+Assistant: {think_open}I need the Frobenius norm of the transposed cofactor matrix [[3, -2], [-1, 5]]. The frobenius_norm tool computes the square root of the sum of squared elements. This gives the final answer for step 3.{think_close}
+{tool_call_open}{{"name": "frobenius_norm", "arguments": {{"matrix": [[3, -2], [-1, 5]]}}}}{tool_call_close}
+System: {tool_response_open}6.24{tool_response_close}
+Assistant: {think_open}I have the Frobenius norm from the tool response. All three steps are complete.{think_close}
+{answer_open}6.24{answer_close}
 """
 
 MATH_TOOL_PROMPT_NO_EXAMPLES = """\

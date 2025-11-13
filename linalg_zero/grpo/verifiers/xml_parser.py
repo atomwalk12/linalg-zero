@@ -162,9 +162,9 @@ class XMLParser:
         result: dict = {}
         result["thought"] = thought
         result["answer"] = answer
-        result["has_think"] = bool(thought)
+        result["has_think"] = thought is not None
         result["has_tool_call"] = tool_block is not None
-        result["has_answer"] = bool(answer)
+        result["has_answer"] = answer is not None
 
         # Counts of properly closed blocks (uniqueness diagnostics)
         result["think_count"] = len(self.extract_tag_contents(message, "think"))
@@ -174,6 +174,7 @@ class XMLParser:
         # Format validity
         result["is_valid_think_then_tool_or_answer"] = self._is_valid_think_then_tool_or_answer(message)
         result["is_valid_think_then_answer"] = self._is_valid_think_then_answer(message)
+        result["has_content_outside_tags"] = self.has_content_outside_tags(message)
 
         # Structural diagnostics
         result["unopened"] = {
@@ -210,6 +211,20 @@ class XMLParser:
         result["tool"] = tool_info
 
         return result
+
+    def has_content_outside_tags(self, message: str) -> bool:
+        """
+        Check if there's any non-whitespace content outside of
+        <think>...</think>, <tool_call>...</tool_call>, and <answer>...</answer> tags.
+        """
+        # Remove all allowed tag blocks
+        cleaned = message
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL)
+        cleaned = re.sub(r"<tool_call>.*?</tool_call>", "", cleaned, flags=re.DOTALL)
+        cleaned = re.sub(r"<answer>.*?</answer>", "", cleaned, flags=re.DOTALL)
+
+        # Check if there's any non-whitespace content left
+        return bool(cleaned.strip())
 
     def analyze_message_in_context(
         self,
@@ -271,6 +286,9 @@ class XMLParser:
             return "no <think>/<tool_call>/<answer> blocks"
 
         # Core requirements
+        if analysis["has_tool_call"] and analysis["has_answer"]:
+            return "both tool call and answer present"
+
         if not analysis["has_tool_call"] and not analysis["has_answer"]:
             return "no tool call or answer"
 
@@ -288,6 +306,10 @@ class XMLParser:
             name = tool["name"]
             if tool_names and name not in tool_names:
                 return "unknown tool name"
+
+        # Check for content outside allowed tags
+        if analysis["has_content_outside_tags"]:
+            return "content outside allowed tags"
 
         # Overall format validation
         if not analysis["is_valid_think_then_tool_or_answer"]:
