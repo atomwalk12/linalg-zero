@@ -72,7 +72,11 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         exclude=True,
         description="If set, continue generating until this many successful completions are achieved (ignores dataset size).",
     )
-    model_name: str = Field(
+    strip_think_prefix: RuntimeParameter[bool] = Field(
+        default=True,
+        description="If true, strip the think prefix from the conversation. This is needed for Qwen3 models.",
+    )
+    model_type: str = Field(
         description="The name of the model.",
     )
 
@@ -89,7 +93,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         return prepared_inputs
 
     def create_assistant_message(self, message: ThoughtSchema) -> dict[str, Any] | None:
-        config: ModelParameters = ModelType(self.model_name).get_model_parameters()
+        config: ModelParameters = ModelType(self.model_type).get_model_parameters()
         return config.format_assistant_message(message)
 
     def create_tool_message(self, conversation: list["ChatType"], message: dict[str, Any]) -> dict[str, Any]:
@@ -149,7 +153,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     ) -> list[dict[str, Any]]:
         """Prepare the output conversation removing the system prompt if necessary.
         It will return a dictionary with a "messages" key."""
-        diag = Diagnostics(model_type=ModelType(self.model_name))
+        diag = Diagnostics(model_type=ModelType(self.model_type))
         outputs: list[dict[str, Any]] = []
         for conversation, final_answer, is_correct in zip(conversations, final_answers, success_indices, strict=True):
             if conversation is None:
@@ -173,6 +177,25 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             outputs.append(output)
         return outputs
 
+    def _sanitize_history_for_llm(self, conversations: list[list[dict[str, Any]]]) -> list[list[dict[str, Any]]]:
+        """Return a sanitized deep copy of conversations without THINK content in history.
+        - Assistant messages: drop THINK segments; keep only final answer text.
+          If tool_calls present, keep tool_calls and clear content.
+        - Other roles are kept as-is.
+        """
+        assert self.model_type == "default", "This function is only supported for Default model (Qwen3)"
+
+        sanitized: list[list[dict[str, Any]]] = []
+        for conv in conversations:
+            new_conv: list[dict[str, Any]] = []
+            for msg in conv:
+                m = dict(msg)
+                if m.get("role") == "assistant" and m.get("tool_calls"):
+                    m["content"] = ""
+                new_conv.append(m)
+            sanitized.append(new_conv)
+        return sanitized
+
     def _inject_hints(
         self,
         conversations: list["ChatType"],
@@ -184,7 +207,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         Returns a mapping from global sample index to (diagnostic reason, raw message).
         """
         reasons: dict[int, tuple[str, str]] = {}
-        diag = Diagnostics(model_type=ModelType(self.model_name))
+        diag = Diagnostics(model_type=ModelType(self.model_type))
         for local_idx, parsed in enumerate(parsed_active_msgs):
             if parsed is None or (parsed.tool_call is None and not parsed.completed):
                 global_idx = active_indices[local_idx]
@@ -214,7 +237,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             inputs.append(conversation)
 
         outputs = self.llm.generate(
-            inputs=inputs,
+            inputs=self._sanitize_history_for_llm(inputs) if self.strip_think_prefix else inputs,
             num_generations=1,
             **self.llm.get_generation_kwargs(),
         )

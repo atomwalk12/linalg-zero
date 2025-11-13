@@ -288,6 +288,10 @@ class DistillationConfig:
         default=None,
         metadata={"help": "Minimum number of successful completions to generate"},
     )
+    strip_think_prefix: bool = field(
+        default=True,
+        metadata={"help": "Whether to strip the think prefix from the conversation. This is needed for Qwen3 models."},
+    )
     # Optional stopping sequences (must come after non-default fields)
     stop: list[str] | None = field(
         default=None,
