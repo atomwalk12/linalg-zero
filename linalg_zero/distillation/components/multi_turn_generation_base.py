@@ -237,7 +237,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             inputs.append(conversation)
 
         outputs = self.llm.generate(
-            inputs=self._sanitize_history_for_llm(inputs) if self.strip_think_prefix else inputs,
+            inputs=inputs,  # TODO: Sanitizing history likely not necessary: self._sanitize_history_for_llm(inputs)
             num_generations=1,
             **self.llm.get_generation_kwargs(),
         )

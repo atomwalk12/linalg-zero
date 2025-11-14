@@ -260,6 +260,24 @@ def print_dataset(questions: list[Question], include_invalid: bool = False) -> N
     logger.info("=" * 30)
 
 
+def print_split_statistics(splits: DatasetDict) -> None:  # pragma: no cover
+    """Display statistics about train/validation/test splits."""
+    logger.info("=" * 30)
+    logger.info("DATASET SPLITS")
+    logger.info("=" * 30)
+
+    total = sum(len(splits[split_name]) for split_name in splits)
+
+    for split_name in ["train", "validation", "test"]:
+        if split_name in splits:
+            count = len(splits[split_name])
+            percentage = 100 * count / total if total > 0 else 0
+            logger.info("  %s: %d samples (%.1f%%)", split_name.capitalize(), count, percentage)
+
+    logger.info("  Total: %d samples", total)
+    logger.info("=" * 30)
+
+
 def _question_to_example(q: Question) -> dict[str, Any]:
     """Map a Question to a flat example for Hugging Face datasets."""
     stepwise_truths: list[dict[str, Any]] = []

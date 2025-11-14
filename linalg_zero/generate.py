@@ -16,6 +16,7 @@ from linalg_zero.generator.utils import (
     convert_to_dataset_splits,
     load_entropy_settings,
     print_dataset,
+    print_split_statistics,
     set_seed,
     verify_dataset,
 )
@@ -69,15 +70,16 @@ def main(
         config = load_entropy_settings(config_path)
         check_constraints(dataset, config, statistics)
 
+    # Create stratified splits by difficulty for balanced evaluation
+    splits = convert_to_dataset_splits(
+        dataset,
+        test_size=0.1,
+        val_size=0.1,
+        seed=argv.seed or 42,
+        stratify_by="difficulty",
+    )
+    print_split_statistics(splits)
     if push_dataset:
-        # Create stratified splits by difficulty for balanced evaluation
-        splits = convert_to_dataset_splits(
-            dataset,
-            test_size=0.1,
-            val_size=0.1,
-            seed=argv.seed or 42,
-            stratify_by="difficulty",
-        )
         push_to_hub(splits, dataset_name, private=False, config_path=config_path)
 
     # --------------------------------------------------
@@ -92,7 +94,7 @@ def main(
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--push_dataset", action="store_true", default=False)
+    parser.add_argument("--push_dataset", action="store_true", default=True)
     parser.add_argument("--dataset_name", type=str, default="atomwalk12/linalgzero")
     parser.add_argument(
         "--use_optimized_registry",
@@ -103,7 +105,7 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument("--n_one", type=int, default=700, help="Per-generator 1-step samples")
     parser.add_argument("--n_two", type=int, default=900, help="Per-generator 2-step samples")
     parser.add_argument("--n_three", type=int, default=600, help="Per-generator 3-step samples")
-    parser.add_argument("-scale", type=int, default=1.1, help="Scale the dataset by a factor")
+    parser.add_argument("-scale", type=int, default=1.25, help="Scale the dataset by a factor")
     argv = parser.parse_args()
     if argv.seed is not None:
         set_seed(argv.seed)

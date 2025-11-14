@@ -4,7 +4,7 @@ debug_mode: true
 dataset_config: null
 n_turns: 6
 take_n: 7
-min_successful_completions: 10
+min_successful_completions: 8200
 
 # Prompt parameters
 prompt_column: "prompt"
@@ -12,10 +12,11 @@ prompt_template: "{{ instruction }}"
 
 # Generation parameters
 model_type: "default"
-deterministic: true
+deterministic: false
 max_new_tokens: 2048
 num_generations: 1
 enable_reasoning: true
+strip_think_prefix: false
 
 # Processing parameters
 input_batch_size: 3
