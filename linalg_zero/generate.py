@@ -105,7 +105,7 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument("--n_one", type=int, default=700, help="Per-generator 1-step samples")
     parser.add_argument("--n_two", type=int, default=900, help="Per-generator 2-step samples")
     parser.add_argument("--n_three", type=int, default=600, help="Per-generator 3-step samples")
-    parser.add_argument("-scale", type=int, default=1.25, help="Scale the dataset by a factor")
+    parser.add_argument("-scale", type=int, default=1.1, help="Scale the dataset by a factor")
     argv = parser.parse_args()
     if argv.seed is not None:
         set_seed(argv.seed)

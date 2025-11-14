@@ -67,8 +67,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         default=True,
         description=f"If true, enforce strict '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure gate in parsing.",
     )
-    min_successful_completions: RuntimeParameter[int | None] = Field(
-        default=None,
+    min_successful_completions: int = Field(
+        default=-1,
         exclude=True,
         description="If set, continue generating until this many successful completions are achieved (ignores dataset size).",
     )

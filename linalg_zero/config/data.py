@@ -284,8 +284,8 @@ class DistillationConfig:
     n_turns: int = field(
         metadata={"help": "Number of turns to generate"},
     )
-    min_successful_completions: int | None = field(
-        default=None,
+    min_successful_completions: int = field(
+        default=-1,
         metadata={"help": "Minimum number of successful completions to generate"},
     )
     strip_think_prefix: bool = field(

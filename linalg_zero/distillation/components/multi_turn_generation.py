@@ -28,6 +28,8 @@ def update_progress(
     # Update progress based on tracking mode
     if target_successes is not None:
         pbar.n = successful_count
+        # Force a redraw when manually setting position
+        pbar.refresh()
     else:
         pbar.update(batch_size)
 
@@ -75,12 +77,16 @@ class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
         successful_count = 0
 
         # Determine total for progress bar based on stopping criteria
-        total = self.min_successful_completions if self.min_successful_completions is not None else dataset_size
+        total = (
+            dataset_size
+            if self.min_successful_completions == -1
+            else min(self.min_successful_completions, dataset_size)
+        )
         pbar = tqdm(
             total=total,
             desc="Generation",
             disable=False,
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
         )
 
         while generated < dataset_size:
@@ -97,12 +103,12 @@ class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
                 successful_count,
                 generated,
                 dataset_size,
-                self.min_successful_completions,
+                None if self.min_successful_completions == -1 else self.min_successful_completions,
             )
 
             # Check if we should stop
             stop = (
-                self.min_successful_completions is not None and successful_count >= self.min_successful_completions
+                self.min_successful_completions != -1 and successful_count >= self.min_successful_completions
             ) or generated >= dataset_size
 
             yield (batch_conversations, stop)

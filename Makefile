@@ -4,7 +4,7 @@
 .PHONY: install
 install: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
-	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
+#	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
 	@uv sync --locked
 	@uv pip install setuptools flash-attn==2.7.3 --no-build-isolation
 	@uv run pre-commit install

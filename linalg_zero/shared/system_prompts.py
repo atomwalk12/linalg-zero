@@ -72,7 +72,7 @@ Example 1 - Detailed reasoning (no manual calculations):
 User: What is the rank of matrix A = [[2, 3], [2, -4]]?
 Assistant: {think_open}I need the rank of matrix A. The matrix_rank tool computes the number of linearly independent rows/columns directly. This is more straightforward than computing the determinant and inferring rank.{think_close}
 {tool_call_open}{{"name": "matrix_rank", "arguments": {{"matrix": [[2, 3], [2, -4]]}}}}{tool_call_close}
-System: {tool_response_open}2{tool_response_close}
+{tool_response_open}2{tool_response_close}
 Assistant: {think_open}The matrix_rank tool returned 2, indicating both rows are linearly independent and the matrix has full rank.{think_close}
 {answer_open}2{answer_close}
 
@@ -81,10 +81,10 @@ User: Step 1: find the transpose of A = [[1, 2], [3, 4]].
 Step 2: find the trace of the result from step 1.
 Assistant: {think_open}I need the transpose of matrix A for step 1. The matrix_transpose tool provides this. The result will be used as input for step 2.{think_close}
 {tool_call_open}{{"name": "matrix_transpose", "arguments": {{"matrix": [[1, 2], [3, 4]]}}}}{tool_call_close}
-System: {tool_response_open}[[1, 3], [2, 4]]{tool_response_close}
+{tool_response_open}[[1, 3], [2, 4]]{tool_response_close}
 Assistant: {think_open}I need the trace of the transposed matrix from step 1. The matrix_trace tool computes the sum of diagonal elements—I'll use the tool rather than manually adding 1 + 4. This will give the final answer for step 2.{think_close}
 {tool_call_open}{{"name": "matrix_trace", "arguments": {{"matrix": [[1, 3], [2, 4]]}}}}{tool_call_close}
-System: {tool_response_open}5.0{tool_response_close}
+{tool_response_open}5.0{tool_response_close}
 Assistant: {think_open}I have the trace from the tool response. Both steps are complete.{think_close}
 {answer_open}5.0{answer_close}
 
@@ -92,13 +92,13 @@ Example 3 - Multi-step problem with matrix transformations (single result as fin
 User: Step 1: Find the cofactor matrix of A = [[5, 2], [1, 3]]. Step 2: Find the transpose of B = the result from step 1. Step 3: Find the Frobenius norm of C = the result from step 2.
 Assistant: {think_open}I need the cofactor matrix of A. The matrix_cofactor tool computes this. The result will be used in the next step.{think_close}
 {tool_call_open}{{"name": "matrix_cofactor", "arguments": {{"matrix": [[5, 2], [1, 3]]}}}}{tool_call_close}
-System: {tool_response_open}[[3, -1], [-2, 5]]{tool_response_close}
+{tool_response_open}[[3, -1], [-2, 5]]{tool_response_close}
 Assistant: {think_open}I need the transpose of the cofactor matrix [[3, -1], [-2, 5]]. The matrix_transpose tool will swap rows and columns. The result will be used to find the Frobenius norm in step 3.{think_close}
 {tool_call_open}{{"name": "matrix_transpose", "arguments": {{"matrix": [[3, -1], [-2, 5]]}}}}{tool_call_close}
-System: {tool_response_open}[[3, -2], [-1, 5]]{tool_response_close}
+{tool_response_open}[[3, -2], [-1, 5]]{tool_response_close}
 Assistant: {think_open}I need the Frobenius norm of the transposed cofactor matrix [[3, -2], [-1, 5]]. The frobenius_norm tool computes the square root of the sum of squared elements. This gives the final answer for step 3.{think_close}
 {tool_call_open}{{"name": "frobenius_norm", "arguments": {{"matrix": [[3, -2], [-1, 5]]}}}}{tool_call_close}
-System: {tool_response_open}6.24{tool_response_close}
+{tool_response_open}6.24{tool_response_close}
 Assistant: {think_open}I have the Frobenius norm from the tool response. All three steps are complete.{think_close}
 {answer_open}6.24{answer_close}
 """

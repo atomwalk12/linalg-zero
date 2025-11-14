@@ -1,9 +1,9 @@
 # Dataset parameters
 dataset_name: "atomwalk12/linalgzero"
-debug_mode: False
+debug_mode: True
 dataset_config: null
 n_turns: 8
-min_successful_completions: null
+min_successful_completions: -1
 
 # Prompt parameters
 prompt_column: "prompt"

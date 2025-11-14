@@ -69,6 +69,9 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
     generation_kwargs = {"max_new_tokens": args.max_new_tokens, **enable_thinking}
     if args.stop is not None:
         generation_kwargs["stop"] = args.stop
+    else:
+        # Guardrails to prevent model from emitting system-only tags
+        generation_kwargs["stop"] = ["<tool_response>", "</tool_response>"]
 
     available_functions = get_lib_fn_names()
 
@@ -92,8 +95,8 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             system_prompt=get_math_system_prompt(),
             library=available_functions,
             model_type=args.model_type,
-            min_successful_completions=args.min_successful_completions,
             strip_think_prefix=args.strip_think_prefix,
+            min_successful_completions=args.min_successful_completions,
         )
 
         distiset: Distiset = pipeline.run(
