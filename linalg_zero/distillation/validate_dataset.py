@@ -287,6 +287,8 @@ def analyze_dataset(  # noqa: C901
                 f"    Example {idx}, msgs {dup['positions']}, is answer: {is_answer}: {dup['content_preview']}..."
             )
 
+    print_to_both(f"Number of adjacent duplicates with final answer: {len([d for d in adjacent_dups if d[2]])}")
+
     # Combined issues
     all_issues = set(
         [idx for idx, _ in reuse_issues]
@@ -527,8 +529,8 @@ def save_dataset_to_disk(dataset: Dataset, path: str):
 
 if __name__ == "__main__":
     # TODO: check for duplicate function calls and fix them
-    analyse = True
-    local_dataset = True
+    analyse = False
+    local_dataset = False
     commit = False
     dataset_path = local_dataset_path if local_dataset else "atomwalk12/linalgzero-distilled"
     if analyse:

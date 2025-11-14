@@ -593,6 +593,14 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         return merged_stats
 
+    def _prepare_diagnostics_lists(self, stats_gen: dict[str, Any]) -> tuple[list[str], list[str]]:
+        """Prepare diagnostics and diagnostic_messages lists with safe filtering."""
+        diagnostics_list = [str(v) for v in (stats_gen.get("diagnostics", []) or []) if v is not None and str(v) != ""]
+        diagnostic_msgs_list = [
+            str(v) for v in (stats_gen.get("diagnostic_messages", []) or []) if v is not None and str(v) != ""
+        ]
+        return diagnostics_list, diagnostic_msgs_list
+
     def _generate_with_pre_query_template(self, inputs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Generate a list of instructions or conversations of the specified number of turns."""
         outputs, statistics_gens, statistics_tools = self._generate_multi_turn_conversation(inputs)
@@ -608,16 +616,17 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             # Ensure stats_tools has at least one field to avoid Parquet serialization errors
             tool_stats = stats_tools if isinstance(stats_tools, dict) and stats_tools else {"_empty": 0}
 
+            # Prepare diagnostics lists with safe filtering
+            diagnostics_list, diagnostic_msgs_list = self._prepare_diagnostics_lists(stats_gen)
+
             generation["distilabel_metadata"] = {
                 f"statistics_gen_{self.name}": stats_gen.get("gen_stats", []),
                 f"statistics_tools_{self.name}": tool_stats,
                 f"malformed_turns_{self.name}": int(stats_gen.get("malformed_turns", 0) or 0),
                 f"tool_errors_{self.name}": int(stats_gen.get("tool_errors", 0) or 0),
-                f"tool_calls_total_{self.name}": int(
-                    sum(stats_tools.values()) if isinstance(stats_tools, dict) else 0
-                ),
-                f"diagnostics_{self.name}": list(stats_gen.get("diagnostics", [])),
-                f"diagnostic_messages_{self.name}": list(stats_gen.get("diagnostic_messages", [])),
+                f"tool_calls_total_{self.name}": int(sum(tool_stats.values())) if isinstance(tool_stats, dict) else 0,
+                f"diagnostics_{self.name}": (diagnostics_list if diagnostics_list else [""]),
+                f"diagnostic_messages_{self.name}": (diagnostic_msgs_list if diagnostic_msgs_list else [""]),
             }
             generations.append(generation)
         return generations

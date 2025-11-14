@@ -1,3 +1,5 @@
+import json
+import os
 from typing import TYPE_CHECKING, Any
 
 from distilabel.steps.tasks.base import GeneratorTask
@@ -63,6 +65,28 @@ class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
         """Does nothing."""
         return {}
 
+    def _get_progress_path(self) -> str:
+        """Get path to progress file."""
+        return os.path.join(".", "distillation-cache", "progress", f"{self.name}_success_count.json")
+
+    def _load_successful_count(self) -> int:
+        """Load successful count from progress file, returns 0 if not found."""
+        try:
+            with open(self._get_progress_path(), encoding="utf-8") as f:
+                return int(json.load(f).get("count", 0))
+        except Exception:
+            return 0
+
+    def _save_successful_count(self, count: int) -> None:
+        """Save successful count to progress file."""
+        try:
+            progress_path = self._get_progress_path()
+            os.makedirs(os.path.dirname(progress_path), exist_ok=True)
+            with open(progress_path, "w", encoding="utf-8") as f:
+                json.dump({"count": int(count)}, f)
+        except Exception:
+            self._logger.warning("Failed to save successful count", exc_info=True)
+
     def process(self, offset: int = 0) -> "GeneratorStepOutput":
         """Generate multi-turn conversations from the source dataset.
 
@@ -74,15 +98,19 @@ class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
         """
         generated = offset
         dataset_size = len(self.dataset)
-        successful_count = 0
+        track_by_success = self.min_successful_completions != -1
 
-        # Determine total for progress bar based on stopping criteria
+        # Resume successful count from previous run if needed
+        successful_count = self._load_successful_count() if (track_by_success and offset > 0) else 0
+
+        # Setup progress bar
         total = (
             dataset_size
             if self.min_successful_completions == -1
             else min(self.min_successful_completions, dataset_size)
         )
         pbar = tqdm(
+            initial=offset,
             total=total,
             desc="Generation",
             disable=False,
@@ -105,6 +133,9 @@ class MultiTurnWithToolUseGenerator(GeneratorTask, MultiTurnWithToolUseBase):
                 dataset_size,
                 None if self.min_successful_completions == -1 else self.min_successful_completions,
             )
+            # Persist success counter so a crash/restart resumes accurately
+            if track_by_success:
+                self._save_successful_count(successful_count)
 
             # Check if we should stop
             stop = (

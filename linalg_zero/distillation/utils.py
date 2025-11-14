@@ -398,6 +398,9 @@ def _format_indexed_list(items: list[Any]) -> str:
 
     indexed_dict = []
     for i, item in enumerate(items):
+        # Skip empty or whitespace-only strings
+        if isinstance(item, str) and not item.strip():
+            continue
         if isinstance(item, dict):
             indexed_dict.append({"index": i, "content": _format_value(item)})
         else:
