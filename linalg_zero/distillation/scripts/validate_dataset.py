@@ -19,6 +19,7 @@ import re
 import shutil
 from io import StringIO
 from pathlib import Path
+from typing import Any
 
 import yaml
 from datasets import Dataset, DownloadMode, load_dataset, load_from_disk
@@ -33,6 +34,71 @@ local_dataset_path = "atomwalk12/linalgzero-distilled-local"
 if not Path(local_dataset_path).exists():
     dataset = load_dataset("atomwalk12/linalgzero-distilled", "default", split="train")
     dataset.save_to_disk(local_dataset_path)
+
+
+def parse_messages(messages_field: Any) -> list[dict]:
+    """
+    Parse messages from dataset field (handles both JSON string and dict formats).
+
+    Args:
+        messages_field: Messages field from dataset (can be string or list)
+
+    Returns:
+        List of message dictionaries
+    """
+    return json.loads(messages_field) if isinstance(messages_field, str) else messages_field
+
+
+def get_message_content(message: dict) -> str:
+    """
+    Extract and clean content from a message dictionary.
+
+    Args:
+        message: Message dictionary with 'content' field
+
+    Returns:
+        Stripped message content string
+    """
+    return (message.get("content") or "").strip()
+
+
+def load_tokenizer(tokenizer_name: str) -> AutoTokenizer:
+    """
+    Load a tokenizer by name.
+
+    Args:
+        tokenizer_name: HuggingFace model name for the tokenizer
+
+    Returns:
+        Loaded AutoTokenizer instance
+    """
+    return AutoTokenizer.from_pretrained(tokenizer_name)
+
+
+def count_tokens_in_message(content: str, tokenizer: AutoTokenizer) -> int:
+    """Count tokens in a message content using the provided tokenizer."""
+    return len(tokenizer.encode(content))
+
+
+def get_max_assistant_tokens(messages: list[dict], tokenizer: AutoTokenizer) -> int:
+    """
+    Get the maximum token count among all assistant messages.
+
+    Args:
+        messages: List of message dictionaries
+        tokenizer: Tokenizer to use for counting tokens
+
+    Returns:
+        Maximum token count found in assistant messages, or 0 if no assistant messages
+    """
+    assistant_token_counts = []
+    for msg in messages:
+        if msg.get("role") == "assistant":
+            content = get_message_content(msg)
+            token_count = count_tokens_in_message(content, tokenizer)
+            assistant_token_counts.append(token_count)
+
+    return max(assistant_token_counts) if assistant_token_counts else 0
 
 
 def print_to_both(*args, **kwargs):
@@ -268,12 +334,6 @@ def print_messages_above_token_threshold(
     """
 
     def collect_token_counts(ds, tokenizer):
-        from linalg_zero.distillation.scripts.token_utils import (
-            count_tokens_in_message,
-            get_message_content,
-            parse_messages,
-        )
-
         token_counts_by_role = {"user": [], "assistant": [], "tool": []}
         all_token_counts = []
         messages_with_tokens = []  # Store (token_count, sample_idx, msg_idx, role, content)
@@ -352,13 +412,8 @@ def analyze_dataset(  # noqa: C901
     # Load tokenizer if token threshold is specified
     tokenizer = None
     if assistant_token_threshold is not None:
-        from linalg_zero.distillation.scripts.token_utils import load_tokenizer
-
         print_to_both(f"Loading tokenizer for token counting: {tokenizer_name}")
         tokenizer = load_tokenizer(tokenizer_name)
-
-    # Import shared utilities
-    from linalg_zero.distillation.scripts.token_utils import parse_messages
 
     # Track issues
     reuse_issues = []
@@ -396,8 +451,6 @@ def analyze_dataset(  # noqa: C901
 
         # Check 5: Assistant token threshold
         if assistant_token_threshold is not None and tokenizer is not None:
-            from linalg_zero.distillation.scripts.token_utils import get_max_assistant_tokens
-
             max_tokens = get_max_assistant_tokens(messages, tokenizer)
             if max_tokens > assistant_token_threshold:
                 token_threshold_issues.append((idx, max_tokens))
@@ -530,6 +583,7 @@ def analyze_dataset(  # noqa: C901
     print_to_both(f"Total examples removed: {len(all_issues)}")
     if push_to_hub:
         print_to_both(f"Pushing dataset to https://huggingface.co/datasets/{dataset_name}-clean")
+        print_to_both(f"Dataset size: {len(cleaned_ds)}")
         cleaned_ds.push_to_hub(f"{dataset_name}-clean")
     print_to_both("=" * 80)
 
