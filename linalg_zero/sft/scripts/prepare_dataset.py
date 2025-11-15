@@ -92,7 +92,7 @@ def prepare_debug(train: Dataset, validation: Dataset, dataset_size: int) -> Dat
 def main(output_repo: str, push_to_hub: bool, debug_mode: bool) -> None:
     """Main processing function."""
     # Load
-    train_repo = "atomwalk12/linalgzero-distilled"
+    train_repo = "atomwalk12/linalgzero-distilled-clean"
     test_repo = "atomwalk12/linalgzero"
 
     logger.info("*** Loading datasets ***")
@@ -122,8 +122,10 @@ if __name__ == "__main__":
     """Script entry point for SFT training."""
     parser = ArgumentParser()
     parser.add_argument("--output_repo", default="atomwalk12/linalgzero-sft", type=str, help="Output repository name")
-    parser.add_argument("--push_to_hub", action="store_true", help="Whether to push the dataset to HuggingFace")
-    parser.add_argument("--debug_mode", action="store_true", help="Reduces dataset size to 60 examples")
+    parser.add_argument(
+        "--push_to_hub", default=False, action="store_true", help="Whether to push the dataset to HuggingFace"
+    )
+    parser.add_argument("--debug_mode", default=False, action="store_true", help="Reduces dataset size to 60 examples")
     args = parser.parse_args()
 
     main(args.output_repo, args.push_to_hub, args.debug_mode)

@@ -92,7 +92,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
             dataset=dataset["train"],
             batch_size=args.input_batch_size,
             n_turns=args.n_turns,
-            system_prompt=get_math_system_prompt(),
+            system_prompt=get_math_system_prompt(include_examples=True),
             library=available_functions,
             model_type=args.model_type,
             strip_think_prefix=args.strip_think_prefix,

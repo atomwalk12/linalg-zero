@@ -4,7 +4,7 @@ from linalg_zero.shared.utils import get_function_schema
 tools = get_lib()
 
 
-def get_math_system_prompt(include_examples: bool = True) -> str:
+def get_math_system_prompt(include_examples: bool) -> str:
     prompt_template = MATH_TOOL_PROMPT if include_examples else MATH_TOOL_PROMPT_NO_EXAMPLES
     return prompt_template.format(
         schema=get_function_schema(),

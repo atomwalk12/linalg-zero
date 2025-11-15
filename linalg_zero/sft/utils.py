@@ -86,6 +86,16 @@ def get_unsloth_model(
         template_path = Path(trl_training_args.chat_template_path)
         tokenizer.chat_template = template_path.read_text()
 
+    if training_args.chat_template is not None:
+        tokenizer.chat_template = training_args.chat_template
+
+    has_tokenizer_template = tokenizer.chat_template is not None
+    has_config_template = trl_training_args.chat_template_path is not None
+
+    assert has_tokenizer_template ^ has_config_template, (
+        "Exactly one of tokenizer.chat_template or chat_template_path must be set, not both or neither"
+    )
+
     return model, tokenizer
 
 
