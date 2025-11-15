@@ -170,6 +170,93 @@ def check_all_think_duplicates(messages: list[dict], parser: XMLParser) -> tuple
     return duplicates, modified_messages
 
 
+def check_exact_sequence(
+    messages: list[dict], parser: XMLParser, stepwise_ground_truths: list[dict]
+) -> tuple[bool, list[dict]]:
+    """
+    Check if the sequence of messages matches the stepwise ground truths.
+
+    Returns:
+        (has_issue, issues_info): bool indicating if there are mismatches,
+                                   and list of dicts with detailed error information
+    """
+    issues = []
+
+    for step_idx, ground_truth in enumerate(stepwise_ground_truths):
+        msg_idx = 2 + (step_idx * 2)  # Tool call messages are at indices 2, 4, 6, ...
+
+        if msg_idx >= len(messages):
+            issues.append({
+                "step": step_idx,
+                "error": "Missing tool call",
+                "expected_tools": list(ground_truth.keys()),
+                "actual_tool": None,
+                "message_index": msg_idx,
+            })
+            continue
+
+        # Check if it's actually a tool call message
+        if messages[msg_idx]["tool_calls"] is None:
+            issues.append({
+                "step": step_idx,
+                "error": "Expected tool call but message has no tool_calls",
+                "expected_tools": list(ground_truth.keys()),
+                "actual_tool": None,
+                "message_index": msg_idx,
+            })
+            continue
+
+        tool_name = messages[msg_idx]["tool_calls"][0]["function"]["name"]
+
+        # Check if tool name matches any expected tool in ground truth
+        if tool_name not in ground_truth:
+            issues.append({
+                "step": step_idx,
+                "error": "Tool name mismatch",
+                "expected_tools": list(ground_truth.keys()),
+                "actual_tool": tool_name,
+                "message_index": msg_idx,
+            })
+            continue
+
+        # Check if tool response matches ground truth
+        tool_response_idx = msg_idx + 1
+        if tool_response_idx >= len(messages):
+            issues.append({
+                "step": step_idx,
+                "error": "Missing tool response",
+                "tool_name": tool_name,
+                "expected_value": ground_truth[tool_name],
+                "actual_value": None,
+                "message_index": tool_response_idx,
+            })
+            continue
+
+        tool_answer = parse_string(messages[tool_response_idx]["content"])
+        expected_answer = ground_truth[tool_name]
+
+        if not verify_answers(expected_answer, tool_answer):
+            issues.append({
+                "step": step_idx,
+                "error": "Tool response value mismatch",
+                "tool_name": tool_name,
+                "expected_value": expected_answer,
+                "actual_value": tool_answer,
+                "message_index": tool_response_idx,
+            })
+
+    return (len(issues) > 0, issues)
+
+
+def matches_exact_message_count(messages: list[dict], ground_truths: list[dict]) -> tuple[bool, str]:
+    """
+    Check if the number of messages matches the expected message count.
+    """
+    # Expected message count: 2 (user + system) + 2 * len(ground_truths) (tool calls and responses) + 1 (final answer)
+    expected_message_count = len(ground_truths) * 2 + 3
+    return len(messages) == expected_message_count, f"Expected {expected_message_count} messages, got {len(messages)}"
+
+
 def analyze_dataset(  # noqa: C901
     dataset_name: str,
     config: str,
@@ -194,10 +281,13 @@ def analyze_dataset(  # noqa: C901
     # Track issues
     reuse_issues = []
     all_think_duplicates = []
+    exact_sequence_issues = []
     repeated_tool_calls = []
+    message_count_issues = []
 
     for idx in range(len(ds)):
         messages = json.loads(ds[idx]["messages"]) if isinstance(ds[idx]["messages"], str) else ds[idx]["messages"]
+        stepwise_ground_truths = json.loads(ds[idx]["stepwise_ground_truths"])
 
         # # Check 1: Answer must reference previous tool response
         has_reuse_issue, reuse_reason = check_tool_call_is_skipped_due_to_simple_op(
@@ -211,7 +301,17 @@ def analyze_dataset(  # noqa: C901
         if has_repeated:
             repeated_tool_calls.append((idx, repeated_info))
 
-        # Check 3: ALL duplicate thinking across conversation (including non-adjacent)
+        # Check 3: Check exact sequence based on stepwise ground truths
+        has_exact_sequence, exact_sequence_info = check_exact_sequence(messages, parser, stepwise_ground_truths)
+        if has_exact_sequence:
+            exact_sequence_issues.append((idx, exact_sequence_info))
+
+        # Check 4: Message count validation
+        has_count_issue, count_reason = matches_exact_message_count(messages, stepwise_ground_truths)
+        if not has_count_issue:
+            message_count_issues.append((idx, count_reason))
+
+        # Check 5: ALL duplicate thinking across conversation (including non-adjacent)
         duplicates, modified_messages = check_all_think_duplicates(messages, parser)
         if duplicates:
             # Print before/after for verification
@@ -264,11 +364,30 @@ def analyze_dataset(  # noqa: C901
                     f"  - Example {idx}: '{tool_info['tool_name']}' called {tool_info['count']} times at positions {tool_info['positions']}"
                 )
 
+    print_to_both(
+        f"\n3. Exact Sequence Mismatches: {len(exact_sequence_issues)} ({len(exact_sequence_issues) / len(ds) * 100:.2f}%)"
+    )
+    if exact_sequence_issues:
+        for idx, issues_list in exact_sequence_issues:
+            for issue in issues_list:
+                print_to_both(
+                    f"  - Example {idx} step {issue['step']}: {issue['error']} "
+                    f"(expected: {issue.get('expected_tools') or issue.get('expected_value')}, "
+                    f"got: {issue.get('actual_tool') or issue.get('actual_value')})"
+                )
+
+    print_to_both(
+        f"\n4. Message Count Mismatches: {len(message_count_issues)} ({len(message_count_issues) / len(ds) * 100:.2f}%)"
+    )
+    if message_count_issues:
+        for idx, reason in message_count_issues:
+            print_to_both(f"  - Example {idx}: {reason}")
+
     # Comprehensive duplicate check
     adjacent_dups = [d for d in all_think_duplicates if d[1]["adjacent"]]
     non_adjacent_dups = [d for d in all_think_duplicates if not d[1]["adjacent"]]
 
-    print_to_both("\n3. ALL Think Block Duplicates (comprehensive check):")
+    print_to_both("\n5. ALL Think Block Duplicates (comprehensive check):")
     print_to_both(f"  Total: {len(all_think_duplicates)}")
     print_to_both(f"  Adjacent (i → tool → j): {len(adjacent_dups)}")
     print_to_both(f"  Non-adjacent: {len(non_adjacent_dups)}")
@@ -294,9 +413,11 @@ def analyze_dataset(  # noqa: C901
         [idx for idx, _ in reuse_issues]
         + [idx for idx, _, _ in all_think_duplicates]
         + [idx for idx, _ in repeated_tool_calls]
+        + [idx for idx, _ in exact_sequence_issues]
+        + [idx for idx, _ in message_count_issues]
     )
     print_to_both(
-        f"\n4. Total Unique Examples with Issues: {len(all_issues)} ({len(all_issues) / len(ds) * 100:.2f}%)"
+        f"\n6. Total Unique Examples with Issues: {len(all_issues)} ({len(all_issues) / len(ds) * 100:.2f}%)"
     )
 
     print_to_both("\n" + "=" * 80)
