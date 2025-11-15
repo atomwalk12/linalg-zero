@@ -1,5 +1,7 @@
+# NOTE: ADJUST gradient_accumulation_steps, per_device_eval_batch_size, per_device_train_batch_size
+
 # Model arguments
-model_name_or_path: unsloth/Qwen3-4B-Base
+model_name_or_path: Qwen/Qwen2.5-3B
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
@@ -57,9 +59,9 @@ gradient_accumulation_steps: 64
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: atomwalk12/Qwen3-4B-Base-SFT
+hub_model_id: atomwalk12/LinalgZero-SFT
 hub_strategy: every_save
-learning_rate: 2e-5 # Alternatives: 4e-5/3e-5/2e-5 and train for 2 epochs
+learning_rate: 2e-5 # Alternatives: 5e-5/4e-5/3e-5/2e-5 and train for 2 epochs
 log_level: info
 logging_steps: 1
 logging_strategy: steps
@@ -72,7 +74,7 @@ max_seq_length: 8192
 max_length: 8192
 max_steps: -1
 num_train_epochs: 1               # NOTE: Alternatively 2 if underfitting
-output_dir: results/Qwen3-4B-Base-SFT
+output_dir: results/LinalgZero-SFT
 overwrite_output_dir: true
 per_device_eval_batch_size: 1
 per_device_train_batch_size: 1

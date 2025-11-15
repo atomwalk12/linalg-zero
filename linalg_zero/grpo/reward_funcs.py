@@ -1,5 +1,5 @@
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
-from linalg_zero.grpo.verify import verify_answers
+from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.shared.types import LibTypes
 
 
@@ -40,23 +40,23 @@ def reward_response_format(parser: XMLParser, *, ground_truth: LibTypes, complet
     return 1.0 if analysis["is_valid_think_then_answer"] else 0.0
 
 
-# def validate_answer(parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str) -> float:
-#     """Reward function that checks if the completion answer matches the ground truth."""
-#     if isinstance(completion, list):
-#         assistant_messages = parser.get_messages(completion, role="assistant")
-#         if not assistant_messages:
-#             return 0.0
+def validate_answer(parser: XMLParser, *, ground_truth: LibTypes, completion: list[dict] | str) -> float:
+    """Reward function that checks if the completion answer matches the ground truth."""
+    if isinstance(completion, list):
+        assistant_messages = parser.get_messages(completion, role="assistant")
+        if not assistant_messages:
+            return 0.0
 
-#         message = assistant_messages[-1]["content"]
-#     else:
-#         message = completion
+        message = assistant_messages[-1]["content"]
+    else:
+        message = completion
 
-#     analysis = parser.analyze_message(message)
-#     answer = analysis["answer"]
-#     target = parse_string(answer) if answer else None
-#     if target is None:
-#         return 0.0
-#     return 1.0 if verify_answers(ground_truth, target) else 0.0
+    analysis = parser.analyze_message(message)
+    answer = analysis["answer"]
+    target = parse_string(answer) if answer else None
+    if target is None:
+        return 0.0
+    return 1.0 if verify_answers(ground_truth, target) else 0.0
 
 
 def reward_num_tool_calls(parser: XMLParser, completion: list[dict]) -> float:
