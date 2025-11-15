@@ -22,6 +22,7 @@ from pathlib import Path
 
 import yaml
 from datasets import Dataset, DownloadMode, load_dataset, load_from_disk
+from transformers import AutoTokenizer
 
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import parse_string, verify_answers
@@ -49,7 +50,7 @@ def extract_answer_value(content: str, parser: XMLParser) -> str | None:
 
 
 def check_tool_call_is_skipped_due_to_simple_op(
-    messages: list[dict], parser: XMLParser, lenient_check: bool = False
+    messages: list[dict], parser: XMLParser, minimal_dataset: bool = False
 ) -> tuple[bool, str]:
     """
     Check if answer messages correctly reference the immediately preceding tool response.
@@ -69,8 +70,8 @@ def check_tool_call_is_skipped_due_to_simple_op(
         return False, "Answer matches tool response"
     else:
         if first_to_last_msg["name"] == "determinant":
-            if answer in [1, 2, 3] and lenient_check:
-                return False, "Rank can be determined from the determinant"
+            if answer in [1, 2, 3] and not minimal_dataset:
+                return False, ""
             else:
                 return (
                     True,
@@ -257,13 +258,83 @@ def matches_exact_message_count(messages: list[dict], ground_truths: list[dict])
     return len(messages) == expected_message_count, f"Expected {expected_message_count} messages, got {len(messages)}"
 
 
+def print_messages_above_token_threshold(
+    tokenizer: AutoTokenizer,
+    ds: Dataset,
+    token_threshold: int,
+):
+    """
+    Print all messages with token counts above the specified threshold.
+    """
+
+    def collect_token_counts(ds, tokenizer):
+        from linalg_zero.distillation.scripts.token_utils import (
+            count_tokens_in_message,
+            get_message_content,
+            parse_messages,
+        )
+
+        token_counts_by_role = {"user": [], "assistant": [], "tool": []}
+        all_token_counts = []
+        messages_with_tokens = []  # Store (token_count, sample_idx, msg_idx, role, content)
+
+        for i in range(len(ds)):
+            messages = parse_messages(ds[i]["messages"])
+            for msg_idx, msg in enumerate(messages):
+                content = get_message_content(msg)
+                role = msg.get("role", "unknown")
+
+                # Skip system messages
+                if role == "system":
+                    continue
+
+                # Count tokens using shared utility
+                token_count = count_tokens_in_message(content, tokenizer)
+                all_token_counts.append(token_count)
+                messages_with_tokens.append((token_count, i, msg_idx, role, content))
+
+                if role in token_counts_by_role:
+                    token_counts_by_role[role].append(token_count)
+
+        return all_token_counts, token_counts_by_role, messages_with_tokens
+
+    _, _, messages_with_tokens = collect_token_counts(ds, tokenizer)
+
+    # Print messages above token threshold
+    print_to_both(f"\n{'=' * 80}")
+    print_to_both(f"MESSAGES WITH MORE THAN {token_threshold} TOKENS (system messages excluded)")
+    print_to_both(f"{'=' * 80}\n")
+
+    # Filter messages above threshold and sort by token count (descending)
+    # Note: system messages already excluded during collection
+    high_token_messages = [msg for msg in messages_with_tokens if msg[0] > token_threshold]
+    sorted_messages = sorted(high_token_messages, key=lambda x: x[0], reverse=True)
+
+    print_to_both(f"Found {len(sorted_messages)} messages above {token_threshold} tokens\n")
+
+    for rank, (token_count, sample_idx, msg_idx, role, content) in enumerate(sorted_messages, 1):
+        print_to_both(f"\n{'─' * 80}")
+        print_to_both(
+            f"Rank #{rank} | Tokens: {token_count} | Sample: {sample_idx} | Message: {msg_idx} | Role: {role}"
+        )
+        print_to_both(f"{'─' * 80}")
+        print_to_both(content)
+
+    print_to_both(f"\n{'=' * 80}")
+    print_to_both(f"SUMMARY: {len(sorted_messages)} messages found with more than {token_threshold} tokens")
+    print_to_both(f"{'=' * 80}")
+
+
 def analyze_dataset(  # noqa: C901
     dataset_name: str,
     config: str,
     split: str,
     _load_from_disk: bool = True,
     verbose: bool = True,
-    lenient_check: bool = False,
+    minimal_dataset: bool = False,
+    assistant_token_threshold: int | None = None,
+    tokenizer_name: str = "Qwen/Qwen2.5-3B-Instruct",
+    push_to_hub: bool = False,
 ):
     """Analyze dataset for answer reuse and duplicated thinking issues."""
     print_to_both(f"Loading dataset: {dataset_name}/{config} ({split})")
@@ -278,20 +349,32 @@ def analyze_dataset(  # noqa: C901
 
     parser = XMLParser()
 
+    # Load tokenizer if token threshold is specified
+    tokenizer = None
+    if assistant_token_threshold is not None:
+        from linalg_zero.distillation.scripts.token_utils import load_tokenizer
+
+        print_to_both(f"Loading tokenizer for token counting: {tokenizer_name}")
+        tokenizer = load_tokenizer(tokenizer_name)
+
+    # Import shared utilities
+    from linalg_zero.distillation.scripts.token_utils import parse_messages
+
     # Track issues
     reuse_issues = []
     all_think_duplicates = []
     exact_sequence_issues = []
     repeated_tool_calls = []
     message_count_issues = []
+    token_threshold_issues = []
 
     for idx in range(len(ds)):
-        messages = json.loads(ds[idx]["messages"]) if isinstance(ds[idx]["messages"], str) else ds[idx]["messages"]
+        messages = parse_messages(ds[idx]["messages"])
         stepwise_ground_truths = json.loads(ds[idx]["stepwise_ground_truths"])
 
         # # Check 1: Answer must reference previous tool response
         has_reuse_issue, reuse_reason = check_tool_call_is_skipped_due_to_simple_op(
-            messages, parser, lenient_check=lenient_check
+            messages, parser, minimal_dataset=minimal_dataset
         )
         if has_reuse_issue:
             reuse_issues.append((idx, reuse_reason))
@@ -303,7 +386,7 @@ def analyze_dataset(  # noqa: C901
 
         # Check 3: Check exact sequence based on stepwise ground truths
         has_exact_sequence, exact_sequence_info = check_exact_sequence(messages, parser, stepwise_ground_truths)
-        if has_exact_sequence:
+        if has_exact_sequence and minimal_dataset:
             exact_sequence_issues.append((idx, exact_sequence_info))
 
         # Check 4: Message count validation
@@ -311,7 +394,15 @@ def analyze_dataset(  # noqa: C901
         if not has_count_issue:
             message_count_issues.append((idx, count_reason))
 
-        # Check 5: ALL duplicate thinking across conversation (including non-adjacent)
+        # Check 5: Assistant token threshold
+        if assistant_token_threshold is not None and tokenizer is not None:
+            from linalg_zero.distillation.scripts.token_utils import get_max_assistant_tokens
+
+            max_tokens = get_max_assistant_tokens(messages, tokenizer)
+            if max_tokens > assistant_token_threshold:
+                token_threshold_issues.append((idx, max_tokens))
+
+        # Check 6: ALL duplicate thinking across conversation (including non-adjacent)
         duplicates, modified_messages = check_all_think_duplicates(messages, parser)
         if duplicates:
             # Print before/after for verification
@@ -346,10 +437,7 @@ def analyze_dataset(  # noqa: C901
     print_to_both(
         f"\n1. Answer-Tool Response Mismatch Issues: {len(reuse_issues)} ({len(reuse_issues) / len(ds) * 100:.2f}%)"
     )
-    # if reuse_issues:
-    #    print_to_both("\nFirst 20 examples:")
-    #    for idx, reason in reuse_issues[:20]:
-    #        print_to_both(f"  - Example {idx}: {reason}")
+
     if reuse_issues:
         for idx, reason in reuse_issues:
             print_to_both(f"  - Example {idx}: {reason}")
@@ -365,7 +453,7 @@ def analyze_dataset(  # noqa: C901
                 )
 
     print_to_both(
-        f"\n3. Exact Sequence Mismatches: {len(exact_sequence_issues)} ({len(exact_sequence_issues) / len(ds) * 100:.2f}%)"
+        f"\n3. Exact Ground Truth Sequence Mismatches: {len(exact_sequence_issues)} ({len(exact_sequence_issues) / len(ds) * 100:.2f}%)"
     )
     if exact_sequence_issues:
         for idx, issues_list in exact_sequence_issues:
@@ -383,11 +471,22 @@ def analyze_dataset(  # noqa: C901
         for idx, reason in message_count_issues:
             print_to_both(f"  - Example {idx}: {reason}")
 
+    print_to_both(
+        f"\n5. Assistant Token Threshold Exceeded: {len(token_threshold_issues)} ({len(token_threshold_issues) / len(ds) * 100:.2f}%)"
+    )
+    if token_threshold_issues:
+        if assistant_token_threshold is not None:
+            print_to_both(f"  Threshold: {assistant_token_threshold} tokens")
+        for idx, max_tokens in token_threshold_issues:
+            print_to_both(f"  - Example {idx}: max {max_tokens} tokens")
+        if verbose:
+            print_messages_above_token_threshold(tokenizer, ds, assistant_token_threshold)
+
     # Comprehensive duplicate check
     adjacent_dups = [d for d in all_think_duplicates if d[1]["adjacent"]]
     non_adjacent_dups = [d for d in all_think_duplicates if not d[1]["adjacent"]]
 
-    print_to_both("\n5. ALL Think Block Duplicates (comprehensive check):")
+    print_to_both("\n6. ALL Think Block Duplicates (comprehensive check):")
     print_to_both(f"  Total: {len(all_think_duplicates)}")
     print_to_both(f"  Adjacent (i → tool → j): {len(adjacent_dups)}")
     print_to_both(f"  Non-adjacent: {len(non_adjacent_dups)}")
@@ -415,21 +514,23 @@ def analyze_dataset(  # noqa: C901
         + [idx for idx, _ in repeated_tool_calls]
         + [idx for idx, _ in exact_sequence_issues]
         + [idx for idx, _ in message_count_issues]
+        + [idx for idx, _ in token_threshold_issues]
     )
     print_to_both(
-        f"\n6. Total Unique Examples with Issues: {len(all_issues)} ({len(all_issues) / len(ds) * 100:.2f}%)"
+        f"\n7. Total Unique Examples with Issues: {len(all_issues)} ({len(all_issues) / len(ds) * 100:.2f}%)"
     )
 
     print_to_both("\n" + "=" * 80)
 
-    ds = remove_issues(all_issues, ds)
+    cleaned_ds = remove_issues(all_issues, ds)
 
     # Save or push cleaned dataset
     print_to_both("\n" + "=" * 80)
     print_to_both("Cleaned dataset ready.")
     print_to_both(f"Total examples removed: {len(all_issues)}")
-    print_to_both("\nTo push to hub, uncomment the following line:")
-    print_to_both("# cleaned_train.push_to_hub('atomwalk12/linalgzero-distilled-cleaned')")
+    if push_to_hub:
+        print_to_both(f"Pushing dataset to https://huggingface.co/datasets/{dataset_name}-clean")
+        cleaned_ds.push_to_hub(f"{dataset_name}-clean")
     print_to_both("=" * 80)
 
     return reuse_issues, all_think_duplicates, all_issues
@@ -653,6 +754,8 @@ if __name__ == "__main__":
     analyse = False
     local_dataset = False
     commit = False
+    # Set to None to disable token threshold check, or set to a number (e.g., 1000) to enable
+    assistant_token_threshold = None
     dataset_path = local_dataset_path if local_dataset else "atomwalk12/linalgzero-distilled"
     if analyse:
         output_file = "analyse_indices.txt"
@@ -667,7 +770,14 @@ if __name__ == "__main__":
     else:
         output_file = "analyse_dataset.txt"
         reuse_issues, all_think_duplicates, all_issues = analyze_dataset(
-            dataset_path, "default", "train", _load_from_disk=local_dataset, lenient_check=True
+            dataset_path,
+            "default",
+            "train",
+            _load_from_disk=local_dataset,
+            verbose=True,
+            minimal_dataset=True,
+            assistant_token_threshold=800,
+            push_to_hub=False,
         )
 
     print_to_both(f"Wrote data to file: {output_file}")
