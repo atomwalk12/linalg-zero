@@ -1,11 +1,25 @@
 ## NOTE: the llama-cpp server is used to startup the inference server using `make distillation-server`
 # Fixing the llama-cpp server version to 0.3.13 as the upstream repository gets updated frequently
 # leading to incompatibility issues. If bumping the version don't forget to update pyproject.toml.
-.PHONY: install
-install: ## Install the virtual environment and install the pre-commit hooks.
+.PHONY: install-distillation
+install-distillation: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
 #	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
-	@uv sync --locked
+	@uv sync --locked --group distillation
+	@uv pip install setuptools flash-attn==2.7.3 --no-build-isolation
+	@uv run pre-commit install
+
+.PHONY: install-sft
+install-sft: ## Install the virtual environment and install the pre-commit hooks.
+	@echo "🚀 Creating virtual environment using uv"
+	@uv sync --locked --group sft
+	@uv pip install setuptools flash-attn==2.7.3 --no-build-isolation
+	@uv run pre-commit install
+
+.PHONY: install-grpo
+install-grpo: ## Install the virtual environment and install the pre-commit hooks.
+	@echo "🚀 Creating virtual environment using uv"
+	@uv sync --locked --group grpo
 	@uv pip install setuptools flash-attn==2.7.3 --no-build-isolation
 	@uv run pre-commit install
 

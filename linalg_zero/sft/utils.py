@@ -68,7 +68,7 @@ def get_unsloth_model(
         load_in_4bit=model_args.load_in_4bit,
         load_in_8bit=model_args.load_in_8bit,
         max_lora_rank=model_args.lora_r,
-        enforce_eager=model_args.enforce_eager,
+        # enforce_eager=model_args.enforce_eager,
         fast_inference=use_vllm,
         gpu_memory_utilization=training_args.gpu_memory_utilization,
     )
@@ -89,10 +89,10 @@ def get_unsloth_model(
     if training_args.chat_template is not None:
         tokenizer.chat_template = training_args.chat_template
 
-    has_tokenizer_template = tokenizer.chat_template is not None
+    has_user_template = training_args.chat_template is not None
     has_config_template = trl_training_args.chat_template_path is not None
 
-    assert has_tokenizer_template ^ has_config_template, (
+    assert has_user_template ^ has_config_template, (
         "Exactly one of tokenizer.chat_template or chat_template_path must be set, not both or neither"
     )
 

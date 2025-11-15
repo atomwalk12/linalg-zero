@@ -71,6 +71,16 @@ def main(  # noqa: C901
     logger.info("Loading model and tokenizer...")
     model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args)
 
+    # Ensure pad token and padding side are set consistently for SFT
+    # if tokenizer.pad_token_id is None:
+    #     tokenizer.pad_token_id = tokenizer.eos_token_id
+    # tokenizer.padding_side = "right"
+    # if getattr(model, "config", None) is not None:
+    #     model.config.pad_token_id = tokenizer.pad_token_id
+    # if getattr(model, "generation_config", None) is not None:
+    #     model.generation_config.pad_token_id = tokenizer.pad_token_id
+    #     model.generation_config.eos_token_id = tokenizer.eos_token_id
+
     def ensure_text(x: dict[str, Any]) -> dict[str, Any]:
         x["text"] = tokenizer.apply_chat_template(x["messages"], tokenize=False)
         return x
@@ -125,6 +135,7 @@ def main(  # noqa: C901
         # to avoid unbounded generation in the transformers `pipeline()` function
         if trainer.model is not None and trainer.model.generation_config is not None:
             trainer.model.generation_config.eos_token_id = tokenizer.eos_token_id
+            assert trainer.model.generation_config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
         trainer.save_model(trl_training_args.output_dir)
         logger.info(f"Model saved to {trl_training_args.output_dir}")
 
@@ -175,7 +186,8 @@ if __name__ == "__main__":
     """Script entry point for SFT training."""
     if "--config" not in sys.argv:
         sys.argv.append("--config")
-        sys.argv.append("linalg_zero/config/sft/qwen3-4b-base/sft_debug_config.yaml")
+        sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production.yaml")
+        # sys.argv.append("linalg_zero/config/sft/qwen3-4b-base/production.yaml")
 
     parser = TrlParser([ScriptArguments, SFTRunConfig, SFTConfig, SFTModelConfig])
     script_args, training_args, trl_training_args, model_args = parser.parse_args_and_config()
