@@ -18,10 +18,11 @@ class DiagnosticTracker:
         self.per_sample_interaction: list[float] = []
 
         # Diagnostic metrics
-        self.sum_format_valid = 0
+        self.sum_strict_format = 0
         self.sum_tool_parse_success = 0
         self.sum_answer_attempted = 0
         self.sum_turns_taken = 0
+        self.sum_partial_format = 0.0
         self.early_stop_reasons: dict[str, int] = {}
         self.total_samples = 0
 
@@ -40,10 +41,12 @@ class DiagnosticTracker:
         self.per_sample_interaction.append(reward_interaction)
 
         # Diagnostic metrics
-        self.sum_format_valid += int(state.format_valid)
+        self.sum_strict_format += state.strict_format_match
+        self.sum_partial_format += state.partial_format_score
         self.sum_tool_parse_success += int(state.tool_parse_success)
         self.sum_answer_attempted += int(state.answer_attempted)
         self.sum_turns_taken += state.turns_taken
+
         self.total_samples += 1
 
         if state.early_stop_reason:
@@ -65,10 +68,11 @@ class DiagnosticTracker:
         }
 
         metrics.update({
-            "diagnostic/format_valid_ratio": self.sum_format_valid / denom,
+            "diagnostic/format_valid_ratio": self.sum_strict_format / denom,
             "diagnostic/tool_parse_success_ratio": self.sum_tool_parse_success / denom,
             "diagnostic/answer_attempted_ratio": self.sum_answer_attempted / denom,
             "diagnostic/avg_turns_taken": self.sum_turns_taken / denom,
+            "diagnostic/partial_format_adherence": self.sum_partial_format / denom,
         })
 
         for reason, count in self.early_stop_reasons.items():
@@ -86,17 +90,23 @@ class DiagnosticTracker:
         }
 
     def get_progress_info(self) -> dict[str, str]:
-        """Return current progress info for progress bar (simplified metrics)."""
+        """Return current progress info for progress bar (4 key metrics)."""
         if self.total_samples == 0:
             return {
-                "correctness": "0.000",
-                "format_valid": "0.000",
+                "partial": "0.000",
+                "strict": "0.000",
+                "turns": "0.0",
+                "correct": "0.000",
             }
 
+        partial_format = self.sum_partial_format / self.total_samples
+        strict_format = self.sum_strict_format / self.total_samples
+        avg_turns = self.sum_turns_taken / self.total_samples
         correctness = self.sum_reward_final / self.total_samples
-        format_valid = self.sum_format_valid / self.total_samples
 
         return {
-            "correctness": f"{correctness:.3f}",
-            "format_valid": f"{format_valid:.3f}",
+            "turns": f"{avg_turns:.1f}",
+            "strict": f"{strict_format:.3f}",
+            "partial": f"{partial_format:.3f}",
+            "correct": f"{correctness:.3f}",
         }

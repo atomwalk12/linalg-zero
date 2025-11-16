@@ -23,7 +23,8 @@ class EvaluationState:
         self.reward_final_answer = 0.0
         self.reward_interaction = 0.0
 
-        self.format_valid = False
+        self.strict_format_match = 0.0
+        self.partial_format_score = 0.0
         self.tool_parse_success = False
         self.answer_attempted = False
         self.turns_taken = 0

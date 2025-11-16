@@ -16,7 +16,7 @@ from trl.trainer.sft_trainer import SFTTrainer
 
 from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
 from linalg_zero.sft.callbacks import get_callbacks
-from linalg_zero.sft.utils import get_unsloth_model, init_wandb_training
+from linalg_zero.sft.utils import get_unsloth_model, init_wandb_training, ensure_tokenizer_has_defaults
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
@@ -72,14 +72,7 @@ def main(  # noqa: C901
     model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args)
 
     # Ensure pad token and padding side are set consistently for SFT
-    # if tokenizer.pad_token_id is None:
-    #     tokenizer.pad_token_id = tokenizer.eos_token_id
-    # tokenizer.padding_side = "right"
-    # if getattr(model, "config", None) is not None:
-    #     model.config.pad_token_id = tokenizer.pad_token_id
-    # if getattr(model, "generation_config", None) is not None:
-    #     model.generation_config.pad_token_id = tokenizer.pad_token_id
-    #     model.generation_config.eos_token_id = tokenizer.eos_token_id
+    ensure_tokenizer_has_defaults(tokenizer, model)
 
     def ensure_text(x: dict[str, Any]) -> dict[str, Any]:
         x["text"] = tokenizer.apply_chat_template(x["messages"], tokenize=False)
@@ -90,6 +83,9 @@ def main(  # noqa: C901
     ##############################
     # Initialize the SFT Trainer #
     ##############################
+    trl_training_args.max_eval_samples = training_args.max_eval_samples
+    trl_training_args.eval_max_new_tokens = training_args.eval_max_new_tokens
+
     logger.info("Initializing SFT Trainer...")
     trainer = SFTTrainer(
         model=model,
@@ -136,6 +132,11 @@ def main(  # noqa: C901
         if trainer.model is not None and trainer.model.generation_config is not None:
             trainer.model.generation_config.eos_token_id = tokenizer.eos_token_id
             assert trainer.model.generation_config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
+
+        # Restore k,v cache for fast inference before saving
+        if trainer.model is not None:
+            trainer.model.config.use_cache = True
+
         trainer.save_model(trl_training_args.output_dir)
         logger.info(f"Model saved to {trl_training_args.output_dir}")
 
@@ -146,10 +147,6 @@ def main(  # noqa: C901
         }
         if trainer.accelerator.is_main_process:
             trainer.create_model_card(**kwargs)
-            # Restore k,v cache for fast inference
-            if trainer.model is not None:
-                trainer.model.config.use_cache = True
-                trainer.model.config.save_pretrained(trl_training_args.output_dir)
 
     except Exception:
         logger.exception("Failed to save model")
@@ -159,13 +156,20 @@ def main(  # noqa: C901
     # Evaluate #
     ############
     if trl_training_args.do_eval:
-        logger.info("*** Evaluation ***")
+        logger.info("*** Final Evaluation on Full Dataset ***")
         try:
+            # Temporarily override max_eval_samples to evaluate on full dataset
+            original_max_eval_samples = getattr(trl_training_args, "max_eval_samples", None)
+            trl_training_args.max_eval_samples = None
+
             metrics = trainer.evaluate()
             metrics["eval_samples"] = len(dataset[script_args.dataset_test_split])
             trainer.log_metrics("eval", metrics)
             trainer.save_metrics("eval", metrics)
             logger.info("Evaluation completed successfully!")
+
+            # Restore original value
+            trl_training_args.max_eval_samples = original_max_eval_samples
 
         except Exception:
             logger.exception("Evaluation failed")

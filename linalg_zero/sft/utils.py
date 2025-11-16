@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 from datasets import DatasetDict
 from datasets import load_dataset as hf_load_dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
 from transformers.tokenization_utils import PreTrainedTokenizer
 from trl.trainer.model_config import ModelConfig
 from trl.trainer.utils import get_kbit_device_map, get_quantization_config
@@ -24,6 +24,24 @@ def is_using_deepspeed() -> bool:
         or os.environ.get("ACCELERATE_USE_DEEPSPEED", "false").lower() == "true"
         or "deepspeed" in os.environ.get("ACCELERATE_CONFIG_FILE", "").lower()
     )
+
+
+def ensure_tokenizer_has_defaults(tokenizer: PreTrainedTokenizer, model: PreTrainedModel) -> None:
+    if getattr(tokenizer, "pad_token_id", None) is None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+    assert tokenizer.padding_side == "right", "Padding side is not right"
+
+    if getattr(model, "config", None) is not None:
+        assert model.config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
+        assert model.config.eos_token_id == tokenizer.eos_token_id, "EOS token ID mismatch"
+        model.config.pad_token_id = tokenizer.pad_token_id
+        model.config.eos_token_id = tokenizer.eos_token_id
+    if getattr(model, "generation_config", None) is not None:
+        assert model.generation_config is not None, "Generation config is not set"
+        assert model.generation_config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
+        assert model.generation_config.eos_token_id == tokenizer.eos_token_id, "EOS token ID mismatch"
+        model.generation_config.pad_token_id = tokenizer.pad_token_id
+        model.generation_config.eos_token_id = tokenizer.eos_token_id
 
 
 def init_wandb_training(training_args: SFTRunConfig) -> None:
