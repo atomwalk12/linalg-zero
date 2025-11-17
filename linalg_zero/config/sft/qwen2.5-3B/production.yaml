@@ -34,10 +34,10 @@ eos_token: <|im_end|>
 bf16: true
 
 ## Evaluation parameters
-do_eval: true                  # does a final evaluation step at the end of training
-eval_on_start: true           # does an evaluation step at the start of training
+do_eval: false                  # does a final evaluation step at the end of training
+eval_on_start: false           # does an evaluation step at the start of training
 eval_strategy: 'steps'         # can be "no","epoch","steps"
-eval_steps: 200                # Frequent evals for trend monitoring
+eval_steps: 100                # NOTE: Check also save_steps
 max_eval_samples: 25          # TODO: adjust to 100
 load_best_model_at_end: true
 metric_for_best_model: eval_loss
@@ -64,7 +64,7 @@ hub_model_id: atomwalk12/LinalgZero-SFT
 hub_strategy: every_save
 learning_rate: 2e-5 # Alternatives: 5e-5/4e-5/3e-5/2e-5 and train for 2 epochs
 log_level: info
-logging_steps: 10
+logging_steps: 5
 logging_strategy: steps
 lr_scheduler_type: cosine_with_min_lr
 lr_scheduler_kwargs:
@@ -83,7 +83,7 @@ push_to_hub: true
 report_to:
 - wandb
 save_strategy: steps
-save_steps: 200
+save_steps: 100
 seed: 42
 use_liger_kernel: false     # Supported only for Llama, Mistral, Mixtral, and Gemma models
 warmup_ratio: 0.03

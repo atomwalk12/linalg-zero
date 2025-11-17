@@ -30,7 +30,6 @@ from linalg_zero.shared.system_prompts import (
     THINK_CLOSE,
     TOOL_CALL_CLOSE,
     TOOL_CALL_OPEN,
-    TOOL_RESPONSE_CLOSE,
 )
 from linalg_zero.shared.utils import get_logger
 
@@ -49,7 +48,8 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         self.library = get_lib()
         self._parser = XMLParser()
         self.model_config = DefaultConfig()
-        self._metric_defined = False
+        self._per_sample_metric_defined = False
+        self._aggregated_metric_defined = False
 
     def on_evaluate(
         self,
@@ -96,9 +96,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         if wandb.run:
             # Log aggregated metrics as scalars
             if eval_metrics:
-                wandb_metrics = {f"eval/{k}": v for k, v in eval_metrics.items()}
-                wandb_metrics["trainer/global_step"] = state.global_step
-                wandb.log(wandb_metrics, step=state.global_step)
+                self._log_aggregated_metrics(eval_metrics, state)
 
             # Log per-sample distributions
             if per_sample_rewards:
@@ -115,6 +113,22 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
             logger.info(f"tool_use/{metric_name}: {value:.3f}")
 
+    def _log_aggregated_metrics(self, metrics: dict[str, float], state: TrainerState) -> None:
+        """Log aggregated evaluation metrics to W&B."""
+        if not wandb.run:
+            logger.debug("No active wandb run, skipping aggregated metrics logging")
+            return
+
+        # Define metric only once per run
+        if not self._aggregated_metric_defined:
+            wandb.define_metric("eval_metrics/*", step_metric="eval_metrics/global_step")
+            self._aggregated_metric_defined = True
+
+        # Log all metrics with global_step as the step metric
+        wandb_metrics = {f"eval_metrics/{k}": float(v) for k, v in metrics.items()}
+        wandb_metrics["eval_metrics/global_step"] = state.global_step
+        wandb.log(wandb_metrics, commit=True)
+
     def _log_per_sample_distributions(self, per_sample_rewards: dict[str, list[float]], state: TrainerState) -> None:
         """Log per-sample rewards to W&B for richer visualization."""
         if not wandb.run:
@@ -122,9 +136,9 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             return
 
         # Define metric only once per run
-        if not self._metric_defined:
+        if not self._per_sample_metric_defined:
             wandb.define_metric("eval_samples/*", step_metric="eval_samples/sample_idx")
-            self._metric_defined = True
+            self._per_sample_metric_defined = True
 
         # Log each sample individually to create multiple data points
         for metric_name, values in per_sample_rewards.items():
@@ -193,10 +207,15 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
         with torch.no_grad():
-            pad_id = getattr(tokenizer, "pad_token_id", None) or getattr(tokenizer, "eos_token_id", None)
+            pad_id = getattr(tokenizer, "pad_token_id", None)
             eos_id = getattr(tokenizer, "eos_token_id", None)
             assert eos_id is not None, "EOS token ID is not set"
             assert pad_id is not None, "PAD token ID is not set"
+
+            stop_token_ids = [eos_id] + [
+                tokenizer.encode(s, add_special_tokens=False)[0]
+                for s in ["<tool_response>", "</tool_response>"]
+            ]
 
             outputs = model.generate(  # type: ignore[operator]
                 input_ids=inputs["input_ids"],
@@ -204,8 +223,9 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 max_new_tokens=max_new_tokens,
                 do_sample=False,
                 pad_token_id=pad_id,
-                eos_token_id=eos_id,
-                stop_strings=[ANSWER_CLOSE, TOOL_CALL_CLOSE, TOOL_RESPONSE_CLOSE, tokenizer.eos_token],
+                # eos_token_id=eos_id,
+                eos_token_id=stop_token_ids,
+                stop_strings=["<tool_response>", "</tool_response>"],
                 tokenizer=tokenizer,
                 top_k=None,
                 top_p=None,
@@ -219,12 +239,16 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         output = tokenizer.decode(generated_tokens[0], skip_special_tokens=True)
 
         # Check if generation was truncated due to max_new_tokens
+        logger.info("=" * 100)
         if (
             generated_tokens.shape[1] == max_new_tokens
             and getattr(tokenizer, "eos_token_id", None) is not None
             and generated_tokens[0, -1].item() != tokenizer.eos_token_id
         ):
-            logger.warning(f"Generation may have been truncated at max_new_tokens={max_new_tokens}, output={output}")
+            logger.warning(f"Generation may have been truncated at max_new_tokens={max_new_tokens}")
+
+        logger.info(f"Generated output: {output}")
+        logger.info("=" * 100)
 
         return output
 
@@ -240,19 +264,22 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         state = EvaluationState()
 
         context = list(sample["messages"])
+        all_context = list(sample["messages"])
+        tools = sample["tools"]
 
         # Multi-turn conversation loop
         for turn_idx in range(n_turns):
             state.turns_taken = turn_idx + 1
 
-            # Generate assistant response
-            prompt = tokenizer.apply_chat_template(context, tokenize=False, add_generation_prompt=True)
+            # Generate assistant response (include tools so template exposes function signatures)
+            prompt = tokenizer.apply_chat_template(context, tools=tools, tokenize=False, add_generation_prompt=True)
             if not isinstance(prompt, str):
                 state.early_stop_reason = "prompt_format_error"
                 break
 
             output = self._generate(model, tokenizer, prompt, max_new_tokens)
             message = self.extract_exact_match(output, context)
+            all_context.append({"role": "assistant", "content": output})
 
             # Check if message extraction worked
             if message is None:
@@ -284,7 +311,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         # Compute partial format score on complete conversation
         state.strict_format_match = self.calculate_exact_match(context)
-        state.partial_format_score = self.calculate_partial_match(context)
+        state.partial_format_score = self.calculate_partial_match(all_context)
 
         # Calculate state based on conversation history
         # TODO: perhaps remove this altogether

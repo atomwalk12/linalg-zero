@@ -6,7 +6,7 @@ from typing import Any
 from datasets import Dataset, DatasetDict, DownloadMode, load_dataset
 
 from linalg_zero.shared.lib import get_tools
-from linalg_zero.shared.system_prompts import get_math_system_prompt
+from linalg_zero.shared.system_prompts import get_sft_system_prompt
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 # Log both to file and console
@@ -44,7 +44,7 @@ def process_dataset(dataset: DatasetDict) -> DatasetDict:
     # Add missing columns (messages & tools)
     def ensure_messages(example: dict[str, Any]) -> dict[str, Any]:
         example["messages"] = [
-            {"role": "system", "content": get_math_system_prompt(include_examples=False)},
+            {"role": "system", "content": get_sft_system_prompt()},
             {"role": "user", "content": example["query"]},
         ]
         return example
@@ -55,8 +55,13 @@ def process_dataset(dataset: DatasetDict) -> DatasetDict:
         return example
 
     def parse_messages(example: dict[str, Any]) -> dict[str, Any]:
-        """Convert messages from JSON string to array"""
+        """Convert messages from JSON string to array and replace system prompt"""
         example["messages"] = json.loads(example["messages"])
+
+        # Replace the system prompt with the SFT system prompt
+        if example["messages"] and example["messages"][0]["role"] == "system":
+            example["messages"][0]["content"] = get_sft_system_prompt()
+
         return example
 
     train_dataset = dataset["train"]

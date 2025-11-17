@@ -1,10 +1,10 @@
 import os
+from typing import Any
 
 os.environ["UNSLOTH_VLLM_STANDBY"] = "1"
 import unsloth  # noqa: I001, F401
 import logging
 import sys
-from typing import Any
 
 import transformers
 from datasets import DatasetDict, load_dataset
@@ -75,10 +75,28 @@ def main(  # noqa: C901
     ensure_tokenizer_has_defaults(tokenizer, model)
 
     def ensure_text(x: dict[str, Any]) -> dict[str, Any]:
-        x["text"] = tokenizer.apply_chat_template(x["messages"], tokenize=False)
+        x["text"] = tokenizer.apply_chat_template(x["messages"], tools=x["tools"], tokenize=False)
         return x
 
-    dataset = dataset.map(ensure_text)
+    def formatting_prompts_func(examples):
+        convos = examples["messages"]  # List of 1000 conversations
+        tools = examples.get("tools", None)  # List of 1000 tool specs
+
+        texts = []
+        for i, convo in enumerate(convos):
+            example_tools = tools[i] if tools and isinstance(tools, list) else tools
+
+            text = tokenizer.apply_chat_template(
+                convo,
+                tools=example_tools,  # Pass tools[i] for the i-th conversation
+                tokenize=False,
+                add_generation_prompt=False,
+            )
+            texts.append(text)
+
+        return {"text": texts}
+
+    dataset = dataset.map(formatting_prompts_func, batched=True)
 
     ##############################
     # Initialize the SFT Trainer #
