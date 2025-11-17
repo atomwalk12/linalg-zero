@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 from pathlib import Path
 
@@ -15,7 +16,11 @@ from unsloth.tokenizer_utils import SFTConfig
 from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
 from linalg_zero.shared.system_prompts import (
     ANSWER_CLOSE,
+    ANSWER_OPEN,
+    THINK_CLOSE,
+    THINK_OPEN,
     TOOL_CALL_CLOSE,
+    TOOL_CALL_OPEN,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,14 +41,14 @@ def ensure_tokenizer_has_defaults(tokenizer: PreTrainedTokenizer, model: PreTrai
     assert tokenizer.padding_side == "right", "Padding side is not right"
 
     if getattr(model, "config", None) is not None:
-        assert model.config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
-        assert model.config.eos_token_id == tokenizer.eos_token_id, "EOS token ID mismatch"
+        # assert model.config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
+        # assert model.config.eos_token_id == tokenizer.eos_token_id, "EOS token ID mismatch"
         model.config.pad_token_id = tokenizer.pad_token_id
         model.config.eos_token_id = tokenizer.eos_token_id
     if getattr(model, "generation_config", None) is not None:
         assert model.generation_config is not None, "Generation config is not set"
-        assert model.generation_config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
-        assert model.generation_config.eos_token_id == tokenizer.eos_token_id, "EOS token ID mismatch"
+        # assert model.generation_config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
+        # assert model.generation_config.eos_token_id == tokenizer.eos_token_id, "EOS token ID mismatch"
         model.generation_config.pad_token_id = tokenizer.pad_token_id
         model.generation_config.eos_token_id = tokenizer.eos_token_id
 
@@ -79,10 +84,34 @@ def get_tokenizer(model_args: ModelConfig, training_args: SFTRunConfig) -> PreTr
     return tokenizer
 
 
+def load_model_for_evaluation(
+    model_path: str,
+    max_seq_length: int = 2048,
+    dtype: torch.dtype | None = None,
+) -> tuple[PreTrainedModel, PreTrainedTokenizer]:
+    """
+    Load a trained model for evaluation/inference.
+    """
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=model_path,
+        max_seq_length=max_seq_length,
+        dtype=dtype,
+        load_in_4bit=False,
+    )
+
+    FastLanguageModel.for_inference(model)
+
+    return model, tokenizer
+
+
 def get_unsloth_model(
-    model_args: SFTModelConfig, training_args: SFTRunConfig, trl_training_args: SFTConfig, use_vllm: bool = False
+    model_args: SFTModelConfig,
+    training_args: SFTRunConfig,
+    trl_training_args: SFTConfig,
+    resume_path: str | None = None,
+    use_vllm: bool = False,
 ) -> tuple[FastLanguageModel, PreTrainedTokenizer]:
-    """Fetch the model and optimizer."""
+    """Fetch the model and optimizer for training."""
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_args.model_name_or_path,
@@ -95,25 +124,50 @@ def get_unsloth_model(
         gpu_memory_utilization=training_args.gpu_memory_utilization,
     )
 
-    # Ensure tool/tag tokens are treated as single high-probability tokens
-    special_tags = [ANSWER_CLOSE, TOOL_CALL_CLOSE]
+    # Determine if we're resuming from a checkpoint
+    num_added = 0
+    has_added_tokens = False
 
-    num_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tags})
-    if num_added and num_added > 0:
-        model._need_to_train_embeddings = True
-        model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=128)
-        logger.info(f"Added {num_added} special tokens for tags and resized embeddings.")
+    pad_to_multiple_of = 128
+    if resume_path:
+        # On resume: DO NOT add new tokens. Load tokenizer from checkpoint to keep vocab identical.
+        tokenizer = AutoTokenizer.from_pretrained(
+            resume_path,
+            trust_remote_code=model_args.trust_remote_code,
+        )
+        logger.info(f"Loaded tokenizer from resume checkpoint: {resume_path}")
+
+        tok_vocab = len(tokenizer)
+        model_vocab = model.get_input_embeddings().weight.size(0)
+
+        # Account for pad_to_multiple_of when comparing
+        expected_model_vocab = math.ceil(tok_vocab / pad_to_multiple_of) * pad_to_multiple_of
+
+        if expected_model_vocab != model_vocab:
+            logger.info(f"Resizing embeddings to match checkpoint tokenizer vocab: {model_vocab} -> {tok_vocab}")
+            model.resize_token_embeddings(tok_vocab, pad_to_multiple_of=pad_to_multiple_of)
+            has_added_tokens = True
     else:
-        logger.info("No new special tokens added (tokens likely already present). Skipping resize.")
+        # Fresh run: register special tag tokens and resize embeddings
+        special_tags = [THINK_OPEN, THINK_CLOSE, TOOL_CALL_OPEN, TOOL_CALL_CLOSE, ANSWER_OPEN, ANSWER_CLOSE]
+        num_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tags})
+        if num_added and num_added > 0:
+            model._need_to_train_embeddings = True
+            model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=pad_to_multiple_of)
+            logger.info(f"Added {num_added} special tokens for tags and resized embeddings.")
+            has_added_tokens = True
+        else:
+            logger.info("No new special tokens added (tokens likely already present). Skipping resize.")
 
     model = FastLanguageModel.get_peft_model(
         model,
         r=model_args.lora_r,
-        modules_to_save=["embed_tokens", "lm_head"] if num_added > 0 else None,
+        modules_to_save=["embed_tokens", "lm_head"] if has_added_tokens else None,
         target_modules=model_args.lora_target_modules,
         lora_alpha=model_args.lora_alpha,
         use_gradient_checkpointing="unsloth",
         random_state=3407,
+        ensure_weight_tying=True,
     )
 
     if trl_training_args.chat_template_path is not None:

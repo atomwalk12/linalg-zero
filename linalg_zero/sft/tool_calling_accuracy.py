@@ -28,6 +28,7 @@ from linalg_zero.shared.system_prompts import (
     ANSWER_CLOSE,
     ANSWER_OPEN,
     THINK_CLOSE,
+    THINK_OPEN,
     TOOL_CALL_CLOSE,
     TOOL_CALL_OPEN,
     TOOL_RESPONSE_CLOSE,
@@ -246,14 +247,18 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         # Extract only the generated tokens (after the input)
         prompt_length = inputs["input_ids"].shape[1]
         generated_tokens = outputs[:, prompt_length:]
+
+        # Special tokens to preserve
+        KEEP_TOKENS = {ANSWER_OPEN, ANSWER_CLOSE, THINK_OPEN, THINK_CLOSE, TOOL_CALL_OPEN, TOOL_CALL_CLOSE}
+
+        # Decode without skipping any special tokens
         output_raw = tokenizer.decode(generated_tokens[0], skip_special_tokens=False)
-        output = tokenizer.decode(generated_tokens[0], skip_special_tokens=True)
-        if output_raw.endswith(TOOL_CALL_CLOSE):
-            assert output.count(TOOL_CALL_CLOSE) == 0, f"Output: {output}"
-            output = output + TOOL_CALL_CLOSE
-        elif output_raw.endswith(ANSWER_CLOSE):
-            assert output.count(ANSWER_CLOSE) == 0, f"Output: {output}"
-            output = output + ANSWER_CLOSE
+
+        # Remove unwanted special tokens
+        output = output_raw
+        for special_token in tokenizer.all_special_tokens:
+            if special_token not in KEEP_TOKENS:
+                output = output.replace(special_token, "")
 
         # Check if generation was truncated due to max_new_tokens
         logger.info("=" * 100)

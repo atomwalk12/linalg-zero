@@ -198,11 +198,25 @@ class XMLParser:
             if (
                 isinstance(data, dict)
                 and isinstance(data.get("name"), str)
-                and isinstance(data.get("arguments"), dict)
+                and isinstance(data.get("arguments"), (dict, str))
             ):
-                tool_info["json_valid"] = True
+
+                def parse_args() -> tuple[dict | None, bool]:
+                    arguments = data["arguments"]
+                    if isinstance(arguments, str):
+                        try:
+                            arguments = json.loads(arguments)
+                        except (ValueError, SyntaxError):
+                            return None, False
+                        else:
+                            return arguments, True
+                    else:
+                        return arguments, True
+
+                arguments, json_valid = parse_args()
+                tool_info["json_valid"] = json_valid
                 tool_info["name"] = data["name"]
-                tool_info["arguments"] = data["arguments"]
+                tool_info["arguments"] = arguments
                 if tool_names is not None:
                     tool_info["name_known"] = data["name"] in tool_names
             else:

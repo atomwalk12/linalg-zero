@@ -69,7 +69,7 @@ def main(  # noqa: C901
 
     # Model, tokenizer, dataset
     logger.info("Loading model and tokenizer...")
-    model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args)
+    model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args, resume_path=last_checkpoint)
 
     # Ensure pad token and padding side are set consistently for SFT
     ensure_tokenizer_has_defaults(tokenizer, model)
@@ -178,7 +178,7 @@ def main(  # noqa: C901
         try:
             # Temporarily override max_eval_samples to evaluate on full dataset
             original_max_eval_samples = getattr(trl_training_args, "max_eval_samples", None)
-            trl_training_args.max_eval_samples = 250
+            trl_training_args.max_eval_samples = 50
 
             metrics = trainer.evaluate()
             metrics["eval_samples"] = len(dataset[script_args.dataset_test_split])

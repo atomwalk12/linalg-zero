@@ -35,7 +35,7 @@ bf16: true
 
 ## Evaluation parameters
 do_eval: false                  # does a final evaluation step at the end of training
-eval_on_start: false           # does an evaluation step at the start of training
+eval_on_start: true           # does an evaluation step at the start of training
 eval_strategy: 'steps'         # can be "no","epoch","steps"
 eval_steps: 100                # NOTE: Check also save_steps
 max_eval_samples: 25          # TODO: adjust to 100
