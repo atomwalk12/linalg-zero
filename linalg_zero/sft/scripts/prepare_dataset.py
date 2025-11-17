@@ -1,5 +1,6 @@
 import json
 import logging
+import unicodedata
 from argparse import ArgumentParser
 from typing import Any
 
@@ -30,7 +31,7 @@ def load_datasets(src_train: str, src_test: str) -> DatasetDict:
     return DatasetDict({"train": train_dataset, "validation": test_dataset})
 
 
-def process_dataset(dataset: DatasetDict) -> DatasetDict:
+def process_dataset(dataset: DatasetDict, normalize_unicode: bool) -> DatasetDict:  # noqa: C901
     """Load and process dataset for SFT training."""
 
     # The necessary columns for SFT
@@ -41,13 +42,29 @@ def process_dataset(dataset: DatasetDict) -> DatasetDict:
         "stepwise_ground_truths",
     ]
 
+    def _normalize_text(s: str) -> str:
+        if not normalize_unicode or not isinstance(s, str):
+            return s
+        s = unicodedata.normalize("NFKC", s)
+        return s.replace("\u2212", "-")
+
+    def _normalize_messages(example: dict[str, Any]) -> dict[str, Any]:
+        if not normalize_unicode:
+            return example
+        msgs = example.get("messages", [])
+        for m in msgs:
+            if isinstance(m, dict) and "content" in m:
+                m["content"] = _normalize_text(m["content"])
+        example["messages"] = msgs
+        return example
+
     # Add missing columns (messages & tools)
     def ensure_messages(example: dict[str, Any]) -> dict[str, Any]:
         example["messages"] = [
-            {"role": "system", "content": get_sft_system_prompt()},
-            {"role": "user", "content": example["query"]},
+            {"role": "system", "content": _normalize_text(get_sft_system_prompt())},
+            {"role": "user", "content": _normalize_text(example["query"])},
         ]
-        return example
+        return _normalize_messages(example)
 
     def ensure_tools(example: dict[str, Any]) -> dict[str, Any]:
         if "tools" not in example or example["tools"] is None:
@@ -60,9 +77,9 @@ def process_dataset(dataset: DatasetDict) -> DatasetDict:
 
         # Replace the system prompt with the SFT system prompt
         if example["messages"] and example["messages"][0]["role"] == "system":
-            example["messages"][0]["content"] = get_sft_system_prompt()
+            example["messages"][0]["content"] = _normalize_text(get_sft_system_prompt())
 
-        return example
+        return _normalize_messages(example)
 
     train_dataset = dataset["train"]
     train_dataset = train_dataset.map(parse_messages)
@@ -94,7 +111,7 @@ def prepare_debug(train: Dataset, validation: Dataset, dataset_size: int) -> Dat
     return DatasetDict({"train": train, "validation": validation})
 
 
-def main(output_repo: str, push_to_hub: bool, debug_mode: bool) -> None:
+def main(output_repo: str, push_to_hub: bool, debug_mode: bool, normalize_unicode: bool) -> None:
     """Main processing function."""
     # Load
     train_repo = "atomwalk12/linalgzero-distilled-clean"
@@ -111,7 +128,7 @@ def main(output_repo: str, push_to_hub: bool, debug_mode: bool) -> None:
 
     # Process
     logger.info("*** Processing dataset ***")
-    dataset = process_dataset(dataset)
+    dataset = process_dataset(dataset, normalize_unicode=normalize_unicode)
 
     # Push to hub
     if push_to_hub:
@@ -131,6 +148,17 @@ if __name__ == "__main__":
         "--push_to_hub", default=False, action="store_true", help="Whether to push the dataset to HuggingFace"
     )
     parser.add_argument("--debug_mode", default=False, action="store_true", help="Reduces dataset size to 60 examples")
+    parser.add_argument(
+        "--no_normalize_unicode",
+        default=False,
+        action="store_true",
+        help="Disable Unicode NFKC normalization and minus-sign replacement during dataset prep",
+    )
     args = parser.parse_args()
 
-    main(args.output_repo, args.push_to_hub, args.debug_mode)
+    main(
+        output_repo=args.output_repo,
+        push_to_hub=args.push_to_hub,
+        debug_mode=args.debug_mode,
+        normalize_unicode=(not args.no_normalize_unicode),
+    )

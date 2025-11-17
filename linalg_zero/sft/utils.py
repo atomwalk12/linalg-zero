@@ -13,6 +13,10 @@ from unsloth import FastLanguageModel
 from unsloth.tokenizer_utils import SFTConfig
 
 from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
+from linalg_zero.shared.system_prompts import (
+    ANSWER_CLOSE,
+    TOOL_CALL_CLOSE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +95,21 @@ def get_unsloth_model(
         gpu_memory_utilization=training_args.gpu_memory_utilization,
     )
 
+    # Ensure tool/tag tokens are treated as single high-probability tokens
+    special_tags = [ANSWER_CLOSE, TOOL_CALL_CLOSE]
+
+    num_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tags})
+    if num_added and num_added > 0:
+        model._need_to_train_embeddings = True
+        model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=128)
+        logger.info(f"Added {num_added} special tokens for tags and resized embeddings.")
+    else:
+        logger.info("No new special tokens added (tokens likely already present). Skipping resize.")
+
     model = FastLanguageModel.get_peft_model(
         model,
         r=model_args.lora_r,
+        modules_to_save=["embed_tokens", "lm_head"] if num_added > 0 else None,
         target_modules=model_args.lora_target_modules,
         lora_alpha=model_args.lora_alpha,
         use_gradient_checkpointing="unsloth",

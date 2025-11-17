@@ -30,6 +30,8 @@ from linalg_zero.shared.system_prompts import (
     THINK_CLOSE,
     TOOL_CALL_CLOSE,
     TOOL_CALL_OPEN,
+    TOOL_RESPONSE_CLOSE,
+    TOOL_RESPONSE_OPEN,
 )
 from linalg_zero.shared.utils import get_logger
 
@@ -212,10 +214,16 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             assert eos_id is not None, "EOS token ID is not set"
             assert pad_id is not None, "PAD token ID is not set"
 
-            stop_token_ids = [eos_id] + [
-                tokenizer.encode(s, add_special_tokens=False)[0]
-                for s in ["<tool_response>", "</tool_response>"]
-            ]
+            stop_strings = [TOOL_RESPONSE_OPEN, TOOL_RESPONSE_CLOSE]
+            stop_token_ids = [eos_id]
+            for token_str in [TOOL_CALL_CLOSE, ANSWER_CLOSE]:
+                token_ids = tokenizer.encode(token_str, add_special_tokens=False)
+                if len(token_ids) != 1:
+                    raise ValueError(
+                        f"Special token '{token_str}' was split into {len(token_ids)} tokens. "
+                        f"Ensure it's registered as a special token."
+                    )
+                stop_token_ids.append(token_ids[0])
 
             outputs = model.generate(  # type: ignore[operator]
                 input_ids=inputs["input_ids"],
@@ -225,8 +233,10 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 pad_token_id=pad_id,
                 # eos_token_id=eos_id,
                 eos_token_id=stop_token_ids,
-                stop_strings=["<tool_response>", "</tool_response>"],
+                stop_strings=stop_strings,
                 tokenizer=tokenizer,
+                repetition_penalty=1.15,
+                no_repeat_ngram_size=8,
                 top_k=None,
                 top_p=None,
                 temperature=None,
@@ -236,7 +246,14 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         # Extract only the generated tokens (after the input)
         prompt_length = inputs["input_ids"].shape[1]
         generated_tokens = outputs[:, prompt_length:]
+        output_raw = tokenizer.decode(generated_tokens[0], skip_special_tokens=False)
         output = tokenizer.decode(generated_tokens[0], skip_special_tokens=True)
+        if output_raw.endswith(TOOL_CALL_CLOSE):
+            assert output.count(TOOL_CALL_CLOSE) == 0, f"Output: {output}"
+            output = output + TOOL_CALL_CLOSE
+        elif output_raw.endswith(ANSWER_CLOSE):
+            assert output.count(ANSWER_CLOSE) == 0, f"Output: {output}"
+            output = output + ANSWER_CLOSE
 
         # Check if generation was truncated due to max_new_tokens
         logger.info("=" * 100)
