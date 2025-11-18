@@ -10,11 +10,11 @@ import json as _json
 from typing import Any
 
 import torch
-import weave
 from tqdm import tqdm
-from transformers import PreTrainedModel, PreTrainedTokenizer
+from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
+from weave import EvaluationLogger
 from weave.trace.context import weave_client_context
 
 from linalg_zero.distillation.components.models import DefaultConfig
@@ -45,12 +45,14 @@ class ToolCallingAccuracyCallback(TrainerCallback):
     Evaluates all samples in the eval_dataset for robust metric computation.
     """
 
-    def __init__(self, eval_dataset: Any) -> None:
+    def __init__(self, model_name: str, dataset_name: str, eval_dataset: Any) -> None:
         self.eval_dataset = eval_dataset
+        self.model_name = model_name
+        self.dataset_name = dataset_name
         self.library = get_lib()
         self._parser = XMLParser()
         self.model_config = DefaultConfig()
-        self.weave_logger = None
+        self.generation_config = None
 
     def on_evaluate(
         self,
@@ -93,7 +95,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             if metrics is not None:
                 metrics.update({f"eval_{k}": v for k, v in eval_metrics.items()})
 
-        self._log_to_weave(all_messages, weave_metadata)
+        self._log_to_weave(state, all_messages, weave_metadata)
 
     def _log_evaluation_metrics(self, metrics: dict[str, float], state: TrainerState, prefix: str = "eval") -> None:
         """Log evaluation metrics to trainer state and logger (Trainer will forward to W&B)."""
@@ -106,24 +108,37 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
             logger.info(f"eval/{metric_name}: {value:.3f}")
 
-    def _log_to_weave(self, all_messages: list[list[dict[str, Any]]], metadata: dict[str, int]) -> None:
+    def _log_to_weave(
+        self, state: TrainerState, all_messages: list[list[dict[str, Any]]], metadata: dict[str, int]
+    ) -> None:
         """Log predictions and summary to Weave."""
-        if self.weave_logger is None:
-            client = weave_client_context.get_weave_client()
-            if client is not None:
-                self.weave_logger = weave.EvaluationLogger()  # type: ignore[assignment]
-            else:
-                return
+        client = weave_client_context.get_weave_client()
+        if client is not None:
+            eval_attributes = {
+                "training_step": state.global_step,
+                "model_name": self.model_name,
+                "generation_config": (self.generation_config.to_dict() if self.generation_config else None),
+            }
+
+            weave_logger = EvaluationLogger(
+                name=f"linalg_zero_sft_eval_{state.global_step}",
+                scorers=[],
+                model=self.model_name,
+                dataset=self.dataset_name,
+                eval_attributes=eval_attributes,
+            )
+        else:
+            return
 
         logger.info(f"Logging {len(all_messages)} samples to Weave...")
 
         # Log each sample as a prediction
         for messages in all_messages:
-            pred = self.weave_logger.log_prediction(inputs={"messages": messages})
+            pred = weave_logger.log_prediction(inputs={"messages": messages})
             pred.finish()
 
         # Log summary with metadata
-        self.weave_logger.log_summary(metadata)
+        weave_logger.log_summary(metadata)
         logger.info(f"Weave logging completed with metadata: {metadata}")
 
     def _compute_metrics(
@@ -181,38 +196,14 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
         with torch.no_grad():
-            pad_id = getattr(tokenizer, "pad_token_id", None)
-            eos_id = getattr(tokenizer, "eos_token_id", None)
-            assert eos_id is not None, "EOS token ID is not set"
-            assert pad_id is not None, "PAD token ID is not set"
-
-            stop_strings = [TOOL_RESPONSE_OPEN, TOOL_RESPONSE_CLOSE]
-            stop_token_ids = [eos_id]
-            for token_str in [TOOL_CALL_CLOSE, ANSWER_CLOSE]:
-                token_ids = tokenizer.encode(token_str, add_special_tokens=False)
-                if len(token_ids) != 1:
-                    raise ValueError(
-                        f"Special token '{token_str}' was split into {len(token_ids)} tokens. "
-                        f"Ensure it's registered as a special token."
-                    )
-                stop_token_ids.append(token_ids[0])
+            if self.generation_config is None:
+                self.generation_config = self.get_generation_config(max_new_tokens, tokenizer)
 
             outputs = model.generate(  # type: ignore[operator]
                 input_ids=inputs["input_ids"],
                 attention_mask=inputs["attention_mask"],
-                max_new_tokens=max_new_tokens,
-                do_sample=False,
-                pad_token_id=pad_id,
-                # eos_token_id=eos_id,
-                eos_token_id=stop_token_ids,
-                stop_strings=stop_strings,
                 tokenizer=tokenizer,
-                repetition_penalty=1.15,
-                no_repeat_ngram_size=8,
-                top_k=None,
-                top_p=None,
-                temperature=None,
-                use_cache=True,
+                **self.generation_config.to_dict(),
             )
 
         # Extract only the generated tokens (after the input)
@@ -244,6 +235,37 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         logger.info("=" * 100)
 
         return output
+
+    def get_generation_config(self, max_new_tokens: int, tokenizer: PreTrainedTokenizer) -> GenerationConfig:
+        pad_id = getattr(tokenizer, "pad_token_id", None)
+        eos_id = getattr(tokenizer, "eos_token_id", None)
+        assert eos_id is not None, "EOS token ID is not set"
+        assert pad_id is not None, "PAD token ID is not set"
+
+        stop_strings = [TOOL_RESPONSE_OPEN, TOOL_RESPONSE_CLOSE]
+        stop_token_ids = [eos_id]
+        for token_str in [TOOL_CALL_CLOSE, ANSWER_CLOSE]:
+            token_ids = tokenizer.encode(token_str, add_special_tokens=False)
+            if len(token_ids) != 1:
+                raise ValueError(
+                    f"Special token '{token_str}' was split into {len(token_ids)} tokens. "
+                    f"Ensure it's registered as a special token."
+                )
+            stop_token_ids.append(token_ids[0])
+
+        return GenerationConfig(
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=pad_id,
+            eos_token_id=stop_token_ids,
+            stop_strings=stop_strings,
+            repetition_penalty=1.15,
+            no_repeat_ngram_size=8,
+            top_k=None,
+            top_p=None,
+            temperature=None,
+            use_cache=True,
+        )
 
     def _run_evaluation_turns(
         self,
