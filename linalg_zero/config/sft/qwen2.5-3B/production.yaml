@@ -38,14 +38,14 @@ do_eval: false                  # does a final evaluation step at the end of tra
 eval_on_start: true           # does an evaluation step at the start of training
 eval_strategy: 'steps'         # can be "no","epoch","steps"
 eval_steps: 100                # NOTE: Check also save_steps
-max_eval_samples: 25          # TODO: adjust to 100
+max_eval_samples: None          # use all evaluation samples (576 format checks -- 16*6*2+16*4*3+16*3*4 (208 samples))
 
 # NOTE: if we use a customized metric for best model selection, ensure to adjust:
-# - metric_for_best_model: eval_format_accuracy
-# - greater_is_better: true
+# - metric_for_best_model: eval_format_accuracy or eval_loss
+# - greater_is_better: true or false (if eval_loss is set)
 # - load_best_model_at_end: true
-metric_for_best_model: eval_loss
-greater_is_better: false
+metric_for_best_model: eval_format_accuracy
+greater_is_better: true
 load_best_model_at_end: true
 save_total_limit: 5
 eval_max_new_tokens: 800

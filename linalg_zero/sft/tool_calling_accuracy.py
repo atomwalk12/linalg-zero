@@ -7,11 +7,12 @@ Evaluates structural and correctnessfo metrics for tool-use generations on all e
 from __future__ import annotations
 
 import json as _json
+import os
 from typing import Any
 
 import torch
 from tqdm import tqdm
-from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizer
+from transformers import PreTrainedModel, PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 from weave import EvaluationLogger
@@ -117,7 +118,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             eval_attributes = {
                 "training_step": state.global_step,
                 "model_name": self.model_name,
-                "generation_config": (self.generation_config.to_dict() if self.generation_config else None),
+                "generation_config": (self.generation_config if self.generation_config else None),
             }
 
             weave_logger = EvaluationLogger(
@@ -203,7 +204,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 input_ids=inputs["input_ids"],
                 attention_mask=inputs["attention_mask"],
                 tokenizer=tokenizer,
-                **self.generation_config.to_dict(),
+                **self.generation_config,
             )
 
         # Extract only the generated tokens (after the input)
@@ -223,7 +224,6 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 output = output.replace(special_token, "")
 
         # Check if generation was truncated due to max_new_tokens
-        logger.info("=" * 100)
         if (
             generated_tokens.shape[1] == max_new_tokens
             and getattr(tokenizer, "eos_token_id", None) is not None
@@ -231,12 +231,14 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         ):
             logger.warning(f"Generation may have been truncated at max_new_tokens={max_new_tokens}")
 
-        logger.info(f"Generated output: {output}")
-        logger.info("=" * 100)
+        if os.getenv("SFT_LOG_GENERATIONS") == "1":
+            logger.info("=" * 100)
+            logger.info(f"Generated output (len={len(output)}): {output}")
+            logger.info("=" * 100)
 
         return output
 
-    def get_generation_config(self, max_new_tokens: int, tokenizer: PreTrainedTokenizer) -> GenerationConfig:
+    def get_generation_config(self, max_new_tokens: int, tokenizer: PreTrainedTokenizer) -> dict[str, Any]:
         pad_id = getattr(tokenizer, "pad_token_id", None)
         eos_id = getattr(tokenizer, "eos_token_id", None)
         assert eos_id is not None, "EOS token ID is not set"
@@ -253,19 +255,19 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 )
             stop_token_ids.append(token_ids[0])
 
-        return GenerationConfig(
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
-            pad_token_id=pad_id,
-            eos_token_id=stop_token_ids,
-            stop_strings=stop_strings,
-            repetition_penalty=1.15,
-            no_repeat_ngram_size=8,
-            top_k=None,
-            top_p=None,
-            temperature=None,
-            use_cache=True,
-        )
+        return {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": False,
+            "pad_token_id": pad_id,
+            "eos_token_id": stop_token_ids,
+            "stop_strings": stop_strings,
+            "repetition_penalty": 1.15,
+            "no_repeat_ngram_size": 8,
+            "top_k": None,
+            "top_p": None,
+            "temperature": None,
+            "use_cache": True,
+        }
 
     def _run_evaluation_turns(
         self,

@@ -179,7 +179,7 @@ def main(  # noqa: C901
         try:
             # Temporarily override max_eval_samples to evaluate on full dataset
             original_max_eval_samples = getattr(trl_training_args, "max_eval_samples", None)
-            trl_training_args.max_eval_samples = 50
+            trl_training_args.max_eval_samples = None
 
             metrics = trainer.evaluate()
             metrics["eval_samples"] = len(dataset[script_args.dataset_test_split])

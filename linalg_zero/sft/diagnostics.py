@@ -102,14 +102,22 @@ class DiagnosticTracker:
         expected_tool_calls = metrics["total_expected_tool_calls"]
         expected_answers = metrics["total_expected_answers"]
         total_samples = metrics["total_samples"]
+        total_actions = expected_tool_calls + total_samples
+        format_overall_accuracy = (
+            (metrics["total_actual_tool_calls"] + metrics["total_actual_answers"]) / total_actions
+            if total_actions > 0
+            else 0.0
+        )
+        format_tool_call_accuracy = (
+            metrics["total_actual_tool_calls"] / expected_tool_calls if expected_tool_calls > 0 else 0.0
+        )
+        answer_attempt_accuracy = metrics["total_actual_answers"] / expected_answers if expected_answers > 0 else 0.0
+        answer_accuracy = metrics["total_correct_answers"] / total_samples if total_samples > 0 else 0.0
         return {
-            "format_accuracy": metrics["total_actual_tool_calls"] / expected_tool_calls
-            if expected_tool_calls > 0
-            else 0.0,
-            "answer_attempt_accuracy": metrics["total_actual_answers"] / expected_answers
-            if expected_answers > 0
-            else 0.0,
-            "answer_accuracy": metrics["total_correct_answers"] / total_samples if total_samples > 0 else 0.0,
+            "format_accuracy": format_overall_accuracy,
+            "format_tool_call_accuracy": format_tool_call_accuracy,
+            "answer_attempt_accuracy": answer_attempt_accuracy,
+            "answer_accuracy": answer_accuracy,
         }
 
     def get_progress_info(self) -> dict[str, str]:

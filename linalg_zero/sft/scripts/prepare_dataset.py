@@ -2,6 +2,7 @@ import json
 import logging
 import unicodedata
 from argparse import ArgumentParser
+from collections import defaultdict
 from typing import Any
 
 from datasets import Dataset, DatasetDict, DownloadMode, load_dataset
@@ -31,7 +32,7 @@ def load_datasets(src_train: str, src_test: str) -> DatasetDict:
     return DatasetDict({"train": train_dataset, "validation": test_dataset})
 
 
-def process_dataset(dataset: DatasetDict, normalize_unicode: bool) -> DatasetDict:  # noqa: C901
+def process_dataset(dataset: DatasetDict, normalize_unicode: bool, per_category: int, seed: int) -> DatasetDict:  # noqa: C901
     """Load and process dataset for SFT training."""
 
     # The necessary columns for SFT
@@ -81,12 +82,29 @@ def process_dataset(dataset: DatasetDict, normalize_unicode: bool) -> DatasetDic
 
         return _normalize_messages(example)
 
+    def get_representative_examples_indices(dataset, per_category: int) -> list[int]:
+        """Get indices of representative examples for each category."""
+        categories: dict[str, list[int]] = defaultdict(list)
+
+        for idx, example in enumerate(dataset):
+            task = example["problem_type"]
+            if len(categories[task]) < per_category:
+                categories[task].append(idx)
+
+        # Flatten all indices
+        all_indices = [idx for indices in categories.values() for idx in indices]
+        return all_indices
+
     train_dataset = dataset["train"]
+    train_dataset = train_dataset.shuffle(seed=seed)
     train_dataset = train_dataset.map(parse_messages)
 
     test_dataset = dataset["validation"]
+    test_dataset = test_dataset.shuffle(seed=seed)
     test_dataset = test_dataset.map(ensure_messages)
     test_dataset = test_dataset.map(ensure_tools)
+    indices = get_representative_examples_indices(test_dataset, per_category=per_category)
+    test_dataset = test_dataset.select(indices)
 
     # Ensure only relevant columns are preserved
     strip_cols = set(train_dataset.column_names) - set(keep_columns)
@@ -111,7 +129,9 @@ def prepare_debug(train: Dataset, validation: Dataset, dataset_size: int) -> Dat
     return DatasetDict({"train": train, "validation": validation})
 
 
-def main(output_repo: str, push_to_hub: bool, debug_mode: bool, normalize_unicode: bool) -> None:
+def main(
+    output_repo: str, push_to_hub: bool, debug_mode: bool, normalize_unicode: bool, per_category: int, seed: int
+) -> None:
     """Main processing function."""
     # Load
     train_repo = "atomwalk12/linalgzero-distilled-clean"
@@ -128,7 +148,7 @@ def main(output_repo: str, push_to_hub: bool, debug_mode: bool, normalize_unicod
 
     # Process
     logger.info("*** Processing dataset ***")
-    dataset = process_dataset(dataset, normalize_unicode=normalize_unicode)
+    dataset = process_dataset(dataset, normalize_unicode=normalize_unicode, per_category=per_category, seed=seed)
 
     # Push to hub
     if push_to_hub:
@@ -154,6 +174,8 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable Unicode NFKC normalization and minus-sign replacement during dataset prep",
     )
+    parser.add_argument("--per_category", default=16, type=int, help="Number of representative examples per category")
+    parser.add_argument("--seed", default=42, type=int, help="Random seed for dataset shuffling")
     args = parser.parse_args()
 
     main(
@@ -161,4 +183,6 @@ if __name__ == "__main__":
         push_to_hub=args.push_to_hub,
         debug_mode=args.debug_mode,
         normalize_unicode=(not args.no_normalize_unicode),
+        per_category=args.per_category,
+        seed=args.seed,
     )
