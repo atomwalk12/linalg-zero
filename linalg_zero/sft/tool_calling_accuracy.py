@@ -81,19 +81,19 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         logger.info(f"Computing tool-calling metrics on {num_samples}/{len(self.eval_dataset)} eval samples...")
 
-        all_messages, metadata = self._compute_metrics(
+        all_messages, weave_metadata, eval_metrics = self._compute_metrics(
             model=model,
             tokenizer=tokenizer,
             dataset=self.eval_dataset,
             max_new_tokens=max_new_tokens,
             max_samples=num_samples,
         )
-        if metadata:
-            self._log_evaluation_metrics(metadata, state, prefix="eval")
+        if eval_metrics:
+            self._log_evaluation_metrics(eval_metrics, state, prefix="eval")
             if metrics is not None:
-                metrics.update(metadata)
+                metrics.update(eval_metrics)
 
-        self._log_to_weave(all_messages, metadata)
+        self._log_to_weave(all_messages, weave_metadata)
 
     def _log_evaluation_metrics(self, metrics: dict[str, float], state: TrainerState, prefix: str = "eval") -> None:
         """Log evaluation metrics to trainer state and logger (Trainer will forward to W&B)."""
@@ -133,7 +133,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         dataset: Any,
         max_new_tokens: int,
         max_samples: int | None = None,
-    ) -> tuple[list[list[dict[str, Any]]], dict[str, int]]:
+    ) -> tuple[list[list[dict[str, Any]]], dict[str, int], dict[str, float]]:
         """Compute metrics on eval samples with fair turn allocation per sample."""
         model.eval()
 
@@ -162,7 +162,9 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             # Update progress bar
             pbar.set_postfix({**tracker.get_progress_info()})
 
-        return tracker.get_history()
+        all_messages, metadata = tracker.get_history()
+        loss_metrics = tracker.calculate_loss_metrics()
+        return all_messages, metadata, loss_metrics
 
     def _generate(
         self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prompt_text: str, max_new_tokens: int
@@ -261,9 +263,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         tools = sample["tools"]
 
         # Multi-turn conversation loop
-        for turn_idx in range(n_turns):
-            state.turns_taken = turn_idx + 1
-
+        for _ in range(n_turns):
             # Generate assistant response (include tools so template exposes function signatures)
             prompt = tokenizer.apply_chat_template(context, tools=tools, tokenize=False, add_generation_prompt=True)
             if not isinstance(prompt, str):
@@ -287,9 +287,6 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             if message.tool_call is not None:
                 state.tool_parse_success = True
 
-            if message.final_answer is not None:
-                state.answer_attempted = True
-
             self.add_message("assistant", context, message)
 
             # Execute tool call if it exists
@@ -299,7 +296,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 self.add_message("tool", all_context, tool_call, unstructured=True)
 
             if message.final_answer is not None:
-                state.has_final_answer = True
+                state.generated_answer = message.final_answer
                 state.early_stop_reason = "final_answer_provided"
                 break
 

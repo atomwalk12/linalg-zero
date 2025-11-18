@@ -18,15 +18,15 @@ class DiagnosticTracker:
         # Store all messages and samples for Weave logging
         self.all_messages: list[list[dict[str, Any]]] = []
         self.all_samples: list[dict[str, Any]] = []
-        self.sum_strict_format = 0.0
-        self.sum_partial_format = 0.0
-        self.sum_turns_taken = 0.0
+        self.all_strict_formats = []
+        self.all_partial_formats = []
+        self.all_generated_answers = []
 
     def update(self, state: EvaluationState) -> None:
         """Update tracker from an evaluation state."""
-        self.sum_strict_format += state.strict_format_match
-        self.sum_partial_format += state.partial_format_score
-        self.sum_turns_taken += state.turns_taken
+        self.all_strict_formats.append(state.strict_format_match)
+        self.all_partial_formats.append(state.partial_format_score)
+        self.all_generated_answers.append(state.generated_answer)
         # Store messages and sample from this evaluation
         self.all_messages.append(state.messages)
         if state.sample is not None:
@@ -96,23 +96,38 @@ class DiagnosticTracker:
             "total_correct_answers": total_correct_answers,
         }
 
+    def calculate_loss_metrics(self) -> dict[str, float]:
+        metrics = self._compute_metadata()
+        expected_tool_calls = metrics["total_expected_tool_calls"]
+        expected_answers = metrics["total_expected_answers"]
+        total_samples = metrics["total_samples"]
+        return {
+            "format_accuracy": metrics["total_actual_tool_calls"] / expected_tool_calls
+            if expected_tool_calls > 0
+            else 0.0,
+            "answer_attempt_accuracy": metrics["total_actual_answers"] / expected_answers
+            if expected_answers > 0
+            else 0.0,
+            "answer_accuracy": metrics["total_correct_answers"] / total_samples if total_samples > 0 else 0.0,
+        }
+
     def get_progress_info(self) -> dict[str, str]:
-        """Return current progress info for progress bar (4 key metrics)."""
+        """Return current progress info for progress bar (3 key metrics)."""
         total_samples = len(self.all_samples)
         if total_samples == 0:
             return {
-                "partial": "0.000",
                 "strict": "0.000",
-                "turns": "0.0",
+                "partial": "0.000",
                 "correct": "0.000",
             }
 
-        partial_format = self.sum_partial_format / total_samples
-        strict_format = self.sum_strict_format / total_samples
-        avg_turns = self.sum_turns_taken / total_samples
+        partial_format = sum(self.all_partial_formats) / total_samples
+        strict_format = sum(self.all_strict_formats) / total_samples
+        answers_generated = sum(1 for ans in self.all_generated_answers if ans is not None)
+        answer_rate = answers_generated / total_samples
 
         return {
-            "turns": f"{avg_turns:.1f}",
             "strict": f"{strict_format:.3f}",
             "partial": f"{partial_format:.3f}",
+            "correct": f"{answer_rate:.3f}",
         }

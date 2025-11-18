@@ -71,58 +71,20 @@ wheels = [
 
 [[package]]
 name = "accelerate"
-version = "1.8.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version < '3.11' and sys_platform == 'linux'",
-    "python_full_version >= '3.12' and sys_platform != 'linux'",
-    "python_full_version == '3.11.*' and sys_platform != 'linux'",
-    "python_full_version < '3.11' and sys_platform != 'linux'",
-]
-dependencies = [
-    { name = "huggingface-hub", marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "packaging", marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "psutil", marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "pyyaml", marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "safetensors", marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/bd/c2/b9e33ad13232606dded4c546e654fb06a15f1dbcbd95d81c9f9dd3ccc771/accelerate-1.8.1.tar.gz", hash = "sha256:f60df931671bc4e75077b852990469d4991ce8bd3a58e72375c3c95132034db9", size = 380872, upload-time = "2025-06-20T15:36:14.618Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/d9/e044c9d42d8ad9afa96533b46ecc9b7aea893d362b3c52bd78fb9fe4d7b3/accelerate-1.8.1-py3-none-any.whl", hash = "sha256:c47b8994498875a2b1286e945bd4d20e476956056c7941d512334f4eb44ff991", size = 365338, upload-time = "2025-06-20T15:36:12.71Z" },
-]
-
-[[package]]
-name = "accelerate"
 version = "1.11.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version >= '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux'",
-    "python_full_version >= '3.12' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and platform_machine != 'aarch64' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux'",
-    "python_full_version < '3.11' and sys_platform == 'darwin'",
-    "python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux'",
-    "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux'",
-]
 dependencies = [
-    { name = "huggingface-hub", marker = "extra == 'group-11-linalg-zero-distillation' or extra == 'group-11-linalg-zero-grpo'" },
+    { name = "huggingface-hub" },
     { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-distillation' or extra == 'group-11-linalg-zero-grpo'" },
-    { name = "packaging", marker = "extra == 'group-11-linalg-zero-distillation' or extra == 'group-11-linalg-zero-grpo'" },
-    { name = "psutil", marker = "extra == 'group-11-linalg-zero-distillation' or extra == 'group-11-linalg-zero-grpo'" },
-    { name = "pyyaml", marker = "extra == 'group-11-linalg-zero-distillation' or extra == 'group-11-linalg-zero-grpo'" },
-    { name = "safetensors", marker = "extra == 'group-11-linalg-zero-distillation' or extra == 'group-11-linalg-zero-grpo'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft')" },
+    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
+    { name = "packaging" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
     { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-grpo' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
     { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-distillation' or (extra == 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft')" },
+    { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/23/60/2757c4f03a8705dbf80b1268b03881927878dca5ed07d74f733fb6c219e0/accelerate-1.11.0.tar.gz", hash = "sha256:bb1caf2597b4cd632b917b5000c591d10730bb024a79746f1ee205bba80bd229", size = 393715, upload-time = "2025-10-20T14:42:25.025Z" }
 wheels = [
@@ -2722,7 +2684,7 @@ distillation = [
     { name = "wandb" },
 ]
 grpo = [
-    { name = "accelerate", version = "1.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "accelerate" },
     { name = "bitsandbytes" },
     { name = "distilabel", extra = ["instructor", "openai", "outlines"], marker = "extra == 'group-11-linalg-zero-grpo' or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
     { name = "gql", version = "3.5.3", source = { registry = "https://pypi.org/simple" } },
@@ -2745,7 +2707,7 @@ grpo = [
     { name = "weave", version = "0.51.56", source = { registry = "https://pypi.org/simple" } },
 ]
 sft = [
-    { name = "accelerate", version = "1.8.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "accelerate" },
     { name = "datasets" },
     { name = "distilabel" },
     { name = "math-verify" },
@@ -2835,7 +2797,7 @@ grpo = [
     { name = "weave", specifier = "==0.51.56" },
 ]
 sft = [
-    { name = "accelerate", specifier = "==1.8.1" },
+    { name = "accelerate", specifier = "==1.11.0" },
     { name = "datasets", specifier = ">=4.4.1" },
     { name = "distilabel", specifier = ">=1.5.3" },
     { name = "math-verify", specifier = ">=0.8.0" },
@@ -5012,8 +4974,7 @@ name = "peft"
 version = "0.18.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "accelerate", version = "1.8.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "accelerate", version = "1.11.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-distillation' or extra == 'group-11-linalg-zero-grpo'" },
+    { name = "accelerate" },
     { name = "huggingface-hub" },
     { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-distillation' or extra == 'group-11-linalg-zero-grpo'" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft') or (extra == 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft')" },
@@ -7749,7 +7710,7 @@ resolution-markers = [
     "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux'",
 ]
 dependencies = [
-    { name = "accelerate", version = "1.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "accelerate" },
     { name = "datasets" },
     { name = "transformers", version = "4.56.2", source = { registry = "https://pypi.org/simple" } },
 ]
@@ -7783,8 +7744,7 @@ resolution-markers = [
     "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'group-11-linalg-zero-distillation' and extra != 'group-11-linalg-zero-grpo' and extra != 'group-11-linalg-zero-sft'",
 ]
 dependencies = [
-    { name = "accelerate", version = "1.8.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
-    { name = "accelerate", version = "1.11.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-distillation' or (extra == 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft')" },
+    { name = "accelerate" },
     { name = "datasets" },
     { name = "transformers", version = "4.55.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-linalg-zero-distillation' or (extra == 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft')" },
     { name = "transformers", version = "4.56.2", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-grpo') or (extra != 'group-11-linalg-zero-grpo' and extra == 'group-11-linalg-zero-sft') or (extra != 'group-11-linalg-zero-distillation' and extra == 'group-11-linalg-zero-sft')" },
@@ -7951,7 +7911,7 @@ resolution-markers = [
     "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux'",
 ]
 dependencies = [
-    { name = "accelerate", version = "1.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "accelerate" },
     { name = "bitsandbytes" },
     { name = "datasets" },
     { name = "diffusers" },
@@ -7994,7 +7954,7 @@ resolution-markers = [
     "python_full_version < '3.11' and sys_platform != 'linux'",
 ]
 dependencies = [
-    { name = "accelerate", version = "1.8.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "accelerate" },
     { name = "bitsandbytes" },
     { name = "datasets" },
     { name = "diffusers" },
@@ -8043,7 +8003,7 @@ resolution-markers = [
     "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux'",
 ]
 dependencies = [
-    { name = "accelerate", version = "1.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "accelerate" },
     { name = "cut-cross-entropy" },
     { name = "datasets" },
     { name = "filelock" },
@@ -8089,7 +8049,7 @@ resolution-markers = [
     "python_full_version < '3.11' and sys_platform != 'linux'",
 ]
 dependencies = [
-    { name = "accelerate", version = "1.8.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "accelerate" },
     { name = "cut-cross-entropy" },
     { name = "datasets" },
     { name = "filelock" },
@@ -8212,7 +8172,7 @@ name = "verl"
 version = "0.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "accelerate", version = "1.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "accelerate" },
     { name = "codetiming" },
     { name = "datasets" },
     { name = "dill" },

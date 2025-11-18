@@ -148,7 +148,7 @@ distillation = [
 ]
 
 sft = [
-    "accelerate==1.8.1",
+    "accelerate==1.11.0",
     "datasets>=4.4.1",
     "distilabel>=1.5.3",
     "math-verify>=0.8.0",

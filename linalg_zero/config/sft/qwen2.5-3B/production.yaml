@@ -40,7 +40,7 @@ eval_strategy: 'steps'         # can be "no","epoch","steps"
 eval_steps: 100                # NOTE: Check also save_steps
 max_eval_samples: 25          # TODO: adjust to 100
 load_best_model_at_end: true
-metric_for_best_model: eval_loss
+metric_for_best_model: eval_loss # OR eval_format_accuracy
 greater_is_better: false
 save_total_limit: 5
 eval_max_new_tokens: 800

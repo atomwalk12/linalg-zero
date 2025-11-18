@@ -7,7 +7,7 @@ from transformers.trainer_callback import (
     TrainerState,
 )
 from transformers.training_args import TrainingArguments
-from trl import ModelConfig
+from trl.trainer.model_config import ModelConfig
 
 from linalg_zero.sft.hub import push_to_hub_revision
 
@@ -20,13 +20,11 @@ class EvaluationState:
     def __init__(self) -> None:
         self.messages = []
         self.sample: dict[str, Any] | None = None
-        self.has_final_answer = False
 
         self.strict_format_match = 0.0
         self.partial_format_score = 0.0
         self.tool_parse_success = False
-        self.answer_attempted = False
-        self.turns_taken = 0
+        self.generated_answer = None
         self.early_stop_reason: str | None = None
 
 
