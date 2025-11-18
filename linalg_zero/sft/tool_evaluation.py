@@ -15,22 +15,18 @@ logger = logging.getLogger(__name__)
 
 
 class EvaluationState:
-    """Tracks evaluation state with both primary metrics and diagnostics."""
+    """Tracks evaluation state."""
 
     def __init__(self) -> None:
         self.messages = []
         self.sample: dict[str, Any] | None = None
         self.has_final_answer = False
-        self.reward_response_format = 0.0
-        self.reward_final_answer = 0.0
-        self.reward_interaction = 0.0
 
         self.strict_format_match = 0.0
         self.partial_format_score = 0.0
         self.tool_parse_success = False
         self.answer_attempted = False
         self.turns_taken = 0
-        self.truncated = False
         self.early_stop_reason: str | None = None
 
 

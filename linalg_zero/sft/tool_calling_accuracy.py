@@ -17,12 +17,9 @@ from transformers.trainer_callback import TrainerCallback, TrainerControl, Train
 from transformers.training_args import TrainingArguments
 from weave.trace.context import weave_client_context
 
-import wandb
 from linalg_zero.distillation.components.models import DefaultConfig
 from linalg_zero.distillation.data import FunctionInvocationInfo, ThoughtSchema
-from linalg_zero.grpo.compute_score import get_interaction_reward
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
-from linalg_zero.grpo.verify import parse_string
 from linalg_zero.sft.diagnostics import DiagnosticTracker
 from linalg_zero.sft.tool_evaluation import EvaluationState
 from linalg_zero.shared.lib import get_lib, get_lib_fn_names
@@ -53,8 +50,6 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         self.library = get_lib()
         self._parser = XMLParser()
         self.model_config = DefaultConfig()
-        self._per_sample_metric_defined = False
-        self._aggregated_metric_defined = False
         self.weave_logger = None
 
     def on_evaluate(
@@ -86,7 +81,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         logger.info(f"Computing tool-calling metrics on {num_samples}/{len(self.eval_dataset)} eval samples...")
 
-        eval_metrics, per_sample_rewards, (all_messages, metadata) = self._compute_metrics(
+        all_messages, metadata = self._compute_metrics(
             model=model,
             tokenizer=tokenizer,
             dataset=self.eval_dataset,
@@ -97,16 +92,6 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             self._log_evaluation_metrics(metadata, state, prefix="eval")
             if metrics is not None:
                 metrics.update(metadata)
-
-        # Log both aggregated metrics and per-sample distributions to W&B
-        if wandb.run:
-            # Log aggregated metrics as scalars
-            if eval_metrics:
-                self._log_aggregated_metrics(eval_metrics, state)
-
-            # Log per-sample distributions
-            if per_sample_rewards:
-                self._log_per_sample_distributions(per_sample_rewards, state)
 
         self._log_to_weave(all_messages, metadata)
 
@@ -120,45 +105,6 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             })
 
             logger.info(f"eval/{metric_name}: {value:.3f}")
-
-    def _log_aggregated_metrics(self, metrics: dict[str, float], state: TrainerState) -> None:
-        """Log aggregated evaluation metrics to W&B."""
-        if not wandb.run:
-            logger.debug("No active wandb run, skipping aggregated metrics logging")
-            return
-
-        # Define metric only once per run
-        if not self._aggregated_metric_defined:
-            wandb.define_metric("eval_metrics/*", step_metric="eval_metrics/global_step")
-            self._aggregated_metric_defined = True
-
-        # Log all metrics with global_step as the step metric
-        wandb_metrics = {f"eval_metrics/{k}": float(v) for k, v in metrics.items()}
-        wandb_metrics["eval_metrics/global_step"] = state.global_step
-        wandb.log(wandb_metrics, commit=True)
-
-    def _log_per_sample_distributions(self, per_sample_rewards: dict[str, list[float]], state: TrainerState) -> None:
-        """Log per-sample rewards to W&B for richer visualization."""
-        if not wandb.run:
-            logger.debug("No active wandb run, skipping per-sample logging")
-            return
-
-        # Define metric only once per run
-        if not self._per_sample_metric_defined:
-            wandb.define_metric("eval_samples/*", step_metric="eval_samples/sample_idx")
-            self._per_sample_metric_defined = True
-
-        # Log each sample individually to create multiple data points
-        for metric_name, values in per_sample_rewards.items():
-            for i, reward_value in enumerate(values):
-                wandb.log(
-                    {
-                        "eval_samples/sample_idx": i,  # x-axis for these series
-                        "eval_samples/global_step": state.global_step,  # auxiliary info
-                        f"eval_samples/{metric_name}": float(reward_value),
-                    },
-                    commit=True,
-                )
 
     def _log_to_weave(self, all_messages: list[list[dict[str, Any]]], metadata: dict[str, int]) -> None:
         """Log predictions and summary to Weave."""
@@ -187,7 +133,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         dataset: Any,
         max_new_tokens: int,
         max_samples: int | None = None,
-    ) -> tuple[dict[str, float], dict[str, list[float]], tuple[list[list[dict[str, Any]]], dict[str, int]]]:
+    ) -> tuple[list[list[dict[str, Any]]], dict[str, int]]:
         """Compute metrics on eval samples with fair turn allocation per sample."""
         model.eval()
 
@@ -216,8 +162,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             # Update progress bar
             pbar.set_postfix({**tracker.get_progress_info()})
 
-        # Get all metrics from tracker
-        return tracker.get_aggregated_metrics(), tracker.get_per_sample_rewards(), tracker.get_all_messages()
+        return tracker.get_history()
 
     def _generate(
         self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prompt_text: str, max_new_tokens: int
@@ -363,9 +308,6 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         state.partial_format_score = self.calculate_partial_match(all_context)
         state.messages = all_context
 
-        # Calculate state based on conversation history
-        # TODO: perhaps remove this altogether
-        self._calculate_conversation_metrics(context, sample, state)
         return state
 
     def _execute(self, msg: ThoughtSchema) -> dict[str, str]:
@@ -489,22 +431,3 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         assert msg is not None, f"Message is None for role: {role}"
         context.append(msg)
-
-    def _calculate_conversation_metrics(
-        self, context: list[dict[str, Any]], sample: dict[str, Any], state: EvaluationState
-    ) -> None:
-        """Calculate conversation-wide metrics using GRPO reward functions."""
-        if ground_truth := sample["ground_truth"]:
-            # Calculate reward
-            gt_parsed = parse_string(ground_truth)
-            if gt_parsed is not None:
-                _reward, metadata = get_interaction_reward(
-                    parser=self._parser, ground_truth=gt_parsed, completion=context
-                )
-            else:
-                _reward, metadata = 0.0, {}
-
-            # Extract metrics from metadata
-            state.reward_final_answer = float(metadata.get("reward_final_answer", 0.0))
-            state.reward_response_format = float(metadata.get("reward_response_format", 0.0))
-            state.reward_interaction = float(_reward)
