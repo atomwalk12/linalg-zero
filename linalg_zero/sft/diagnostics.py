@@ -32,10 +32,11 @@ class DiagnosticTracker:
         if state.sample is not None:
             self.all_samples.append(state.sample)
 
-    def get_history(self) -> tuple[list[list[dict[str, Any]]], dict[str, int]]:
-        """Return all messages and computed metadata for Weave logging."""
+    def get_history(self) -> tuple[list[list[dict[str, Any]]], dict[str, int | float], dict[str, float]]:
+        """Return all messages, metadata and loss metrics for Weave logging best model selection."""
         metadata = self._compute_metadata()
-        return self.all_messages, metadata
+        loss_metrics = self.calculate_loss_metrics()
+        return self.all_messages, {**metadata, **loss_metrics}, loss_metrics
 
     def _compute_metadata(self) -> dict[str, int]:
         """Compute metadata statistics from messages and samples."""

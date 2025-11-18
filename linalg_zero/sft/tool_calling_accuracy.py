@@ -91,7 +91,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         if eval_metrics:
             self._log_evaluation_metrics(eval_metrics, state, prefix="eval")
             if metrics is not None:
-                metrics.update(eval_metrics)
+                metrics.update({f"eval_{k}": v for k, v in eval_metrics.items()})
 
         self._log_to_weave(all_messages, weave_metadata)
 
@@ -133,7 +133,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         dataset: Any,
         max_new_tokens: int,
         max_samples: int | None = None,
-    ) -> tuple[list[list[dict[str, Any]]], dict[str, int], dict[str, float]]:
+    ) -> tuple[list[list[dict[str, Any]]], dict[str, int | float], dict[str, float]]:
         """Compute metrics on eval samples with fair turn allocation per sample."""
         model.eval()
 
@@ -162,9 +162,8 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             # Update progress bar
             pbar.set_postfix({**tracker.get_progress_info()})
 
-        all_messages, metadata = tracker.get_history()
-        loss_metrics = tracker.calculate_loss_metrics()
-        return all_messages, metadata, loss_metrics
+        all_messages, metadata, eval_metrics = tracker.get_history()
+        return all_messages, metadata, eval_metrics
 
     def _generate(
         self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prompt_text: str, max_new_tokens: int
