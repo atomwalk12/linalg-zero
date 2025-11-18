@@ -18,6 +18,8 @@ class EvaluationState:
     """Tracks evaluation state with both primary metrics and diagnostics."""
 
     def __init__(self) -> None:
+        self.messages = []
+        self.sample: dict[str, Any] | None = None
         self.has_final_answer = False
         self.reward_response_format = 0.0
         self.reward_final_answer = 0.0

@@ -10,10 +10,12 @@ import json as _json
 from typing import Any
 
 import torch
+import weave
 from tqdm import tqdm
 from transformers import PreTrainedModel, PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
+from weave.trace.context import weave_client_context
 
 import wandb
 from linalg_zero.distillation.components.models import DefaultConfig
@@ -53,6 +55,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         self.model_config = DefaultConfig()
         self._per_sample_metric_defined = False
         self._aggregated_metric_defined = False
+        self.weave_logger = None
 
     def on_evaluate(
         self,
@@ -83,17 +86,17 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         logger.info(f"Computing tool-calling metrics on {num_samples}/{len(self.eval_dataset)} eval samples...")
 
-        eval_metrics, per_sample_rewards = self._compute_metrics(
+        eval_metrics, per_sample_rewards, (all_messages, metadata) = self._compute_metrics(
             model=model,
             tokenizer=tokenizer,
             dataset=self.eval_dataset,
             max_new_tokens=max_new_tokens,
             max_samples=num_samples,
         )
-        if eval_metrics:
-            self._log_evaluation_metrics(eval_metrics, state, prefix="eval")
+        if metadata:
+            self._log_evaluation_metrics(metadata, state, prefix="eval")
             if metrics is not None:
-                metrics.update(eval_metrics)
+                metrics.update(metadata)
 
         # Log both aggregated metrics and per-sample distributions to W&B
         if wandb.run:
@@ -105,6 +108,8 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             if per_sample_rewards:
                 self._log_per_sample_distributions(per_sample_rewards, state)
 
+        self._log_to_weave(all_messages, metadata)
+
     def _log_evaluation_metrics(self, metrics: dict[str, float], state: TrainerState, prefix: str = "eval") -> None:
         """Log evaluation metrics to trainer state and logger (Trainer will forward to W&B)."""
         for metric_name, value in metrics.items():
@@ -114,7 +119,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 f"{prefix}_{metric_name}": float(value),
             })
 
-            logger.info(f"tool_use/{metric_name}: {value:.3f}")
+            logger.info(f"eval/{metric_name}: {value:.3f}")
 
     def _log_aggregated_metrics(self, metrics: dict[str, float], state: TrainerState) -> None:
         """Log aggregated evaluation metrics to W&B."""
@@ -155,6 +160,26 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                     commit=True,
                 )
 
+    def _log_to_weave(self, all_messages: list[list[dict[str, Any]]], metadata: dict[str, int]) -> None:
+        """Log predictions and summary to Weave."""
+        if self.weave_logger is None:
+            client = weave_client_context.get_weave_client()
+            if client is not None:
+                self.weave_logger = weave.EvaluationLogger()  # type: ignore[assignment]
+            else:
+                return
+
+        logger.info(f"Logging {len(all_messages)} samples to Weave...")
+
+        # Log each sample as a prediction
+        for messages in all_messages:
+            pred = self.weave_logger.log_prediction(inputs={"messages": messages})
+            pred.finish()
+
+        # Log summary with metadata
+        self.weave_logger.log_summary(metadata)
+        logger.info(f"Weave logging completed with metadata: {metadata}")
+
     def _compute_metrics(
         self,
         model: PreTrainedModel,
@@ -162,7 +187,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         dataset: Any,
         max_new_tokens: int,
         max_samples: int | None = None,
-    ) -> tuple[dict[str, float], dict[str, list[float]]]:
+    ) -> tuple[dict[str, float], dict[str, list[float]], tuple[list[list[dict[str, Any]]], dict[str, int]]]:
         """Compute metrics on eval samples with fair turn allocation per sample."""
         model.eval()
 
@@ -192,7 +217,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             pbar.set_postfix({**tracker.get_progress_info()})
 
         # Get all metrics from tracker
-        return tracker.get_aggregated_metrics(), tracker.get_per_sample_rewards()
+        return tracker.get_aggregated_metrics(), tracker.get_per_sample_rewards(), tracker.get_all_messages()
 
     def _generate(
         self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prompt_text: str, max_new_tokens: int
@@ -284,6 +309,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
     ) -> EvaluationState:
         """Run evaluation using simplified GRPO-based conversation processing."""
         state = EvaluationState()
+        state.sample = sample  # Store the original dataset sample
 
         context = list(sample["messages"])
         all_context = list(sample["messages"])
@@ -301,7 +327,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
             output = self._generate(model, tokenizer, prompt, max_new_tokens)
             message = self.extract_exact_match(output, context)
-            all_context.append({"role": "assistant", "content": output})
+            self.add_message("assistant", all_context, output, unstructured=True)
 
             # Check if message extraction worked
             if message is None:
@@ -325,6 +351,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             if message.tool_call is not None:
                 tool_call = self._execute(message)
                 self.add_message("tool", context, tool_call)
+                self.add_message("tool", all_context, tool_call, unstructured=True)
 
             if message.final_answer is not None:
                 state.has_final_answer = True
@@ -334,6 +361,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         # Compute partial format score on complete conversation
         state.strict_format_match = self.calculate_exact_match(context)
         state.partial_format_score = self.calculate_partial_match(all_context)
+        state.messages = all_context
 
         # Calculate state based on conversation history
         # TODO: perhaps remove this altogether
@@ -431,13 +459,31 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             completed=answer is not None,
         )
 
-    def add_message(self, role: str, context: list[dict[str, Any]], message: ThoughtSchema | dict[str, str]) -> None:
+    def add_message(
+        self,
+        role: str,
+        context: list[dict[str, Any]],
+        message: ThoughtSchema | dict[str, str] | str,
+        *,
+        unstructured: bool = False,
+    ) -> None:
         if role == "assistant":
-            assert isinstance(message, ThoughtSchema)
-            msg = self.model_config.format_assistant_message(message)
+            if isinstance(message, str):
+                msg = {"role": "assistant", "content": message}
+            else:
+                assert isinstance(message, ThoughtSchema)
+                msg = self.model_config.format_assistant_message(message)
         elif role == "tool":
-            assert isinstance(message, dict)
-            msg = self.model_config.create_tool_message(context, message)
+            if unstructured:
+                assert isinstance(message, dict)
+                msg = {
+                    "role": "tool",
+                    "content": message["execution_result"],
+                    "name": message["function_name"],
+                }
+            else:
+                assert isinstance(message, dict)
+                msg = self.model_config.create_tool_message(context, message)
         else:
             raise ValueError(f"Invalid role: {role}")
 
