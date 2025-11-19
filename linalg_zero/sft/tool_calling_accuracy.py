@@ -101,12 +101,6 @@ class ToolCallingAccuracyCallback(TrainerCallback):
     def _log_evaluation_metrics(self, metrics: dict[str, float], state: TrainerState, prefix: str = "eval") -> None:
         """Log evaluation metrics to trainer state and logger (Trainer will forward to W&B)."""
         for metric_name, value in metrics.items():
-            state.log_history.append({
-                "epoch": state.epoch if state.epoch is not None else -1,
-                "step": state.global_step,
-                f"{prefix}_{metric_name}": float(value),
-            })
-
             logger.info(f"eval/{metric_name}: {value:.3f}")
 
     def _log_to_weave(

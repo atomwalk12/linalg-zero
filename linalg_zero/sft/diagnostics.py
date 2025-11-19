@@ -116,7 +116,7 @@ class DiagnosticTracker:
         return {
             "format_accuracy": format_overall_accuracy,
             "format_tool_call_accuracy": format_tool_call_accuracy,
-            "answer_attempt_accuracy": answer_attempt_accuracy,
+            "format_answer_accuracy": answer_attempt_accuracy,
             "answer_accuracy": answer_accuracy,
         }
 

@@ -34,11 +34,12 @@ eos_token: <|im_end|>
 bf16: true
 
 ## Evaluation parameters
-do_eval: false                  # does a final evaluation step at the end of training
+do_eval: true                  # does a final evaluation step at the end of training
 eval_on_start: true           # does an evaluation step at the start of training
 eval_strategy: 'steps'         # can be "no","epoch","steps"
 eval_steps: 100                # NOTE: Check also save_steps
-max_eval_samples: None          # use all evaluation samples (576 format checks -- 16*6*2+16*4*3+16*3*4 (208 samples))
+max_eval_samples: 260          # use all evaluation samples (720 format checks -- 20*6*2+20*4*3+20*3*4 (260 samples))
+final_eval_max_samples: 260
 
 # NOTE: if we use a customized metric for best model selection, ensure to adjust:
 # - metric_for_best_model: eval_format_accuracy or eval_loss

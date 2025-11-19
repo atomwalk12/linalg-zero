@@ -83,17 +83,23 @@ def process_dataset(dataset: DatasetDict, normalize_unicode: bool, per_category:
         return _normalize_messages(example)
 
     def get_representative_examples_indices(dataset, per_category: int) -> list[int]:
-        """Get indices of representative examples for each category."""
-        categories: dict[str, list[int]] = defaultdict(list)
+        """Get representative indices first (per_category samples per problem type), then all remaining indices."""
+        categories: defaultdict[str, list[int]] = defaultdict(list)
+        representative_indices = []
 
+        # First pass: collect representative examples per category
         for idx, example in enumerate(dataset):
             task = example["problem_type"]
             if len(categories[task]) < per_category:
                 categories[task].append(idx)
+                representative_indices.append(idx)
 
-        # Flatten all indices
-        all_indices = [idx for indices in categories.values() for idx in indices]
-        return all_indices
+        # Second pass: add all remaining indices
+        representative_set = set(representative_indices)
+        remaining_indices = [i for i in range(len(dataset)) if i not in representative_set]
+        print(f"🧑‍🔬 Number of representative indices: {len(representative_indices)}")
+
+        return representative_indices + remaining_indices
 
     train_dataset = dataset["train"]
     train_dataset = train_dataset.shuffle(seed=seed)
@@ -174,7 +180,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable Unicode NFKC normalization and minus-sign replacement during dataset prep",
     )
-    parser.add_argument("--per_category", default=16, type=int, help="Number of representative examples per category")
+    parser.add_argument("--per_category", default=20, type=int, help="Number of representative examples per category")
     parser.add_argument("--seed", default=42, type=int, help="Random seed for dataset shuffling")
     args = parser.parse_args()
 

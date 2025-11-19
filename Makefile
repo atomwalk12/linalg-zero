@@ -13,7 +13,9 @@ install-distillation: ## Install the virtual environment and install the pre-com
 install-sft: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
 	@uv sync --locked --group sft
-	@uv pip install setuptools flash-attn==2.7.3 --no-build-isolation
+	@uv pip install --upgrade setuptools ninja
+	@uv pip install --upgrade --torch-backend cu128 "xformers==0.0.33.post1"
+	@TORCH_CUDA_ARCH_LIST=8.9 MAX_JOBS=3 uv pip install --upgrade --no-build-isolation "flash-attn==2.8.3"
 	@uv run pre-commit install
 
 .PHONY: install-grpo
