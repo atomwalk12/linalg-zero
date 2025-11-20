@@ -180,7 +180,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable Unicode NFKC normalization and minus-sign replacement during dataset prep",
     )
-    parser.add_argument("--per_category", default=20, type=int, help="Number of representative examples per category")
+    parser.add_argument("--per_category", default=40, type=int, help="Number of representative examples per category")
     parser.add_argument("--seed", default=42, type=int, help="Random seed for dataset shuffling")
     args = parser.parse_args()
 

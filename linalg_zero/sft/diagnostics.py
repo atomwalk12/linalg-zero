@@ -81,12 +81,15 @@ class DiagnosticTracker:
 
             # Check if the last answer is correct
             if last_answer is not None and "ground_truth" in sample:
-                ground_truth = sample["ground_truth"]
-                parsed_gt = parse_string(ground_truth)
-                parsed_answer = parse_string(last_answer)
+                try:
+                    ground_truth = sample["ground_truth"]
+                    parsed_gt = parse_string(ground_truth)
+                    parsed_answer = parse_string(last_answer)
 
-                if verify_answers(parsed_gt, parsed_answer):
-                    total_correct_answers += 1
+                    if verify_answers(parsed_gt, parsed_answer):
+                        total_correct_answers += 1
+                except Exception:  # noqa: S110
+                    pass
 
         return {
             "total_samples": total_samples,

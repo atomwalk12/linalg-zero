@@ -38,8 +38,8 @@ do_eval: true                  # does a final evaluation step at the end of trai
 eval_on_start: true           # does an evaluation step at the start of training
 eval_strategy: 'steps'         # can be "no","epoch","steps"
 eval_steps: 100                # NOTE: Check also save_steps
-max_eval_samples: 260          # use all evaluation samples (720 format checks -- 20*6*2+20*4*3+20*3*4 (260 samples))
-final_eval_max_samples: 260
+max_eval_samples: 520          # use all evaluation samples (720 format checks -- 40*6*2+40*4*3+40*3*4 (520 samples))
+final_eval_max_samples: 520
 
 # NOTE: if we use a customized metric for best model selection, ensure to adjust:
 # - metric_for_best_model: eval_format_accuracy or eval_loss
