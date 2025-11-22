@@ -142,8 +142,6 @@ def process_dataset_for_grpo(  # noqa: C901
 
 def validate_grpo_dataset(dataset: DatasetDict) -> None:
     """Validate that the dataset is properly formatted for GRPO training."""
-    logger.info("*** Validating GRPO dataset ***")
-
     required_columns = ["query", "ground_truth", "stepwise_ground_truths", "tools"]
 
     for split_name, split_data in dataset.items():
@@ -179,8 +177,6 @@ def validate_grpo_dataset(dataset: DatasetDict) -> None:
             # Check tools field
             if not isinstance(sample["tools"], list):
                 raise ValueError(f"Tools field must be a list in {split_name}")
-
-        logger.info(f"✓ {split_name} split validation passed ({len(split_data)} examples)")
 
     logger.info("*** Dataset validation completed successfully ***")
 
