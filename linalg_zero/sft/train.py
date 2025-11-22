@@ -2,12 +2,13 @@ import os
 from typing import Any
 
 os.environ["UNSLOTH_VLLM_STANDBY"] = "1"
-import unsloth  # noqa: I001, F401
 import logging
 import sys
 
 import transformers
+import unsloth  # noqa: F401
 from datasets import DatasetDict, load_dataset
+from datasets.load import DownloadMode
 from datasets.utils.logging import set_verbosity
 from transformers.trainer_utils import get_last_checkpoint, set_seed
 from trl.scripts.utils import TrlParser
@@ -16,7 +17,7 @@ from trl.trainer.sft_trainer import SFTTrainer
 
 from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
 from linalg_zero.sft.callbacks import get_callbacks
-from linalg_zero.sft.utils import get_unsloth_model, init_wandb_training, ensure_tokenizer_has_defaults
+from linalg_zero.sft.utils import ensure_tokenizer_has_defaults, get_unsloth_model, init_wandb_training
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
@@ -62,7 +63,9 @@ def main(  # noqa: C901
     # Load dataset, tokenizer, and model #
     ######################################
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
-    dataset = load_dataset(script_args.dataset_name, script_args.dataset_config)
+    dataset = load_dataset(
+        script_args.dataset_name, script_args.dataset_config, download_mode=DownloadMode.FORCE_REDOWNLOAD
+    )
 
     if not isinstance(dataset, DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
