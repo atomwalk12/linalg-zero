@@ -81,6 +81,16 @@ class SFTRunConfig:
         default=0.95, metadata={"help": "Fraction of GPU memory to be used by vLLM (0-1)"}
     )
 
+    # Evaluation sampling
+    max_eval_samples: int | None = field(
+        default=None,
+        metadata={"help": "Maximum number of eval samples for periodic evaluations. None/-1 for full dataset."},
+    )
+    final_eval_max_samples: int | None = field(
+        default=None,
+        metadata={"help": "Maximum number of eval samples for periodic evaluations. None/-1 for full dataset."},
+    )
+
 
 @dataclass
 class DatasetGenerationConfig:

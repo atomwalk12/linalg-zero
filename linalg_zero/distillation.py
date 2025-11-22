@@ -20,7 +20,11 @@ from linalg_zero.distillation.utils import (
     save_distiset_to_disk,
 )
 from linalg_zero.shared.lib import get_lib_fn_names
-from linalg_zero.shared.system_prompts import get_math_system_prompt
+from linalg_zero.shared.system_prompts import (
+    TOOL_RESPONSE_CLOSE,
+    TOOL_RESPONSE_OPEN,
+    get_math_system_prompt,
+)
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
@@ -71,7 +75,7 @@ def main(args: DistillationConfig, server: LlamaCppServerConfig | VllmServerConf
         generation_kwargs["stop"] = args.stop
     else:
         # Guardrails to prevent model from emitting system-only tags
-        generation_kwargs["stop"] = ["<tool_response>", "</tool_response>"]
+        generation_kwargs["stop"] = [TOOL_RESPONSE_OPEN, TOOL_RESPONSE_CLOSE]
 
     available_functions = get_lib_fn_names()
 

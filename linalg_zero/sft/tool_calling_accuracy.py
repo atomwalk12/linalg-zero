@@ -1,12 +1,13 @@
 """
 Tool calling accuracy callback for SFT training.
 
-Evaluates structural and correctness metrics for tool-use generations on all eval data.
+Evaluates structural and correctnessfo metrics for tool-use generations on all eval data.
 """
 
 from __future__ import annotations
 
 import json as _json
+import os
 from typing import Any
 
 import torch
@@ -14,16 +15,25 @@ from tqdm import tqdm
 from transformers import PreTrainedModel, PreTrainedTokenizer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
+from weave import EvaluationLogger
+from weave.trace.context import weave_client_context
 
-import wandb
 from linalg_zero.distillation.components.models import DefaultConfig
 from linalg_zero.distillation.data import FunctionInvocationInfo, ThoughtSchema
-from linalg_zero.grpo.compute_score import get_interaction_reward
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
-from linalg_zero.grpo.verify import parse_string
 from linalg_zero.sft.diagnostics import DiagnosticTracker
 from linalg_zero.sft.tool_evaluation import EvaluationState
 from linalg_zero.shared.lib import get_lib, get_lib_fn_names
+from linalg_zero.shared.system_prompts import (
+    ANSWER_CLOSE,
+    ANSWER_OPEN,
+    THINK_CLOSE,
+    THINK_OPEN,
+    TOOL_CALL_CLOSE,
+    TOOL_CALL_OPEN,
+    TOOL_RESPONSE_CLOSE,
+    TOOL_RESPONSE_OPEN,
+)
 from linalg_zero.shared.utils import get_logger
 
 logger = get_logger(__name__)
@@ -36,12 +46,14 @@ class ToolCallingAccuracyCallback(TrainerCallback):
     Evaluates all samples in the eval_dataset for robust metric computation.
     """
 
-    def __init__(self, eval_dataset: Any) -> None:
+    def __init__(self, model_name: str, dataset_name: str, eval_dataset: Any) -> None:
         self.eval_dataset = eval_dataset
+        self.model_name = model_name
+        self.dataset_name = dataset_name
         self.library = get_lib()
         self._parser = XMLParser()
         self.model_config = DefaultConfig()
-        self._metric_defined = False
+        self.generation_config = None
 
     def on_evaluate(
         self,
@@ -61,58 +73,68 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             return
 
         # Get max_new_tokens from training args (eval_max_new_tokens config)
-        max_new_tokens = getattr(args, "eval_max_new_tokens", 8192)
+        max_new_tokens = getattr(args, "eval_max_new_tokens", 1024)
 
-        logger.info(f"Computing tool-calling metrics on all {len(self.eval_dataset)} eval samples...")
+        # Determine eval subset size
+        max_eval_samples = getattr(args, "max_eval_samples", None)
+        if max_eval_samples is None or max_eval_samples < 0:
+            num_samples = len(self.eval_dataset)
+        else:
+            num_samples = min(max_eval_samples, len(self.eval_dataset))
 
-        eval_metrics, per_sample_rewards = self._compute_metrics(
+        logger.info(f"Computing tool-calling metrics on {num_samples}/{len(self.eval_dataset)} eval samples...")
+
+        all_messages, weave_metadata, eval_metrics = self._compute_metrics(
             model=model,
             tokenizer=tokenizer,
             dataset=self.eval_dataset,
             max_new_tokens=max_new_tokens,
+            max_samples=num_samples,
         )
         if eval_metrics:
             self._log_evaluation_metrics(eval_metrics, state, prefix="eval")
             if metrics is not None:
-                metrics.update(eval_metrics)
+                metrics.update({f"eval_{k}": v for k, v in eval_metrics.items()})
 
-        # Log per-sample distributions
-        if per_sample_rewards:
-            self._log_per_sample_distributions(per_sample_rewards, state)
+        self._log_to_weave(state, all_messages, weave_metadata)
 
     def _log_evaluation_metrics(self, metrics: dict[str, float], state: TrainerState, prefix: str = "eval") -> None:
         """Log evaluation metrics to trainer state and logger (Trainer will forward to W&B)."""
         for metric_name, value in metrics.items():
-            state.log_history.append({
-                "epoch": state.epoch if state.epoch is not None else -1,
-                "step": state.global_step,
-                f"{prefix}_{metric_name}": float(value),
-            })
+            logger.info(f"eval/{metric_name}: {value:.3f}")
 
-            logger.info(f"tool_use/{metric_name}: {value:.3f}")
+    def _log_to_weave(
+        self, state: TrainerState, all_messages: list[list[dict[str, Any]]], metadata: dict[str, int]
+    ) -> None:
+        """Log predictions and summary to Weave."""
+        client = weave_client_context.get_weave_client()
+        if client is not None:
+            eval_attributes = {
+                "training_step": state.global_step,
+                "model_name": self.model_name,
+                "generation_config": (self.generation_config if self.generation_config else None),
+            }
 
-    def _log_per_sample_distributions(self, per_sample_rewards: dict[str, list[float]], state: TrainerState) -> None:
-        """Log per-sample rewards to W&B for richer visualization."""
-        if not wandb.run:
-            logger.debug("No active wandb run, skipping per-sample logging")
+            weave_logger = EvaluationLogger(
+                name=f"linalg_zero_sft_eval_{state.global_step}",
+                scorers=[],
+                model=self.model_name,
+                dataset=self.dataset_name,
+                eval_attributes=eval_attributes,
+            )
+        else:
             return
 
-        # Define metric only once per run
-        if not self._metric_defined:
-            wandb.define_metric("eval_samples/*", step_metric="eval_samples/sample_idx")
-            self._metric_defined = True
+        logger.info(f"Logging {len(all_messages)} samples to Weave...")
 
-        # Log each sample individually to create multiple data points
-        for metric_name, values in per_sample_rewards.items():
-            for i, reward_value in enumerate(values):
-                wandb.log(
-                    {
-                        "eval_samples/sample_idx": i,  # x-axis for these series
-                        "eval_samples/global_step": state.global_step,  # auxiliary info
-                        f"eval_samples/{metric_name}": float(reward_value),
-                    },
-                    commit=True,
-                )
+        # Log each sample as a prediction
+        for messages in all_messages:
+            pred = weave_logger.log_prediction(inputs={"messages": messages})
+            pred.finish()
+
+        # Log summary with metadata
+        weave_logger.log_summary(metadata)
+        logger.info(f"Weave logging completed with metadata: {metadata}")
 
     def _compute_metrics(
         self,
@@ -120,15 +142,17 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         tokenizer: PreTrainedTokenizer,
         dataset: Any,
         max_new_tokens: int,
-    ) -> tuple[dict[str, float], dict[str, list[float]]]:
-        """Compute metrics on all eval samples with fair turn allocation per sample."""
+        max_samples: int | None = None,
+    ) -> tuple[list[list[dict[str, Any]]], dict[str, int | float], dict[str, float]]:
+        """Compute metrics on eval samples with fair turn allocation per sample."""
         model.eval()
 
         if not dataset or len(dataset) == 0:
-            return {}, {}
+            raise ValueError("Dataset is empty")
 
-        # Evaluate all samples in the eval dataset
-        samples: list[dict[str, Any]] = [dataset[i] for i in range(len(dataset))]
+        # Subset dataset if max_samples specified
+        num_samples = len(dataset) if max_samples is None else min(max_samples, len(dataset))
+        samples: list[dict[str, Any]] = [dataset[i] for i in range(num_samples)]
 
         # Initialize metrics tracker
         tracker = DiagnosticTracker()
@@ -146,14 +170,15 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             tracker.update(state)
 
             # Update progress bar
-            pbar.set_postfix({"turns": n_turns, **tracker.get_progress_info()})
+            pbar.set_postfix({**tracker.get_progress_info()})
 
-        # Get all metrics from tracker
-        return tracker.get_aggregated_metrics(), tracker.get_per_sample_rewards()
+        all_messages, metadata, eval_metrics = tracker.get_history()
+        return all_messages, metadata, eval_metrics
 
     def _generate(
         self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prompt_text: str, max_new_tokens: int
     ) -> str:
+        """Generate output for a single prompt."""
         inputs = tokenizer(
             prompt_text,
             return_tensors="pt",
@@ -166,22 +191,31 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
         with torch.no_grad():
-            pad_id = getattr(tokenizer, "pad_token_id", None) or getattr(tokenizer, "eos_token_id", None)
+            if self.generation_config is None:
+                self.generation_config = self.get_generation_config(max_new_tokens, tokenizer)
 
             outputs = model.generate(  # type: ignore[operator]
                 input_ids=inputs["input_ids"],
                 attention_mask=inputs["attention_mask"],
-                max_new_tokens=max_new_tokens,
-                do_sample=False,
-                pad_token_id=pad_id,
-                top_k=None,  # Disable sampling parameters when do_sample=False
-                top_p=None,
-                temperature=None,
+                tokenizer=tokenizer,
+                **self.generation_config,
             )
 
         # Extract only the generated tokens (after the input)
         prompt_length = inputs["input_ids"].shape[1]
         generated_tokens = outputs[:, prompt_length:]
+
+        # Special tokens to preserve
+        KEEP_TOKENS = {ANSWER_OPEN, ANSWER_CLOSE, THINK_OPEN, THINK_CLOSE, TOOL_CALL_OPEN, TOOL_CALL_CLOSE}
+
+        # Decode without skipping any special tokens
+        output_raw = tokenizer.decode(generated_tokens[0], skip_special_tokens=False)
+
+        # Remove unwanted special tokens
+        output = output_raw
+        for special_token in tokenizer.all_special_tokens:
+            if special_token not in KEEP_TOKENS:
+                output = output.replace(special_token, "")
 
         # Check if generation was truncated due to max_new_tokens
         if (
@@ -191,7 +225,43 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         ):
             logger.warning(f"Generation may have been truncated at max_new_tokens={max_new_tokens}")
 
-        return tokenizer.decode(generated_tokens[0], skip_special_tokens=True)
+        if os.getenv("SFT_LOG_GENERATIONS") == "1":
+            logger.info("=" * 100)
+            logger.info(f"Generated output (len={len(output)}): {output}")
+            logger.info("=" * 100)
+
+        return output
+
+    def get_generation_config(self, max_new_tokens: int, tokenizer: PreTrainedTokenizer) -> dict[str, Any]:
+        pad_id = getattr(tokenizer, "pad_token_id", None)
+        eos_id = getattr(tokenizer, "eos_token_id", None)
+        assert eos_id is not None, "EOS token ID is not set"
+        assert pad_id is not None, "PAD token ID is not set"
+
+        stop_strings = [TOOL_RESPONSE_OPEN, TOOL_RESPONSE_CLOSE]
+        stop_token_ids = [eos_id]
+        for token_str in [TOOL_CALL_CLOSE, ANSWER_CLOSE]:
+            token_ids = tokenizer.encode(token_str, add_special_tokens=False)
+            if len(token_ids) != 1:
+                raise ValueError(
+                    f"Special token '{token_str}' was split into {len(token_ids)} tokens. "
+                    f"Ensure it's registered as a special token."
+                )
+            stop_token_ids.append(token_ids[0])
+
+        return {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": False,
+            "pad_token_id": pad_id,
+            "eos_token_id": stop_token_ids,
+            "stop_strings": stop_strings,
+            "repetition_penalty": 1.15,
+            "no_repeat_ngram_size": 8,
+            "top_k": None,
+            "top_p": None,
+            "temperature": None,
+            "use_cache": True,
+        }
 
     def _run_evaluation_turns(
         self,
@@ -203,25 +273,23 @@ class ToolCallingAccuracyCallback(TrainerCallback):
     ) -> EvaluationState:
         """Run evaluation using simplified GRPO-based conversation processing."""
         state = EvaluationState()
+        state.sample = sample  # Store the original dataset sample
 
         context = list(sample["messages"])
+        all_context = list(sample["messages"])
+        tools = sample["tools"]
 
         # Multi-turn conversation loop
-        for turn_idx in range(n_turns):
-            state.turns_taken = turn_idx + 1
-
-            # Generate assistant response
-            prompt = tokenizer.apply_chat_template(context, tokenize=False, add_generation_prompt=True)
+        for _ in range(n_turns):
+            # Generate assistant response (include tools so template exposes function signatures)
+            prompt = tokenizer.apply_chat_template(context, tools=tools, tokenize=False, add_generation_prompt=True)
             if not isinstance(prompt, str):
                 state.early_stop_reason = "prompt_format_error"
                 break
 
             output = self._generate(model, tokenizer, prompt, max_new_tokens)
-            message = self.extract_non_structured_output(output, context)
-
-            # Track if at least one turn had valid format
-            if message is not None:
-                state.format_valid = True
+            message = self.extract_exact_match(output, context)
+            self.add_message("assistant", all_context, output, unstructured=True)
 
             # Check if message extraction worked
             if message is None:
@@ -236,23 +304,24 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             if message.tool_call is not None:
                 state.tool_parse_success = True
 
-            if message.final_answer is not None:
-                state.answer_attempted = True
-
             self.add_message("assistant", context, message)
 
             # Execute tool call if it exists
             if message.tool_call is not None:
                 tool_call = self._execute(message)
                 self.add_message("tool", context, tool_call)
+                self.add_message("tool", all_context, tool_call, unstructured=True)
 
             if message.final_answer is not None:
-                state.has_final_answer = True
+                state.generated_answer = message.final_answer
                 state.early_stop_reason = "final_answer_provided"
                 break
 
-        # Calculate state based on conversation history
-        self._calculate_conversation_metrics(context, sample, state)
+        # Compute partial format score on complete conversation
+        state.strict_format_match = self.calculate_exact_match(context)
+        state.partial_format_score = self.calculate_partial_match(all_context)
+        state.messages = all_context
+
         return state
 
     def _execute(self, msg: ThoughtSchema) -> dict[str, str]:
@@ -277,7 +346,46 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 "execution_result": f"ERROR: {type(exc).__name__}: {exc}",
             }
 
-    def extract_non_structured_output(self, message: str, context: list[dict]) -> ThoughtSchema | None:
+    def calculate_exact_match(self, context: list[dict]) -> float:
+        """Calculate exact match for the entire conversation."""
+        reward: list[float] = []
+
+        # Discard the first two turns (system and user)
+        for completion in context[2:]:
+            msg = completion["content"]
+            score = 1 if self._parser._is_valid_think_then_tool_or_answer(msg) else 0
+            reward.append(score)
+
+        return sum(reward) / len(reward) if len(reward) > 0 else 0
+
+    def calculate_partial_match(self, context: list[dict]) -> float:
+        """
+        Compute format adherence score for lenient evaluation.
+        """
+        scores: list[float] = []
+
+        # Discard the first two turns (system and user)
+        for completion in context[2:]:
+            score: float = 0
+            tool_or_answer_reward = 0
+            response = completion["content"]
+
+            # No need to reward <start_working_out> since we always prepend it
+            # score += 0.5 if response.count(reasoning_start) == 1 else -1.0
+            score += 1 if response.count(THINK_CLOSE) == 1 else 0
+            tool_or_answer_reward += 1 if response.count(TOOL_CALL_OPEN) == 1 else 0
+            tool_or_answer_reward += 1 if response.count(TOOL_CALL_CLOSE) == 1 else 0
+
+            if tool_or_answer_reward == 0:
+                tool_or_answer_reward += 1 if response.count(ANSWER_OPEN) == 1 else 0
+                tool_or_answer_reward += 1 if response.count(ANSWER_CLOSE) == 1 else 0
+
+            score += tool_or_answer_reward
+            scores.append(score)
+
+        return sum(scores) / len(scores) if len(scores) > 0 else 0
+
+    def extract_exact_match(self, message: str, context: list[dict]) -> ThoughtSchema | None:
         """Extract output from messages that do not enforce structured output."""
         analysis = self._parser.analyze_message_in_context(context, message=message, tool_names=get_lib_fn_names())
 
@@ -307,34 +415,33 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             completed=answer is not None,
         )
 
-    def add_message(self, role: str, context: list[dict[str, Any]], message: ThoughtSchema | dict[str, str]) -> None:
+    def add_message(
+        self,
+        role: str,
+        context: list[dict[str, Any]],
+        message: ThoughtSchema | dict[str, str] | str,
+        *,
+        unstructured: bool = False,
+    ) -> None:
         if role == "assistant":
-            assert isinstance(message, ThoughtSchema)
-            msg = self.model_config.format_assistant_message(message)
+            if isinstance(message, str):
+                msg = {"role": "assistant", "content": message}
+            else:
+                assert isinstance(message, ThoughtSchema)
+                msg = self.model_config.format_assistant_message(message)
         elif role == "tool":
-            assert isinstance(message, dict)
-            msg = self.model_config.create_tool_message(context, message)
+            if unstructured:
+                assert isinstance(message, dict)
+                msg = {
+                    "role": "tool",
+                    "content": message["execution_result"],
+                    "name": message["function_name"],
+                }
+            else:
+                assert isinstance(message, dict)
+                msg = self.model_config.create_tool_message(context, message)
         else:
             raise ValueError(f"Invalid role: {role}")
 
         assert msg is not None, f"Message is None for role: {role}"
         context.append(msg)
-
-    def _calculate_conversation_metrics(
-        self, context: list[dict[str, Any]], sample: dict[str, Any], state: EvaluationState
-    ) -> None:
-        """Calculate conversation-wide metrics using GRPO reward functions."""
-        if ground_truth := sample["ground_truth"]:
-            # Calculate reward
-            gt_parsed = parse_string(ground_truth)
-            if gt_parsed is not None:
-                _reward, metadata = get_interaction_reward(
-                    parser=self._parser, ground_truth=gt_parsed, completion=context
-                )
-            else:
-                _reward, metadata = 0.0, {}
-
-            # Extract metrics from metadata
-            state.reward_final_answer = float(metadata.get("reward_final_answer", 0.0))
-            state.reward_response_format = float(metadata.get("reward_response_format", 0.0))
-            state.reward_interaction = float(_reward)

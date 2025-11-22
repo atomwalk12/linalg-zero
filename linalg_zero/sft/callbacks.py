@@ -28,6 +28,8 @@ def get_callbacks(
         if callback_name == "tool_calling_accuracy":
             callbacks.append(
                 CALLBACKS[callback_name](
+                    model_name=model_config.model_name_or_path,
+                    dataset_name=script_args.dataset_name,
                     eval_dataset=dataset[script_args.dataset_test_split],
                 )
             )

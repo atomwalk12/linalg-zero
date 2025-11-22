@@ -1,13 +1,14 @@
 import os
-
-os.environ["UNSLOTH_VLLM_STANDBY"] = "1"
-import unsloth  # noqa: I001, F401
-import logging
-import sys
 from typing import Any
 
+os.environ["UNSLOTH_VLLM_STANDBY"] = "1"
+import logging
+import sys
+
 import transformers
+import unsloth  # noqa: F401
 from datasets import DatasetDict, load_dataset
+from datasets.load import DownloadMode
 from datasets.utils.logging import set_verbosity
 from transformers.trainer_utils import get_last_checkpoint, set_seed
 from trl.scripts.utils import TrlParser
@@ -16,7 +17,7 @@ from trl.trainer.sft_trainer import SFTTrainer
 
 from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
 from linalg_zero.sft.callbacks import get_callbacks
-from linalg_zero.sft.utils import get_unsloth_model, init_wandb_training
+from linalg_zero.sft.utils import ensure_tokenizer_has_defaults, get_unsloth_model, init_wandb_training
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
@@ -62,34 +63,50 @@ def main(  # noqa: C901
     # Load dataset, tokenizer, and model #
     ######################################
     logger.info(f"Loading dataset from {script_args.dataset_name}...")
-    dataset = load_dataset(script_args.dataset_name, script_args.dataset_config)
+    dataset = load_dataset(
+        script_args.dataset_name, script_args.dataset_config, download_mode=DownloadMode.FORCE_REDOWNLOAD
+    )
 
     if not isinstance(dataset, DatasetDict):
         raise TypeError(f"Expected dataset to be a DatasetDict, but got {type(dataset)}")
 
     # Model, tokenizer, dataset
     logger.info("Loading model and tokenizer...")
-    model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args)
+    model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args, resume_path=last_checkpoint)
 
     # Ensure pad token and padding side are set consistently for SFT
-    # if tokenizer.pad_token_id is None:
-    #     tokenizer.pad_token_id = tokenizer.eos_token_id
-    # tokenizer.padding_side = "right"
-    # if getattr(model, "config", None) is not None:
-    #     model.config.pad_token_id = tokenizer.pad_token_id
-    # if getattr(model, "generation_config", None) is not None:
-    #     model.generation_config.pad_token_id = tokenizer.pad_token_id
-    #     model.generation_config.eos_token_id = tokenizer.eos_token_id
+    ensure_tokenizer_has_defaults(tokenizer, model)
 
     def ensure_text(x: dict[str, Any]) -> dict[str, Any]:
-        x["text"] = tokenizer.apply_chat_template(x["messages"], tokenize=False)
+        x["text"] = tokenizer.apply_chat_template(x["messages"], tools=x["tools"], tokenize=False)
         return x
 
-    dataset = dataset.map(ensure_text)
+    def formatting_prompts_func(examples):
+        convos = examples["messages"]  # List of 1000 conversations
+        tools = examples.get("tools", None)  # List of 1000 tool specs
+
+        texts = []
+        for i, convo in enumerate(convos):
+            example_tools = tools[i] if tools and isinstance(tools, list) else tools
+
+            text = tokenizer.apply_chat_template(
+                convo,
+                tools=example_tools,  # Pass tools[i] for the i-th conversation
+                tokenize=False,
+                add_generation_prompt=False,
+            )
+            texts.append(text)
+
+        return {"text": texts}
+
+    dataset = dataset.map(formatting_prompts_func, batched=True)
 
     ##############################
     # Initialize the SFT Trainer #
     ##############################
+    trl_training_args.max_eval_samples = training_args.max_eval_samples
+    trl_training_args.eval_max_new_tokens = training_args.eval_max_new_tokens
+
     logger.info("Initializing SFT Trainer...")
     trainer = SFTTrainer(
         model=model,
@@ -136,20 +153,22 @@ def main(  # noqa: C901
         if trainer.model is not None and trainer.model.generation_config is not None:
             trainer.model.generation_config.eos_token_id = tokenizer.eos_token_id
             assert trainer.model.generation_config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
+
+        # Restore k,v cache for fast inference before saving
+        if trainer.model is not None:
+            trainer.model.config.use_cache = True
+
         trainer.save_model(trl_training_args.output_dir)
         logger.info(f"Model saved to {trl_training_args.output_dir}")
 
         # Save everything else on main process
         kwargs = {
             "dataset_name": script_args.dataset_name,
-            "tags": ["linalg-zero", "sft", "tool-use"],
+            "tags": ["linalg-zero", "sft", "tool-use", "linear-algebra"],
+            "model_name": model_args.model_name_or_path,
         }
         if trainer.accelerator.is_main_process:
             trainer.create_model_card(**kwargs)
-            # Restore k,v cache for fast inference
-            if trainer.model is not None:
-                trainer.model.config.use_cache = True
-                trainer.model.config.save_pretrained(trl_training_args.output_dir)
 
     except Exception:
         logger.exception("Failed to save model")
@@ -159,13 +178,20 @@ def main(  # noqa: C901
     # Evaluate #
     ############
     if trl_training_args.do_eval:
-        logger.info("*** Evaluation ***")
+        logger.info("*** Final Evaluation on Full Dataset ***")
         try:
+            # Temporarily override max_eval_samples to evaluate on full dataset
+            original_max_eval_samples = getattr(trl_training_args, "max_eval_samples", None)
+            trl_training_args.max_eval_samples = training_args.final_eval_max_samples
+
             metrics = trainer.evaluate()
             metrics["eval_samples"] = len(dataset[script_args.dataset_test_split])
             trainer.log_metrics("eval", metrics)
             trainer.save_metrics("eval", metrics)
             logger.info("Evaluation completed successfully!")
+
+            # Restore original value
+            trl_training_args.max_eval_samples = original_max_eval_samples
 
         except Exception:
             logger.exception("Evaluation failed")

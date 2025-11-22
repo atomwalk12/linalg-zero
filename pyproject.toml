@@ -148,7 +148,7 @@ distillation = [
 ]
 
 sft = [
-    "accelerate>=1.8.1",
+    "accelerate==1.11.0",
     "datasets>=4.4.1",
     "distilabel>=1.5.3",
     "math-verify>=0.8.0",
@@ -157,6 +157,8 @@ sft = [
     "unsloth-zoo>=2025.10.3",
     "wandb>=0.23.0",
     "transformers==4.56.2",
+    "weave>=0.51.56",
+    "ninja>=1.13.0",
 ]
 
 # Dependencies for GRPO training with openpipe-art
