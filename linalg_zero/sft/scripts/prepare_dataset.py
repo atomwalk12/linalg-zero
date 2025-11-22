@@ -1,15 +1,13 @@
 import json
 import logging
-import unicodedata
 from argparse import ArgumentParser
-from collections import defaultdict
 from typing import Any
 
 from datasets import Dataset, DatasetDict, DownloadMode, load_dataset
 
 from linalg_zero.shared.lib import get_tools
 from linalg_zero.shared.system_prompts import get_sft_system_prompt
-from linalg_zero.shared.utils import get_logger, setup_logging
+from linalg_zero.shared.utils import get_logger, get_representative_examples_indices, normalize_text, setup_logging
 
 # Log both to file and console
 setup_logging(level=logging.INFO, include_timestamp=True)
@@ -32,7 +30,7 @@ def load_datasets(src_train: str, src_test: str) -> DatasetDict:
     return DatasetDict({"train": train_dataset, "validation": test_dataset})
 
 
-def process_dataset(dataset: DatasetDict, normalize_unicode: bool, per_category: int, seed: int) -> DatasetDict:  # noqa: C901
+def process_dataset(dataset: DatasetDict, normalize_unicode: bool, per_category: int, seed: int) -> DatasetDict:
     """Load and process dataset for SFT training."""
 
     # The necessary columns for SFT
@@ -43,27 +41,21 @@ def process_dataset(dataset: DatasetDict, normalize_unicode: bool, per_category:
         "stepwise_ground_truths",
     ]
 
-    def _normalize_text(s: str) -> str:
-        if not normalize_unicode or not isinstance(s, str):
-            return s
-        s = unicodedata.normalize("NFKC", s)
-        return s.replace("\u2212", "-")
-
     def _normalize_messages(example: dict[str, Any]) -> dict[str, Any]:
         if not normalize_unicode:
             return example
         msgs = example.get("messages", [])
         for m in msgs:
             if isinstance(m, dict) and "content" in m:
-                m["content"] = _normalize_text(m["content"])
+                m["content"] = normalize_text(m["content"], normalize_unicode)
         example["messages"] = msgs
         return example
 
     # Add missing columns (messages & tools)
     def ensure_messages(example: dict[str, Any]) -> dict[str, Any]:
         example["messages"] = [
-            {"role": "system", "content": _normalize_text(get_sft_system_prompt())},
-            {"role": "user", "content": _normalize_text(example["query"])},
+            {"role": "system", "content": normalize_text(get_sft_system_prompt(), normalize_unicode)},
+            {"role": "user", "content": normalize_text(example["query"], normalize_unicode)},
         ]
         return _normalize_messages(example)
 
@@ -78,28 +70,9 @@ def process_dataset(dataset: DatasetDict, normalize_unicode: bool, per_category:
 
         # Replace the system prompt with the SFT system prompt
         if example["messages"] and example["messages"][0]["role"] == "system":
-            example["messages"][0]["content"] = _normalize_text(get_sft_system_prompt())
+            example["messages"][0]["content"] = normalize_text(get_sft_system_prompt(), normalize_unicode)
 
         return _normalize_messages(example)
-
-    def get_representative_examples_indices(dataset, per_category: int) -> list[int]:
-        """Get representative indices first (per_category samples per problem type), then all remaining indices."""
-        categories: defaultdict[str, list[int]] = defaultdict(list)
-        representative_indices = []
-
-        # First pass: collect representative examples per category
-        for idx, example in enumerate(dataset):
-            task = example["problem_type"]
-            if len(categories[task]) < per_category:
-                categories[task].append(idx)
-                representative_indices.append(idx)
-
-        # Second pass: add all remaining indices
-        representative_set = set(representative_indices)
-        remaining_indices = [i for i in range(len(dataset)) if i not in representative_set]
-        print(f"🧑‍🔬 Number of representative indices: {len(representative_indices)}")
-
-        return representative_indices + remaining_indices
 
     train_dataset = dataset["train"]
     train_dataset = train_dataset.shuffle(seed=seed)
