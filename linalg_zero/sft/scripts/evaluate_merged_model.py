@@ -86,7 +86,7 @@ def generate_like_sft_eval(sample_idx: int = 0):
             **gen_config,
         )
 
-    # Decode only the generated continuation (optional: mimic callback’s decoding)
+    # Decode only the generated continuation (optional: mimic callback's decoding)
     prompt_len = inputs["input_ids"].shape[1]
     gen_tokens = outputs[:, prompt_len:]
     text = tokenizer.decode(gen_tokens[0], skip_special_tokens=False)
