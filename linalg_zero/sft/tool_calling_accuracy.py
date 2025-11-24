@@ -115,10 +115,13 @@ class ToolCallingAccuracyCallback(TrainerCallback):
                 "generation_config": (self.generation_config if self.generation_config else None),
             }
 
+            # Sanitize model name for Weave scorer validation
+            sanitized_model_name = self.model_name.replace("/", "_").replace("-", "_")
+
             weave_logger = EvaluationLogger(
                 name=f"linalg_zero_sft_eval_{state.global_step}",
                 scorers=[],
-                model=self.model_name,
+                model=sanitized_model_name,
                 dataset=self.dataset_name,
                 eval_attributes=eval_attributes,
             )
@@ -129,7 +132,9 @@ class ToolCallingAccuracyCallback(TrainerCallback):
 
         # Log each sample as a prediction
         for messages in all_messages:
-            pred = weave_logger.log_prediction(inputs={"messages": messages})
+            inputs = {"messages": messages[:2]}
+            output = {"messages": messages[2:]} if len(messages) > 2 else None
+            pred = weave_logger.log_prediction(inputs=inputs, output=output)
             pred.finish()
 
         # Log summary with metadata

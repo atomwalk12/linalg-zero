@@ -14,7 +14,7 @@ from tau_bench.types import (
 )
 
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
-from linalg_zero.shared.system_prompts import get_math_system_prompt
+from linalg_zero.shared.system_prompts import get_sft_system_prompt
 
 from .compute_reward import answer_correct, think_correct, validate_answer
 
@@ -44,7 +44,7 @@ class LinearAlgebraEnv(Env):
             data_load_func=lambda: {},  # Linear algebra doesn't need external data
             tools=ALL_TOOLS,
             tasks=list(tasks),
-            wiki=get_math_system_prompt(include_examples=False),
+            wiki=get_sft_system_prompt(),
             rules=[],
             user_strategy=user_strategy,
             user_model=user_model,

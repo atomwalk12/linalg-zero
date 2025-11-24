@@ -7,7 +7,12 @@ from datasets import Dataset, DatasetDict, DownloadMode, load_dataset
 
 from linalg_zero.shared.lib import get_tools
 from linalg_zero.shared.system_prompts import get_sft_system_prompt
-from linalg_zero.shared.utils import get_logger, get_representative_examples_indices, normalize_text, setup_logging
+from linalg_zero.shared.utils import (
+    get_logger,
+    get_representative_examples_indices,
+    normalize_text,
+    setup_logging,
+)
 
 # Log both to file and console
 setup_logging(level=logging.INFO, include_timestamp=True)

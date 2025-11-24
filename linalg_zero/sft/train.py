@@ -2,11 +2,11 @@ import os
 from typing import Any
 
 os.environ["UNSLOTH_VLLM_STANDBY"] = "1"
+import unsloth  # noqa: I001, F401
 import logging
 import sys
 
 import transformers
-import unsloth  # noqa: F401
 from datasets import DatasetDict, load_dataset
 from datasets.load import DownloadMode
 from datasets.utils.logging import set_verbosity
@@ -17,7 +17,12 @@ from trl.trainer.sft_trainer import SFTTrainer
 
 from linalg_zero.config.data import ScriptArguments, SFTModelConfig, SFTRunConfig
 from linalg_zero.sft.callbacks import get_callbacks
-from linalg_zero.sft.utils import ensure_tokenizer_has_defaults, get_unsloth_model, init_wandb_training
+from linalg_zero.sft.utils import (
+    ensure_tokenizer_has_defaults,
+    get_unsloth_model,
+    init_wandb_training,
+    load_merged_model_for_sft,
+)
 from linalg_zero.shared.utils import get_logger, setup_logging
 
 
@@ -72,7 +77,18 @@ def main(  # noqa: C901
 
     # Model, tokenizer, dataset
     logger.info("Loading model and tokenizer...")
-    model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args, resume_path=last_checkpoint)
+    if getattr(model_args, "use_peft", True):
+        # Standard LoRA SFT on base model
+        model, tokenizer = get_unsloth_model(model_args, training_args, trl_training_args, resume_path=last_checkpoint)
+    else:
+        # Light touch-up on a merged model: train only I/O layers if requested
+        max_seq_len = training_args.max_seq_length or trl_training_args.max_seq_length
+        model, tokenizer = load_merged_model_for_sft(
+            model_path=model_args.model_name_or_path,
+            max_seq_length=max_seq_len,
+            dtype=None,
+            train_io_only=True,
+        )
 
     # Ensure pad token and padding side are set consistently for SFT
     ensure_tokenizer_has_defaults(tokenizer, model)
@@ -212,8 +228,8 @@ if __name__ == "__main__":
     """Script entry point for SFT training."""
     if "--config" not in sys.argv:
         sys.argv.append("--config")
-        sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production.yaml")
-        # sys.argv.append("linalg_zero/config/sft/qwen3-4b-base/production.yaml")
+        sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_merged.yaml")
+        # sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production.yaml")
 
     parser = TrlParser([ScriptArguments, SFTRunConfig, SFTConfig, SFTModelConfig])
     script_args, training_args, trl_training_args, model_args = parser.parse_args_and_config()

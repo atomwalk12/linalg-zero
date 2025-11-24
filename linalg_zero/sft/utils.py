@@ -1,5 +1,4 @@
 import logging
-import math
 import os
 from pathlib import Path
 
@@ -38,7 +37,9 @@ def is_using_deepspeed() -> bool:
 def ensure_tokenizer_has_defaults(tokenizer: PreTrainedTokenizer, model: PreTrainedModel) -> None:
     if getattr(tokenizer, "pad_token_id", None) is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
-    assert tokenizer.padding_side == "right", "Padding side is not right"
+
+    if tokenizer.padding_side != "right":
+        tokenizer.padding_side = "right"
 
     if getattr(model, "config", None) is not None:
         # assert model.config.pad_token_id == tokenizer.pad_token_id, "Pad token ID mismatch"
@@ -104,6 +105,52 @@ def load_model_for_evaluation(
     return model, tokenizer
 
 
+def load_merged_model_for_sft(
+    model_path: str,
+    max_seq_length: int = 2048,
+    dtype: torch.dtype | None = None,
+    train_io_only: bool = False,
+) -> tuple[PreTrainedModel, PreTrainedTokenizer]:
+    """
+    Load a merged (non-LoRA) model for a light SFT touch-up.
+
+    - `model_path` should point to the merged checkpoint directory
+      (e.g. \"results/LinalgZero-SFT-merged\").
+    - If `train_io_only` is True, all parameters are frozen except:
+        * input embeddings (`embed_tokens`)
+        * output head (`lm_head` / output embeddings)
+    """
+    # Load with Unsloth wrapper for consistent config handling
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=model_path,
+        max_seq_length=max_seq_length,
+        dtype=dtype,
+        load_in_4bit=False,
+        load_in_8bit=False,
+    )
+
+    # Make sure pad / eos are wired correctly before training
+    ensure_tokenizer_has_defaults(tokenizer, model)
+
+    if train_io_only:
+        # Freeze everything
+        for param in model.parameters():
+            param.requires_grad = False
+
+        # Unfreeze embeddings
+        for param in model.get_input_embeddings().parameters():
+            param.requires_grad = True
+
+        # Unfreeze LM head / output embeddings
+        output_layer = getattr(model, "lm_head", None)
+        if output_layer is None:
+            output_layer = model.get_output_embeddings()
+        for param in output_layer.parameters():
+            param.requires_grad = True
+
+    return model, tokenizer
+
+
 def get_unsloth_model(
     model_args: SFTModelConfig,
     training_args: SFTRunConfig,
@@ -112,6 +159,7 @@ def get_unsloth_model(
     use_vllm: bool = False,
 ) -> tuple[FastLanguageModel, PreTrainedTokenizer]:
     """Fetch the model and optimizer for training."""
+    assert resume_path is None, "Resuming from a checkpoint is not supported"
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_args.model_name_or_path,
@@ -128,36 +176,41 @@ def get_unsloth_model(
     num_added = 0
     has_added_tokens = False
 
-    pad_to_multiple_of = 128
-    if resume_path:
-        # On resume: DO NOT add new tokens. Load tokenizer from checkpoint to keep vocab identical.
-        tokenizer = AutoTokenizer.from_pretrained(
-            resume_path,
-            trust_remote_code=model_args.trust_remote_code,
-        )
-        logger.info(f"Loaded tokenizer from resume checkpoint: {resume_path}")
-
+    # Fresh run: register special tag tokens and resize embeddings
+    special_tags = [THINK_OPEN, THINK_CLOSE, TOOL_CALL_OPEN, TOOL_CALL_CLOSE, ANSWER_OPEN, ANSWER_CLOSE]
+    num_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tags})
+    if num_added and num_added > 0:
         tok_vocab = len(tokenizer)
         model_vocab = model.get_input_embeddings().weight.size(0)
 
-        # Account for pad_to_multiple_of when comparing
-        expected_model_vocab = math.ceil(tok_vocab / pad_to_multiple_of) * pad_to_multiple_of
+        # Mark embeddings as trainable so new token rows can be updated.
+        model._need_to_train_embeddings = True
 
-        if expected_model_vocab != model_vocab:
-            logger.info(f"Resizing embeddings to match checkpoint tokenizer vocab: {model_vocab} -> {tok_vocab}")
+        # We are explicitly training embeddings for added tokens,
+        # so we must ensure they are saved in the PEFT checkpoint.
+        has_added_tokens = True
+
+        if tok_vocab > model_vocab:
+            pad_to_multiple_of = 128
+            logger.info(
+                "Added %s special tokens; resizing embeddings %s -> %s (padded to multiple of %s).",
+                num_added,
+                model_vocab,
+                tok_vocab,
+                pad_to_multiple_of,
+            )
             model.resize_token_embeddings(tok_vocab, pad_to_multiple_of=pad_to_multiple_of)
             has_added_tokens = True
-    else:
-        # Fresh run: register special tag tokens and resize embeddings
-        special_tags = [THINK_OPEN, THINK_CLOSE, TOOL_CALL_OPEN, TOOL_CALL_CLOSE, ANSWER_OPEN, ANSWER_CLOSE]
-        num_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tags})
-        if num_added and num_added > 0:
-            model._need_to_train_embeddings = True
-            model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=pad_to_multiple_of)
-            logger.info(f"Added {num_added} special tokens for tags and resized embeddings.")
-            has_added_tokens = True
         else:
-            logger.info("No new special tokens added (tokens likely already present). Skipping resize.")
+            logger.info(
+                "Added %s special tokens but model vocab (%s) already >= tokenizer vocab (%s); "
+                "skipping embedding resize.",
+                num_added,
+                model_vocab,
+                tok_vocab,
+            )
+    else:
+        logger.info("No new special tokens added (tokens likely already present). Skipping resize.")
 
     model = FastLanguageModel.get_peft_model(
         model,
