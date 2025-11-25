@@ -5,10 +5,8 @@ load_dotenv()
 
 # Enable PyTorch memory fragmentation fix for better GPU memory management
 # os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-
 # Suppress LiteLLM logging spam
 # logging.getLogger("LiteLLM").setLevel(logging.WARNING)
-
 import asyncio
 
 import art
