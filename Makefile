@@ -22,7 +22,7 @@ install-sft: ## Install the virtual environment and install the pre-commit hooks
 install-grpo: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
 	@uv sync --locked --group grpo
-	@uv pip install setuptools flash-attn==2.7.3 --no-build-isolation
+	@TORCH_CUDA_ARCH_LIST=8.9 MAX_JOBS=2 uv pip install setuptools "xformers==0.0.32.post2" "flash-attn==2.8.2" --no-build-isolation
 	@uv run pre-commit install
 
 .PHONY: setup-dev
