@@ -6,11 +6,10 @@ defaults:
   # engine and torchtune configs use plain dicts (TypedDicts from art.dev, not dataclasses)
 
 # NOTES: important parameters
-#  - num_generations from 2 to 8
+#  - num_generations from 2 to 4 or 8 (8 is better)
 #  - gpu_memory_utilization from 0.33 to 0.6 or 0.7
-#  - beta: from 0.0 to 0.001
-#  - batch_size: from 2 to 8 or 16
-#  - max_seq_length: added default to 8192
+#  - beta: change from 0.0 to 0.001
+#  - per_device_train_batch_size: from 2 to 8 or 16 (8 is recommended)
 
 init:
   max_lora_rank: 32
@@ -23,7 +22,7 @@ training:
   trajectories_per_group: 8 # scale first to 16 if memory permits
   groups_per_step: 8 # change to 4 if memory isn't sufficient
   learning_rate: 5e-6
-  beta: 0.0 # 0.001
+  beta: 0.001
   eval_steps: 8
   val_set_size: 1000
   training_dataset_size: 8000

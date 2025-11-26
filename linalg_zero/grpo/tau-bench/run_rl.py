@@ -325,17 +325,12 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             )
 
             for batch in train_iterator:
-                model_step = await model.get_step()
-                current_step = max(batch.step, model_step)
-
-                print(
-                    f"\n--- Training Step {current_step} (Dataset Step {batch.step}, Epoch {batch.epoch}, Step {batch.epoch_step}) ---"
-                )
+                print(f"\n--- Training Step {batch.step} (Epoch {batch.epoch}, Step {batch.epoch_step}) ---")
 
                 # Evaluation
                 if batch.step % training_config.eval_steps == 0 and not config.skip_eval:
-                    print(f"\n--- Evaluating at Step {current_step} ---")
-                    await evaluate_model(model, config, current_step, val_task_indices)
+                    print(f"\n--- Evaluating at Step {batch.step} ---")
+                    await evaluate_model(model, config, batch.step, val_task_indices)
                     await model.delete_checkpoints()
 
                 # Generate trajectory groups
@@ -345,7 +340,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                         rollout_tau_bench_task(
                             model,
                             task_index,
-                            current_step,
+                            batch.step,
                             "train",
                             reward_type=config.reward_type,
                             is_shadow=config.add_shadow_trajectory
@@ -377,13 +372,11 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 if config.is_multi_gpu:
                     await model.delete_checkpoints()
 
-                post_train_step = await model.get_step()
-
                 # Log progress
                 total_reward = sum(sum(traj.reward for traj in group.trajectories) for group in groups)
                 num_trajectories = sum(len(group.trajectories) for group in groups)
                 avg_reward = total_reward / num_trajectories if num_trajectories > 0 else 0
-                print(f"Step {post_train_step}: Average training reward = {avg_reward}")
+                print(f"Step {batch.step}: Average training reward = {avg_reward}")
 
         # Final evaluation
         print("\n--- Final Evaluation ---")
