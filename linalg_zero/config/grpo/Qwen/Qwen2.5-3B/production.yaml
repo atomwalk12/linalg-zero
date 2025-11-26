@@ -10,6 +10,7 @@ defaults:
 #  - gpu_memory_utilization from 0.33 to 0.6 or 0.7
 #  - beta: change from 0.0 to 0.001
 #  - per_device_train_batch_size: from 2 to 8 or 16 (8 is recommended)
+#  - eval_steps: from 8 to 50, 75 or 100.
 
 init:
   max_lora_rank: 32
@@ -22,7 +23,7 @@ training:
   trajectories_per_group: 8 # scale first to 16 if memory permits
   groups_per_step: 8 # change to 4 if memory isn't sufficient
   learning_rate: 5e-6
-  beta: 0.001
+  beta: 0.0
   eval_steps: 8
   val_set_size: 1000
   training_dataset_size: 8000
@@ -80,7 +81,7 @@ trainer:
   per_device_train_batch_size: 2
   gradient_accumulation_steps: 1   # if != 1, deadlock occurs
   num_generations: 2
-  max_prompt_length: 6144 # or 8000
+  max_prompt_length: 7000 # max is 7168, however we leave headroom for special tokens
   max_completion_length: 1024
   report_to: ["wandb"]
   save_total_limit: 20
