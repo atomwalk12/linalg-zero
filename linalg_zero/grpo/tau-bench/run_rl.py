@@ -43,14 +43,14 @@ def _get_task_indices(
     start_index: int,
     end_index: int,
     tasks_length: int,
-    dataset_size: int,
 ) -> list[int]:
     """Get task indices either from explicit IDs or computed range."""
     if task_ids:
         return task_ids
 
-    actual_end = min(end_index, tasks_length) if end_index != -1 else tasks_length
-    return list(range(start_index, min(actual_end, dataset_size)))
+    actual_end = tasks_length if end_index == -1 else min(end_index, tasks_length)
+
+    return list(range(start_index, actual_end))
 
 
 @limit_concurrency(256)
@@ -250,7 +250,6 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             config.start_index,
             config.end_index,
             len(train_env.tasks),
-            training_config.training_dataset_size,
         )
 
         val_task_indices = _get_task_indices(
@@ -258,7 +257,6 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             config.start_val_index,
             config.end_val_index,
             len(val_env.tasks),
-            training_config.val_dataset_size,
         )
 
         print(f"Training on {len(train_task_indices)} tasks")
