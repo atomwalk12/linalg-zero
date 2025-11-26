@@ -5,9 +5,19 @@ defaults:
   # Note: _self_ at end means local overrides take precedence
   # engine and torchtune configs use plain dicts (TypedDicts from art.dev, not dataclasses)
 
+# NOTES: important parameters
+#  - num_generations from 2 to 8
+#  - gpu_memory_utilization from 0.33 to 0.6 or 0.7
+#  - beta: from 0.0 to 0.001
+#  - batch_size: from 2 to 8 or 16
+#  - max_seq_length: added default to 8192
+
 init:
   max_lora_rank: 32
   dtype: bfloat16
+  load_in_4bit: false
+  load_in_8bit: false
+  max_seq_length: 8192
 
 training:
   trajectories_per_group: 8 # scale first to 16 if memory permits
@@ -24,7 +34,7 @@ training:
 run:
   project_id: LinAlgZero-GRPO
   project: linalgzero-grpo
-  base_model: atomwalk12/LinAlgZero-SFT-merged
+  base_model: "atomwalk12/LinalgZero-SFT"
   env: linear_algebra
   model_provider: hosted_vllm
   user_model_provider: openai
@@ -32,13 +42,22 @@ run:
   user_strategy: mathematician
   user_model: gpt-4o
   agent_strategy: tool-calling-rl
-  temperature: 1.0
+  temperature: 0.7
+  top_p: 0.8
+  repetition_penalty: 1.0
   task_split: test
   log_dir: rl_results
   skip_eval: False
   in_process: False
   val_task_ids: [1,2,3]
   max_assistant_turns: 8
+  max_completion_tokens: 1024
+  skip_special_tokens: False
+  stop: [
+    "<tool_response>",
+    "</tool_response>",
+    "User:",
+  ]
 
 peft:
   r: 32
@@ -63,12 +82,15 @@ trainer:
   gradient_accumulation_steps: 1   # if != 1, deadlock occurs
   num_generations: 2
   max_prompt_length: 6144 # or 8000
-  max_completion_length: 2048
+  max_completion_length: 1024
   report_to: ["wandb"]
   save_total_limit: 20
 
 engine:
-  gpu_memory_utilization: 0.25
+  gpu_memory_utilization: 0.33
   max_lora_rank: 32
   enable_sleep_mode: true
   max_model_len: 8192 # 4096 # 8192
+  dtype: 'bfloat16'
+  quantization: null
+  load_format: 'auto'
