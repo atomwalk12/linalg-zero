@@ -87,7 +87,7 @@ def process_dataset(dataset: DatasetDict, normalize_unicode: bool, per_category:
     test_dataset = test_dataset.shuffle(seed=seed)
     test_dataset = test_dataset.map(ensure_messages)
     test_dataset = test_dataset.map(ensure_tools)
-    indices = get_representative_examples_indices(test_dataset, per_category=per_category)
+    indices = get_representative_examples_indices(test_dataset, per_category=per_category, include_remaining=False)
     test_dataset = test_dataset.select(indices)
 
     # Ensure only relevant columns are preserved
@@ -113,9 +113,7 @@ def prepare_debug(train: Dataset, validation: Dataset, dataset_size: int) -> Dat
     return DatasetDict({"train": train, "validation": validation})
 
 
-def main(
-    output_repo: str, push_to_hub: bool, debug_mode: bool, normalize_unicode: bool, per_category: int, seed: int
-) -> None:
+def main(output_repo: str, push_to_hub: bool, normalize_unicode: bool, per_category: int, seed: int) -> None:
     """Main processing function."""
     # Load
     train_repo = "atomwalk12/linalgzero-distilled-clean"
@@ -123,12 +121,6 @@ def main(
 
     logger.info("*** Loading datasets ***")
     dataset = load_datasets(train_repo, test_repo)
-
-    # For debugging
-    if debug_mode:
-        size = 60
-        logger.info(f"*** Preparing debug dataset (size: {size}) ***")
-        dataset = prepare_debug(dataset["train"], dataset["validation"], dataset_size=size)
 
     # Process
     logger.info("*** Processing dataset ***")
@@ -151,7 +143,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--push_to_hub", default=False, action="store_true", help="Whether to push the dataset to HuggingFace"
     )
-    parser.add_argument("--debug_mode", default=False, action="store_true", help="Reduces dataset size to 60 examples")
     parser.add_argument(
         "--no_normalize_unicode",
         default=False,
@@ -165,7 +156,6 @@ if __name__ == "__main__":
     main(
         output_repo=args.output_repo,
         push_to_hub=args.push_to_hub,
-        debug_mode=args.debug_mode,
         normalize_unicode=(not args.no_normalize_unicode),
         per_category=args.per_category,
         seed=args.seed,

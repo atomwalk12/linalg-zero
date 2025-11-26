@@ -95,7 +95,9 @@ def process_dataset_for_grpo(  # noqa: C901
         eval_data = eval_data.shuffle(seed=seed)
         eval_data = eval_data.map(ensure_tools)
         eval_data = eval_data.map(normalize_query)
-        eval_indices = get_representative_examples_indices(eval_data, per_category=per_category)
+        eval_indices = get_representative_examples_indices(
+            eval_data, per_category=per_category, include_remaining=False
+        )
         eval_data = eval_data.select(eval_indices)
         return eval_data
 
@@ -194,7 +196,6 @@ def main(
     test_repo: str,
     output_repo: str,
     push_to_hub: bool,
-    debug_mode: bool,
     normalize_unicode: bool,
     seed: int,
     per_category: int,
@@ -202,12 +203,6 @@ def main(
     """Main processing function for GRPO dataset preparation."""
     logger.info("*** Loading datasets for GRPO training ***")
     dataset = load_datasets(train_repo, test_repo)
-
-    # For debugging
-    if debug_mode:
-        size = 60
-        logger.info(f"*** Preparing debug dataset (size: {size}) ***")
-        dataset = prepare_debug(dataset["train"], dataset["validation"], dataset["test"], dataset_size=size)
 
     # Process for GRPO
     logger.info("*** Processing dataset for GRPO training ***")
@@ -245,9 +240,6 @@ if __name__ == "__main__":
         "--push_to_hub", default=False, action="store_true", help="Whether to push the dataset to HuggingFace Hub"
     )
     parser.add_argument(
-        "--debug_mode", default=False, action="store_true", help="Reduces dataset size to 60 examples for testing"
-    )
-    parser.add_argument(
         "--no_normalize_unicode",
         default=False,
         action="store_true",
@@ -256,7 +248,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=20, type=int, help="Random seed for dataset shuffling")
     parser.add_argument(
         "--per_category",
-        default=800,
+        default=40,
         type=int,
         help="Number of representative examples per category for validation and test sets",
     )
@@ -267,7 +259,6 @@ if __name__ == "__main__":
         test_repo=args.src_test,
         output_repo=args.output_repo,
         push_to_hub=args.push_to_hub,
-        debug_mode=args.debug_mode,
         normalize_unicode=(not args.no_normalize_unicode),
         seed=args.seed,
         per_category=args.per_category,

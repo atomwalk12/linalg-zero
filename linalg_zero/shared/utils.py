@@ -76,7 +76,7 @@ def normalize_text(s: str, normalize_unicode: bool) -> str:
     return s.replace("\u2212", "-")
 
 
-def get_representative_examples_indices(dataset, per_category: int) -> list[int]:
+def get_representative_examples_indices(dataset, per_category: int, include_remaining: bool = True) -> list[int]:
     """Get representative indices first (per_category samples per problem type), then all remaining indices."""
     categories: defaultdict[str, list[int]] = defaultdict(list)
     representative_indices = []
@@ -93,7 +93,10 @@ def get_representative_examples_indices(dataset, per_category: int) -> list[int]
     remaining_indices = [i for i in range(len(dataset)) if i not in representative_set]
     print(f"🧑‍🔬 Number of representative indices: {len(representative_indices)}")
 
-    return representative_indices + remaining_indices
+    if include_remaining:
+        return representative_indices + remaining_indices
+    else:
+        return representative_indices
 
 
 def get_libpath() -> Path:
