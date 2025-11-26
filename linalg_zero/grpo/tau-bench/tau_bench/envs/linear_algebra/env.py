@@ -95,7 +95,10 @@ class LinearAlgebraEnv(Env):
         for action in actions[:-1]:
             has_think = think_correct(completion=action.content)
 
+            # Since we've executed this tool call, we are sure that the <tool_call> tags content is valid
             correct_formats += 0.5
+
+            # If we have the think block, we increase the score by 0.5
             if has_think:
                 correct_formats += 0.5
             total_weight += 1.0
@@ -105,79 +108,93 @@ class LinearAlgebraEnv(Env):
         has_think = think_correct(completion=final_action.content)
         has_answer = answer_correct(completion=final_action.content)
 
-        if has_think and has_answer:
-            correct_formats += 2.0
+        if has_think:
+            correct_formats += 1.0
+        if has_answer:
+            correct_formats += 1.0
         total_weight += 2.0
 
         return correct_formats / total_weight if total_weight > 0 else 0.0
 
     async def calculate_reward(self, format_weight: float = 0.1) -> RewardResult:
         """
-        Calculate reward using weighted combination of correctness, format, and efficiency.
+        Revised Reward Function for GRPO:
+        1. Punish Laziness: No tool calls = -1.0.
+        2. Punish Wrong Answers: 0.0 (Neutral).
+        3. Reward Correct Answers: 1.0 (High).
+        4. Penalize Deviation: Enforce exact step count to prevent "Mental Math".
 
-        reward = (1-w)*correctness + w*format + efficiency_penalty
-
-        Components:
-        - correctness: 1.0 (correct answer) or -1.0 (wrong answer)
-        - format: 0.0 to 1.0 (proportional to correct formatting)
-        - efficiency_penalty: -0.1 * |num_turns - expected| / expected
-
-        Returns:
-            RewardResult with final reward and detailed breakdown in outputs
+        # Calculate the final reward:
+        # If Correct:   (0.9 * 1.0) + (0.1 * 1.0) - Penalty ≈ 1.0 - Penalty
+        # If Wrong:     (0.9 * 0.0) + (0.1 * 1.0) - Penalty ≈ 0.1 - Penalty
+        # If Lazy:      Returns -1.0 immediately
         """
         assert self.parser is not None, "Parser cannot be None"
 
-        # Extract the produced tool calls and answer.
+        # If, for any reason, we received no actions at all, treat this as a
+        # maximally lazy / failed trajectory rather than raising an error.
+        if not self.actions:
+            return RewardResult(
+                reward=-1.0,
+                info=RewardOutputInfo(
+                    r_outputs=-1.0,
+                    outputs={"structural_error": "no_actions", "answer_found": False},
+                ),
+                actions=[],
+            )
+
         tool_calls = self.actions[:-1]
         answer = self.actions[-1]
 
+        # If the model tries to solve it purely by hallucinating the answer
+        # (0 turns) or breaks before calling tools, it gets the Maximum Penalty.
         if len(tool_calls) == 0:
             return RewardResult(
-                reward=0.0,
+                reward=-1.0,
                 info=RewardOutputInfo(
-                    r_outputs=0.0,
+                    r_outputs=-1.0,
                     outputs={"structural_error": "no_tool_calls", "answer_found": False},
                 ),
-                actions=tool_calls,
+                actions=self.actions,
             )
 
+        # If we have no tool_calls, we presume the final turn is an answer.
         if answer.name != RESPOND_ACTION_NAME:
             return RewardResult(
-                reward=0.0,
+                reward=-1.0,
                 info=RewardOutputInfo(
-                    r_outputs=0.0,
+                    r_outputs=-1.0,
                     outputs={"structural_error": "no_respond_action", "answer_found": False},
                 ),
-                actions=tool_calls,
+                actions=self.actions,
             )
 
-        # Calculate correctness (-1.0 or 1.0)
-        correctness_binary = validate_answer(
+        # 1. Correctness
+        is_correct = validate_answer(
             ground_truth=self.task.outputs[0],
             completion=answer.content,
         )
-        correctness_score = 1.0 if correctness_binary else -1.0
+        correctness_score = 1.0 if is_correct else 0.0
 
-        # Calculate format (0.0 to 1.0)
+        # 2. Format
         format_score = self.format_reward(self.actions)
 
-        # Calculate efficiency penalty
+        # 3. Efficiency
         expected_turns = len(self.task.actions)
         num_turns = len(tool_calls)
         efficiency_penalty = 0.0
         if expected_turns > 0 and num_turns != expected_turns:
-            efficiency_penalty = max(-0.5, -0.1 * abs(num_turns - expected_turns) / expected_turns)
+            # We cap the penalty at -0.5 so it doesn't overwhelm the correctness score
+            efficiency_penalty = max(-0.5, -0.1 * abs(num_turns - expected_turns))
 
-        # Weighted combination
         final_reward = (1.0 - format_weight) * correctness_score + format_weight * format_score + efficiency_penalty
 
-        # Return with detailed breakdown
         return RewardResult(
             reward=final_reward,
             info=RewardOutputInfo(
                 r_outputs=final_reward,
                 outputs={
-                    "answer_found": correctness_binary,
+                    "answer_found": is_correct,
                     "correctness_score": correctness_score,
                     "format_score": format_score,
                     "efficiency_penalty": efficiency_penalty,
