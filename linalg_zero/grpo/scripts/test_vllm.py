@@ -10,7 +10,7 @@ from openai import OpenAI
 # vllm serve atomwalk12/LinalgZero-SFT \
 #   --host 0.0.0.0 \
 #   --port 8000 \
-#   --dtype float16 \
+#   --dtype bfloat16 \
 #   --gpu-memory-utilization 0.6 \
 #   --max-model-len 4096 \
 #   --swap-space 16 \

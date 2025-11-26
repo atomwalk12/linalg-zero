@@ -103,6 +103,8 @@ class RunConfig:
     env: str = "retail"
     agent_strategy: str = "tool-calling"
     temperature: float = 0.0
+    top_p: float = 1.0
+    repetition_penalty: float = 1.0
     task_split: str = "test"
     start_index: int = 0
     end_index: int = -1
@@ -130,6 +132,9 @@ class RunConfig:
     add_no_think: bool = False
     plot_tensors: bool = False
     in_process: bool = False
+    max_completion_tokens: int = 1024
+    skip_special_tokens: bool = False
+    stop: list[str] | None = None
 
 
 @dataclass

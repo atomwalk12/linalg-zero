@@ -120,6 +120,11 @@ class ToolCallingRLAgent(ToolCallingAgent):
         self.api_key = kwargs.get("api_key")
         self.base_url = kwargs.get("base_url")
         self.base_model = kwargs.get("base_model")
+        self.max_completion_tokens = kwargs.get("max_completion_tokens")
+        self.skip_special_tokens = kwargs.get("skip_special_tokens")
+        self.top_p = kwargs.get("top_p")
+        self.repetition_penalty = kwargs.get("repetition_penalty")
+        self.stop = kwargs.get("stop")
         self.choices = []
 
     async def llm_completion(self, messages: list[dict[str, Any]]) -> ModelResponse:
@@ -131,8 +136,12 @@ class ToolCallingRLAgent(ToolCallingAgent):
             base_url=self.base_url,
             tools=self.tools_info,
             temperature=self.temperature,
-            max_completion_tokens=1024,
+            max_completion_tokens=self.max_completion_tokens,
+            top_p=self.top_p,
+            repetition_penalty=self.repetition_penalty,
             logprobs=False if self.provider == "openai" else True,
+            extra_body={"skip_special_tokens": self.skip_special_tokens},
+            stop=self.stop,
             # extra_body={"chat_template_kwargs": {"enable_thinking": False}}
             # if "Qwen3-" in self.base_model
             # else {},
@@ -175,9 +184,10 @@ def message_to_action(
         and message["tool_calls"][0]["function"] is not None
     ):
         tool_call = message["tool_calls"][0]
+        kwargs = json.loads(tool_call["function"]["arguments"])
         return Action(
             name=tool_call["function"]["name"],
-            kwargs=json.loads(tool_call["function"]["arguments"]),
+            kwargs=kwargs if isinstance(kwargs, dict) else json.loads(kwargs),
             content=message["content"],
         )
     else:

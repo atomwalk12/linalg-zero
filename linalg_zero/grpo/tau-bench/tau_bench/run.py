@@ -156,9 +156,14 @@ def agent_factory(tools_info: list[dict[str, Any]], wiki, config: RunConfig) -> 
             model=config.model,
             provider=config.model_provider,
             temperature=config.temperature,
+            top_p=config.top_p,
+            repetition_penalty=config.repetition_penalty,
             api_key=config.api_key,
             base_url=config.base_url,
             base_model=config.base_model,
+            max_completion_tokens=config.max_completion_tokens,
+            skip_special_tokens=config.skip_special_tokens,
+            stop=config.stop,
         )
     elif config.agent_strategy == "tool-calling":
         # native tool calling
