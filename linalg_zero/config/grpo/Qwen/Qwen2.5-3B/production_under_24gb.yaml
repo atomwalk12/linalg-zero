@@ -9,10 +9,12 @@ defaults:
 #  - trajectories_per_group: if 80gb gpu increment to 16, otherwise keep at 8 (8 is likely best. GRPO works well with 8.)
 #  - gpu_memory_utilization from 0.33 to 0.7
 #  - beta: change from 0.0 to 0.001
-#  - max_prompt_length: must be 6144 for local development, should extend to 7000.
-#  - eval_steps: from 8 to 50, 75 or 100 (100 is best). If groups per step is 8, then we get 957 Steps = 7648 / 8.
+#  - max_prompt_length: default 5000 for local development (≈4×800-token tool calls + ~1800-token system prompt).
+#  - eval_steps: from 8 to 50, 75 or 100 (100 is best). If groups_per_step is 8, then we get 957 steps = 7648 / 8.
 #                This leads to 957/100 = 9.57 validations per epoch.
-#  - learning_rate: if convergence is slow adjust from 5e-6 to 1e-5.
+#  - groups_per_step: if memory is not sufficient, reduce to 4 to lower effective batch size.
+#    - learning_rate: if convergence is slow, consider increasing from 5e-6 to 1e-5 (especially if effective batch size is reduced).
+#    - num_epochs: if reducing groups_per_step (and thus effective batch size), you can increase num_epochs to keep total samples seen similar.
 
 # Debugging:
 # - val_task_ids: [1,2,3]
@@ -22,7 +24,9 @@ init:
   dtype: bfloat16
   load_in_4bit: false
   load_in_8bit: false
-  max_seq_length: 8192
+  # Keep this aligned with engine.max_model_len; we cap at ~5800 effective tokens
+  # (5000 prompt + 800 completion), so 6144 (with buffer for special tokens) is enough and saves KV-cache memory.
+  max_seq_length: 6144
 
 # Note that effective batch size is 64 = trajectories_per_group * groups_per_step
 training:
@@ -54,7 +58,7 @@ run:
   skip_eval: False
   in_process: False
   max_assistant_turns: 8
-  max_completion_tokens: 1024
+  max_completion_tokens: 800
   skip_special_tokens: False
   stop: [
     "<tool_response>",
@@ -84,8 +88,8 @@ trainer:
   per_device_train_batch_size: 2
   gradient_accumulation_steps: 1   # if != 1, deadlock occurs
   num_generations: 2
-  max_prompt_length: 6144 # theoretical max is 7168, with 7000 running into OOM
-  max_completion_length: 1024
+  max_prompt_length: 5000 # We have a maximum of 4 tool calls (800 * 4) + system prompt and user query (1800) = 5000
+  max_completion_length: 800 # Maximum number of tokens per completion
   report_to: ["wandb"]
   save_total_limit: 10
 
@@ -93,7 +97,9 @@ engine:
   gpu_memory_utilization: 0.33
   max_lora_rank: 32
   enable_sleep_mode: true
-  max_model_len: 8192 # 4096 # 8192
+  # Match the actual maximum used context (prompt + completion) to reduce KV cache.
+  # 5000 (prompt) + 800 (completion) ≈ 5800, so 6144 (with buffer for special tokens) is sufficient.
+  max_model_len: 6144
   dtype: 'bfloat16'
   quantization: null
   load_format: 'auto'

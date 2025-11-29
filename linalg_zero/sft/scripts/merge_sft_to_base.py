@@ -3,7 +3,7 @@ from unsloth import FastLanguageModel
 
 
 def merge_lora_to_base_model():
-    adapter_path = "results/LinalgZero-SFT-final-rosy-shadow-v2-no-io-resize/checkpoint-200"
+    adapter_path = "results/LinalgZero-SFT-LoRA/checkpoint-400"
 
     # Load the checkpoint directly - Unsloth will detect it's a PEFT model
     # and load both base model + adapters with correct vocab size
