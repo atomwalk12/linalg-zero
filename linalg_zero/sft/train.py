@@ -88,6 +88,7 @@ def main(  # noqa: C901
             max_seq_length=max_seq_len,
             dtype=None,
             train_io_only=True,
+            add_special_tokens=training_args.add_special_tokens,
         )
 
     # Ensure pad token and padding side are set consistently for SFT
@@ -228,7 +229,8 @@ if __name__ == "__main__":
     """Script entry point for SFT training."""
     if "--config" not in sys.argv:
         sys.argv.append("--config")
-        sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_merged.yaml")
+        # sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_merged.yaml")
+        sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_instruct.yaml")
         # sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production.yaml")
 
     parser = TrlParser([ScriptArguments, SFTRunConfig, SFTConfig, SFTModelConfig])

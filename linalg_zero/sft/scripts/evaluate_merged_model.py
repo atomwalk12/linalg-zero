@@ -9,7 +9,8 @@ from linalg_zero.sft.tool_calling_accuracy import ToolCallingAccuracyCallback
 
 
 def load_unmerged():
-    tokenizer = AutoTokenizer.from_pretrained("atomwalk12/LinalgZero-SFT-LoRA")
+    path = "results/LinalgZero-SFT-LoRA/checkpoint-400"
+    tokenizer = AutoTokenizer.from_pretrained(path)
     print(f"Tokenizer vocab size: {len(tokenizer)}")
 
     model, _ = FastLanguageModel.from_pretrained(
@@ -21,11 +22,10 @@ def load_unmerged():
 
     model = PeftModel.from_pretrained(
         model,
-        "atomwalk12/LinalgZero-SFT-LoRA",
+        path,
         is_trainable=False,
     )
 
-    # "results/LinalgZero-SFT-final-rosy-shadow-v2-no-io-resize/checkpoint-200"
     # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-LoRA")
     # model.push_to_hub("atomwalk12/LinalgZero-SFT-LoRA")
 
@@ -35,11 +35,11 @@ def load_unmerged():
 
 
 def load_merged():
-    # checkpoint_path = "results/LinalgZero-SFT-merged-finetuned/checkpoint-400"
+    checkpoint_path = "results/LinalgZero-SFT/checkpoint-300"
     # checkpoint_path = "results/LinalgZero-SFT-merged"
 
     # checkpoint_path = "atomwalk12/LinalgZero-SFT-merged"
-    checkpoint_path = "atomwalk12/LinalgZero-SFT"
+    # checkpoint_path = "atomwalk12/LinalgZero-SFT"
 
     tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
     print(f"Tokenizer vocab size: {len(tokenizer)}")
@@ -52,7 +52,7 @@ def load_merged():
     )
     assert len(tok2) == len(tokenizer)
 
-    #  model.push_to_hub("atomwalk12/LinalgZero-SFT")
+    # model.push_to_hub("atomwalk12/LinalgZero-SFT")
     # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT")
 
     # model.push_to_hub("atomwalk12/LinalgZero-SFT-merged")
@@ -63,7 +63,7 @@ def load_merged():
     return model, tokenizer
 
 
-model, tokenizer = load_merged()
+model, tokenizer = load_unmerged()
 
 eval_ds = load_dataset("atomwalk12/linalgzero-sft", split="test")  # or whatever split you used
 

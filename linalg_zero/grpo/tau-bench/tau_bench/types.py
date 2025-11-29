@@ -18,6 +18,7 @@ class Action(BaseModel):
     name: str
     kwargs: dict[str, Any]
     content: str | None = None
+    _observation: str | None = None
 
 
 class Task(BaseModel):

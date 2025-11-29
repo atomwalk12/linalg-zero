@@ -68,7 +68,7 @@ class LinearAlgebraEnv(Env):
         split = split_mapping[task_split]
         return _load_tasks_cached(hf_path, split)
 
-    def format_reward(self, actions: list) -> float:
+    def format_reward(self) -> float:
         """
         Reward proper formatting with higher weight for final answer.
 
@@ -85,14 +85,14 @@ class LinearAlgebraEnv(Env):
         Returns:
             Float between 0.0 and 1.0 (weighted average of correct formats)
         """
-        if not actions:
+        if not self.actions:
             return 0.0
 
         correct_formats = 0.0
         total_weight = 0.0
 
         # Check intermediate turns (all except last)
-        for action in actions[:-1]:
+        for action in self.actions[:-1]:
             has_think = think_correct(completion=action.content)
 
             # Since we've executed this tool call, we are sure that the <tool_call> tags content is valid
@@ -104,7 +104,7 @@ class LinearAlgebraEnv(Env):
             total_weight += 1.0
 
         # Check final turn (weight = 2.0 for answer importance)
-        final_action = actions[-1]
+        final_action = self.actions[-1]
         has_think = think_correct(completion=final_action.content)
         has_answer = answer_correct(completion=final_action.content)
 
@@ -116,7 +116,7 @@ class LinearAlgebraEnv(Env):
 
         return correct_formats / total_weight if total_weight > 0 else 0.0
 
-    async def calculate_reward(self, format_weight: float = 0.1) -> RewardResult:
+    async def calculate_reward_old(self, format_weight: float = 0.1) -> RewardResult:
         """
         Revised Reward Function for GRPO:
         1. Punish Laziness: No tool calls = -1.0.
@@ -177,7 +177,7 @@ class LinearAlgebraEnv(Env):
         correctness_score = 1.0 if is_correct else 0.0
 
         # 2. Format
-        format_score = self.format_reward(self.actions)
+        format_score = self.format_reward()
 
         # 3. Efficiency
         expected_turns = len(self.task.actions)
@@ -204,3 +204,137 @@ class LinearAlgebraEnv(Env):
             ),
             actions=tool_calls,
         )
+
+    async def calculate_reward(self) -> RewardResult:
+        """Composite reward that combines several components:
+
+        - Correctness (primary signal)
+        - Formatting of thoughts/answers
+        - Tool-call success
+        - Reasoning depth
+        - Efficiency (penalizes over/under-using tools)
+        """
+        # Handle degenerate / structurally invalid trajectories similarly to calculate_reward_old.
+        if not self.actions:
+            return RewardResult(
+                reward=-1.0,
+                info=RewardOutputInfo(
+                    r_outputs=-1.0,
+                    outputs={"structural_error": "no_actions", "answer_found": False},
+                ),
+                actions=[],
+            )
+
+        tool_calls = self.actions[:-1]
+        answer = self.actions[-1]
+
+        # No tool calls: treat as maximally lazy.
+        if len(tool_calls) == 0:
+            return RewardResult(
+                reward=-1.0,
+                info=RewardOutputInfo(
+                    r_outputs=-1.0,
+                    outputs={"structural_error": "no_tool_calls", "answer_found": False},
+                ),
+                actions=self.actions,
+            )
+
+        # Final step must be a respond action.
+        if answer.name != RESPOND_ACTION_NAME:
+            return RewardResult(
+                reward=-1.0,
+                info=RewardOutputInfo(
+                    r_outputs=-1.0,
+                    outputs={"structural_error": "no_respond_action", "answer_found": False},
+                ),
+                actions=self.actions,
+            )
+
+        # Compute individual components once so they are consistent between
+        # the scalar reward and the logged info.
+        correctness = self.correctness_reward()
+        format_score = self.format_reward()
+        tool_success = self.tool_success_reward()
+        reasoning_depth = self.reasoning_depth_reward()
+        efficiency_penalty = self.efficiency_penalty()  # positive penalty magnitude
+
+        # Weights for each component. `format_weight` controls the impact of formatting.
+        correctness_weight = 1.0
+        format_component_weight = 0.2
+        tool_success_weight = 0.2
+        reasoning_depth_weight = 0.1
+        efficiency_weight = 0.1
+
+        total_reward = (
+            correctness_weight * correctness
+            + format_component_weight * format_score
+            + tool_success_weight * tool_success
+            + reasoning_depth_weight * reasoning_depth
+            - efficiency_weight * efficiency_penalty
+        )
+
+        return RewardResult(
+            reward=total_reward,
+            info=RewardOutputInfo(
+                r_outputs=total_reward,
+                outputs={
+                    "answer_found": bool(correctness),
+                    "correctness_score": correctness,
+                    "format_score": format_score,
+                    "tool_success_score": tool_success,
+                    "reasoning_depth_score": reasoning_depth,
+                    "efficiency_penalty": efficiency_penalty,
+                    "num_turns": len(tool_calls),
+                    "expected_turns": len(self.task.actions),
+                },
+            ),
+            actions=tool_calls,
+        )
+
+    def correctness_reward(self) -> float:
+        return 1.0 if validate_answer(ground_truth=self.task.outputs[0], completion=self.actions[-1].content) else 0.0
+
+    def efficiency_penalty(self) -> float:
+        """Return a normalized penalty based on deviation from the expected number of tool calls.
+
+        0.0  -> used exactly the expected number of tool calls
+        1.0  -> large deviation from expected (capped)
+        """
+        expected_turns = len(self.task.actions)
+        num_turns = len(self.actions[:-1])
+
+        if expected_turns == 0:
+            return 0.0
+
+        diff = abs(num_turns - expected_turns)
+        return min(1.0, diff / expected_turns)
+
+    def reasoning_depth_reward(self) -> float:
+        """Reward appropriate reasoning depth."""
+        contents = [a.content for a in self.actions if isinstance(a.content, str)]
+        if not contents:
+            return 0.0
+
+        rewards = [1.0 if 50 < len(c) < 500 else 0.5 for c in contents]
+        return sum(rewards) / len(rewards)
+
+    def tool_success_reward(self) -> float:
+        """Track successful tool execution, not just presence."""
+        if not self.actions:
+            return 0.0
+
+        tool_attempts = 0
+        successful_executions = 0
+
+        # Check each tool call's cached observation from Env.step instead of re-invoking tools.
+        for action in self.actions[:-1]:
+            obs = action._observation
+            if not isinstance(obs, str):
+                continue
+
+            tool_attempts += 1
+            # Treat both explicit tool errors and unknown actions as failures.
+            if not (obs.startswith("Error:") or obs.startswith("Unknown action")):
+                successful_executions += 1
+
+        return successful_executions / tool_attempts if tool_attempts > 0 else 0.0

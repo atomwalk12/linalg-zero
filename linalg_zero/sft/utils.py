@@ -105,11 +105,56 @@ def load_model_for_evaluation(
     return model, tokenizer
 
 
+def add_special_tokens_and_resize(
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizer,
+) -> bool:
+    """
+    Add special reasoning/tool-calling tokens to tokenizer and resize model embeddings.
+
+    Returns True if tokens were added and embeddings resized, False otherwise.
+    """
+    special_tags = [THINK_OPEN, THINK_CLOSE, TOOL_CALL_OPEN, TOOL_CALL_CLOSE, ANSWER_OPEN, ANSWER_CLOSE]
+    num_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tags})
+
+    if num_added and num_added > 0:
+        tok_vocab = len(tokenizer)
+        model_vocab = model.get_input_embeddings().weight.size(0)
+
+        # Mark embeddings as trainable so new token rows can be updated.
+        model._need_to_train_embeddings = True
+
+        if tok_vocab > model_vocab:
+            pad_to_multiple_of = 128
+            logger.info(
+                "Added %s special tokens; resizing embeddings %s -> %s (padded to multiple of %s).",
+                num_added,
+                model_vocab,
+                tok_vocab,
+                pad_to_multiple_of,
+            )
+            model.resize_token_embeddings(tok_vocab, pad_to_multiple_of=pad_to_multiple_of)
+            return True
+        else:
+            logger.info(
+                "Added %s special tokens but model vocab (%s) already >= tokenizer vocab (%s); "
+                "skipping embedding resize.",
+                num_added,
+                model_vocab,
+                tok_vocab,
+            )
+            return False
+    else:
+        logger.info("No new special tokens added (tokens likely already present). Skipping resize.")
+        return False
+
+
 def load_merged_model_for_sft(
     model_path: str,
     max_seq_length: int = 2048,
     dtype: torch.dtype | None = None,
     train_io_only: bool = False,
+    add_special_tokens: bool = False,
 ) -> tuple[PreTrainedModel, PreTrainedTokenizer]:
     """
     Load a merged (non-LoRA) model for a light SFT touch-up.
@@ -119,6 +164,7 @@ def load_merged_model_for_sft(
     - If `train_io_only` is True, all parameters are frozen except:
         * input embeddings (`embed_tokens`)
         * output head (`lm_head` / output embeddings)
+    - If `add_special_tokens` is True, adds reasoning/tool-calling tokens and resizes embeddings
     """
     # Load with Unsloth wrapper for consistent config handling
     model, tokenizer = FastLanguageModel.from_pretrained(
@@ -131,6 +177,10 @@ def load_merged_model_for_sft(
 
     # Make sure pad / eos are wired correctly before training
     ensure_tokenizer_has_defaults(tokenizer, model)
+
+    # Optionally add special tokens and resize embeddings
+    if add_special_tokens:
+        add_special_tokens_and_resize(model, tokenizer)
 
     if train_io_only:
         # Freeze everything
@@ -172,45 +222,8 @@ def get_unsloth_model(
         gpu_memory_utilization=training_args.gpu_memory_utilization,
     )
 
-    # Determine if we're resuming from a checkpoint
-    num_added = 0
-    has_added_tokens = False
-
-    # Fresh run: register special tag tokens and resize embeddings
-    special_tags = [THINK_OPEN, THINK_CLOSE, TOOL_CALL_OPEN, TOOL_CALL_CLOSE, ANSWER_OPEN, ANSWER_CLOSE]
-    num_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tags})
-    if num_added and num_added > 0:
-        tok_vocab = len(tokenizer)
-        model_vocab = model.get_input_embeddings().weight.size(0)
-
-        # Mark embeddings as trainable so new token rows can be updated.
-        model._need_to_train_embeddings = True
-
-        # We are explicitly training embeddings for added tokens,
-        # so we must ensure they are saved in the PEFT checkpoint.
-        has_added_tokens = True
-
-        if tok_vocab > model_vocab:
-            pad_to_multiple_of = 128
-            logger.info(
-                "Added %s special tokens; resizing embeddings %s -> %s (padded to multiple of %s).",
-                num_added,
-                model_vocab,
-                tok_vocab,
-                pad_to_multiple_of,
-            )
-            model.resize_token_embeddings(tok_vocab, pad_to_multiple_of=pad_to_multiple_of)
-            has_added_tokens = True
-        else:
-            logger.info(
-                "Added %s special tokens but model vocab (%s) already >= tokenizer vocab (%s); "
-                "skipping embedding resize.",
-                num_added,
-                model_vocab,
-                tok_vocab,
-            )
-    else:
-        logger.info("No new special tokens added (tokens likely already present). Skipping resize.")
+    # Add special tokens and resize embeddings
+    has_added_tokens = add_special_tokens_and_resize(model, tokenizer)
 
     model = FastLanguageModel.get_peft_model(
         model,

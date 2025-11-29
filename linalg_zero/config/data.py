@@ -90,6 +90,10 @@ class SFTRunConfig:
         default=None,
         metadata={"help": "Maximum number of eval samples for periodic evaluations. None/-1 for full dataset."},
     )
+    add_special_tokens: bool = field(
+        default=False,
+        metadata={"help": "Whether to add special tokens to the model."},
+    )
 
 
 @dataclass
