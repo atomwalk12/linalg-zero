@@ -20,9 +20,9 @@ from .compute_reward import answer_correct, think_correct, validate_answer
 
 
 @cache
-def _load_tasks_cached(hf_path: str, split: str) -> tuple[Task, ...]:
+def _load_tasks_cached(dataset_path: str, split: str) -> tuple[Task, ...]:
     """Cache tasks loading to avoid repeated HuggingFace calls."""
-    return tuple(load_tasks(hf_path, split=split))
+    return tuple(load_tasks(dataset_path, split=split))
 
 
 class LinearAlgebraEnv(Env):
@@ -30,7 +30,7 @@ class LinearAlgebraEnv(Env):
 
     def __init__(
         self,
-        hf_path: str = "atomwalk12/linalgzero-grpo",
+        dataset_path: str,
         user_strategy: str | UserStrategy = UserStrategy.LLM,
         user_model: str = "gpt-4o",
         user_provider: str | None = None,
@@ -38,7 +38,7 @@ class LinearAlgebraEnv(Env):
         task_index: int | None = None,
     ):
         # Load tasks based on split
-        tasks = self._get_tasks(hf_path, task_split)
+        tasks = self._get_tasks(dataset_path, task_split)
 
         super().__init__(
             data_load_func=lambda: {},  # Linear algebra doesn't need external data

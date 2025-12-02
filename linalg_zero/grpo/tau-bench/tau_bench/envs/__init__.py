@@ -10,6 +10,7 @@ def get_env(
     user_strategy: str | UserStrategy,
     user_model: str,
     task_split: str,
+    dataset_path: str,
     user_provider: str | None = None,
     task_index: int | None = None,
 ) -> Env:
@@ -37,6 +38,7 @@ def get_env(
         from tau_bench.envs.linear_algebra.env import LinearAlgebraEnv
 
         return LinearAlgebraEnv(
+            dataset_path=dataset_path,
             user_strategy=user_strategy,
             user_model=user_model,
             task_split=task_split,

@@ -98,6 +98,7 @@ class RunConfig:
     project: str
     model_provider: str
     user_model_provider: str
+    dataset_path: str
     model: str = "gpt-4.1"
     user_model: str = "gpt-4o"
     num_trials: int = 1

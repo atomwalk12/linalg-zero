@@ -80,8 +80,9 @@ async def rollout_tau_bench_task(
         config.env,
         user_strategy=config.user_strategy,
         user_model=config.user_model,
-        user_provider=config.user_model_provider,
         task_split=phase,
+        dataset_path=config.dataset_path,
+        user_provider=config.user_model_provider,
         task_index=task_index,
     )
     if config.add_no_think:
@@ -232,8 +233,9 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             config.env,
             user_strategy=config.user_strategy,
             user_model=config.user_model,
-            user_provider=config.user_model_provider,
             task_split="train",
+            dataset_path=config.dataset_path,
+            user_provider=config.user_model_provider,
         )
 
         # Load validation environment
@@ -241,8 +243,9 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             config.env,
             user_strategy=config.user_strategy,
             user_model=config.user_model,
-            user_provider=config.user_model_provider,
             task_split="val",
+            dataset_path=config.dataset_path,
+            user_provider=config.user_model_provider,
         )
 
         train_task_indices = _get_task_indices(

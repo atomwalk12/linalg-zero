@@ -44,6 +44,7 @@ run:
   project: linalgzero-grpo
   base_model: "atomwalk12/LinalgZero-SFT-110"
   model: "atomwalk12/LinalgZero-SFT-110"
+  dataset_path: "atomwalk12/linalgzero-grpo"
   env: linear_algebra
   model_provider: hosted_vllm
   user_model_provider: openai

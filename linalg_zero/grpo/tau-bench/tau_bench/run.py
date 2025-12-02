@@ -49,8 +49,9 @@ def run(config: RunConfig) -> list[EnvRunResult]:
         config.env,
         user_strategy=config.user_strategy,
         user_model=config.user_model,
-        user_provider=config.user_model_provider,
         task_split=config.task_split,
+        dataset_path=config.dataset_path,
+        user_provider=config.user_model_provider,
     )
     agent = agent_factory(
         tools_info=env.tools_info,
@@ -92,6 +93,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
                 user_strategy=config.user_strategy,
                 user_model=config.user_model,
                 task_split=config.task_split,
+                dataset_path=config.dataset_path,
                 user_provider=config.user_model_provider,
                 task_index=idx,
             )
