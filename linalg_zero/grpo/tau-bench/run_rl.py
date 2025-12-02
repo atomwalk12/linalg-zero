@@ -351,6 +351,8 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                     )
                     for task_index in batch.items
                 )
+                # await model.log(groups, split="train")
+
                 if config.reward_type == "general_rm":
                     print("Creating general RM trajectory groups...")
                     updated_groups = await tqdm_asyncio.gather(

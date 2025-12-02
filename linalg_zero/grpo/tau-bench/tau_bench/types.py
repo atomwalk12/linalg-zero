@@ -19,6 +19,7 @@ class Action(BaseModel):
     kwargs: dict[str, Any]
     content: str | None = None
     _observation: str | None = None
+    completion_tokens: int = 0
 
 
 class Task(BaseModel):

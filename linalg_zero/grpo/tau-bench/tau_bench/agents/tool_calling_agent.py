@@ -84,7 +84,7 @@ class ToolCallingAgent(Agent):
             self.messages.append(next_message)
 
             total_cost += res._hidden_params.get("response_cost") or 0.0
-            action = message_to_action(next_message)
+            action = message_to_action(next_message, res)
             env_response = await env.step(action)
             reward = env_response.reward
             info = {**info, **env_response.info.model_dump()}
@@ -174,9 +174,41 @@ class ToolCallingRLAgent(ToolCallingAgent):
         return messages_and_choices
 
 
-def message_to_action(
-    message: dict[str, Any],
-) -> Action:
+def _parse_tool_arguments(raw_args: Any) -> dict[str, Any]:
+    """
+    Robustly parse tool call arguments into a dict.
+
+    Handles:
+      - None -> {}
+      - dict -> as-is
+      - JSON string -> dict
+      - double-encoded JSON string -> dict
+    Falls back to {} on any failure.
+    """
+    if raw_args is None:
+        return {}
+    if isinstance(raw_args, dict):
+        return raw_args
+    if not isinstance(raw_args, str):
+        return {}
+
+    current: Any = raw_args
+    for _ in range(2):
+        try:
+            parsed = json.loads(current)
+        except Exception:
+            break
+        if isinstance(parsed, dict):
+            return parsed
+        if isinstance(parsed, str) and parsed != current:
+            current = parsed
+            continue
+        break
+
+    return {}
+
+
+def message_to_action(message: dict[str, Any], res: Any) -> Action:
     if (
         "tool_calls" in message
         and message["tool_calls"] is not None
@@ -184,11 +216,12 @@ def message_to_action(
         and message["tool_calls"][0]["function"] is not None
     ):
         tool_call = message["tool_calls"][0]
-        kwargs = json.loads(tool_call["function"]["arguments"])
+        raw_args = tool_call["function"].get("arguments")
+        kwargs = _parse_tool_arguments(raw_args)
         return Action(
             name=tool_call["function"]["name"],
-            kwargs=kwargs if isinstance(kwargs, dict) else json.loads(kwargs),
+            kwargs=kwargs,
             content=message["content"],
+            completion_tokens=res.usage.completion_tokens
         )
-    else:
-        return Action(name=RESPOND_ACTION_NAME, content=message["content"], kwargs={})
+    return Action(name=RESPOND_ACTION_NAME, content=message["content"], kwargs={}, completion_tokens=completion_tokens)

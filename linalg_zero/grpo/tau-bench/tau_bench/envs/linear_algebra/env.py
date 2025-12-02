@@ -208,7 +208,7 @@ class LinearAlgebraEnv(Env):
         format_score = self.format_reward()
         tool_success = self.tool_success_reward()
         reasoning_depth = self.reasoning_depth_reward()
-        efficiency_penalty = self.efficiency_penalty()  # positive penalty magnitude
+        efficiency_penalty = self.efficiency_penalty()
 
         # Weights for each component. `format_weight` controls the impact of formatting.
         correctness_weight = 1.0
@@ -267,7 +267,8 @@ class LinearAlgebraEnv(Env):
         if not contents:
             return 0.0
 
-        rewards = [1.0 if 50 < len(c) < 500 else 0.5 for c in contents]
+        # Approximate response length to a range of approx. 100 and 550 tokens.
+        rewards = [1.0 if 650 < len(c) < 3500 else 0.5 for c in contents]
         return sum(rewards) / len(rewards)
 
     def tool_success_reward(self) -> float:

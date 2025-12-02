@@ -32,7 +32,7 @@ init:
 training:
   trajectories_per_group: 8 # scale first to 16 if memory permits
   groups_per_step: 8      # change to 8 for larger batch size
-  learning_rate: 1e-5
+  learning_rate: 2e-5
   beta: 0.001
   eval_steps: 100
   num_epochs: 2
@@ -67,12 +67,14 @@ run:
     "User:",
   ]
   # val_task_ids: [1,2,3]
+  seed: 42
 
 peft:
   r: 32
   lora_alpha: 64
   use_gradient_checkpointing: "unsloth"
   target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+  random_state: 42
 
 # Use peft instead of torchtune for lora training
 # torchtune:
@@ -85,7 +87,7 @@ peft:
 # temperature: 0.8
 
 trainer:
-  learning_rate: 1e-5
+  learning_rate: 5e-6
   # Note that per_device_train_batch_size must be divisible by num_generations.
   per_device_train_batch_size: 2
   gradient_accumulation_steps: 1   # if != 1, deadlock occurs
@@ -94,6 +96,8 @@ trainer:
   max_completion_length: 800 # Maximum number of tokens per completion
   report_to: ["wandb"]
   save_total_limit: 10
+  seed: 42
+  data_seed: 42
 
 engine:
   gpu_memory_utilization: 0.33
@@ -105,3 +109,4 @@ engine:
   dtype: 'bfloat16'
   quantization: null
   load_format: 'auto'
+  seed: 42
