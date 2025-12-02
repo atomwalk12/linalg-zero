@@ -36,11 +36,18 @@ def load_unmerged():
 
 
 def load_merged():
-    checkpoint_path = "results/LinalgZero-SFT/checkpoint-300"
+    # Best models
+    # Notice that best LoRA is checkpoint 400, while best merged is 300
+    # checkpoint_path = "results/LinalgZero-SFT/checkpoint-300-best"            # DONE
     # checkpoint_path = "results/LinalgZero-SFT-merged"
 
     # checkpoint_path = "atomwalk12/LinalgZero-SFT-merged"
     # checkpoint_path = "atomwalk12/LinalgZero-SFT"
+
+    # GRPO prep.
+    # DONE
+    # checkpoint_path = "results/LinalgZero-SFT-110/checkpoint-110"
+    checkpoint_path = "results/LinalgZero-SFT-105/checkpoint-105"
 
     tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
     print(f"Tokenizer vocab size: {len(tokenizer)}")
@@ -53,18 +60,28 @@ def load_merged():
     )
     assert len(tok2) == len(tokenizer)
 
-    # model.push_to_hub("atomwalk12/LinalgZero-SFT")
-    # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT")
+    # Best models
+    model.push_to_hub("atomwalk12/LinalgZero-SFT")
+    tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT")
 
     # model.push_to_hub("atomwalk12/LinalgZero-SFT-merged")
     # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-merged")
+
+    # GRPO prep.
+    # DONE
+    # model.push_to_hub("atomwalk12/LinalgZero-SFT-105")
+    # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-105")
+
+    # DONE
+    # model.push_to_hub("atomwalk12/LinalgZero-SFT-110")
+    # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-110")
 
     FastLanguageModel.for_inference(model)
 
     return model, tokenizer
 
 
-model, tokenizer = load_unmerged()
+model, tokenizer = load_merged()
 
 eval_ds = load_dataset("atomwalk12/linalgzero-sft", split="test")  # or whatever split you used
 
