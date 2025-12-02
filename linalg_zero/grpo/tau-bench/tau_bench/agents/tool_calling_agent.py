@@ -222,6 +222,6 @@ def message_to_action(message: dict[str, Any], res: Any) -> Action:
             name=tool_call["function"]["name"],
             kwargs=kwargs,
             content=message["content"],
-            completion_tokens=res.usage.completion_tokens
+            completion_tokens=res.usage.completion_tokens,
         )
     return Action(name=RESPOND_ACTION_NAME, content=message["content"], kwargs={}, completion_tokens=completion_tokens)

@@ -15,7 +15,7 @@ defaults:
 #  - groups_per_step: if memory is not sufficient, reduce to 4 to lower effective batch size.
 #    - num_epochs: if reducing groups_per_step (and thus effective batch size), you can increase num_epochs to keep total samples seen similar. Default 2, otherwise 3 if there is room for improvement at the end of epoch 2.
 #  - learning_rate: originally was 5e-6, but adjusted to 2e-5 to compensate for smaller effective batch size. If unstable adjust learnign rate to 1e-5 in both places.
-#                   Observations: 
+#                   Observations:
 #                     - Tried with 2e-5 and running into infinite loss
 #                     - Currently trying 1e-5
 #                     - Note that default lr for full fine-tuning is 5e-6 (to try next)
