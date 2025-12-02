@@ -68,54 +68,6 @@ class LinearAlgebraEnv(Env):
         split = split_mapping[task_split]
         return _load_tasks_cached(hf_path, split)
 
-    def format_reward(self) -> float:
-        """
-        Reward proper formatting with higher weight for final answer.
-
-        Intermediate turns (tool calls):
-        - Check for <think> tag in content
-        - Check for valid tool_call (not None)
-        - Weight: 1.0 per turn
-
-        Final turn (answer):
-        - Check for <think> tag in content
-        - Check for <answer> tag in content
-        - Weight: 2.0 (higher importance)
-
-        Returns:
-            Float between 0.0 and 1.0 (weighted average of correct formats)
-        """
-        if not self.actions:
-            return 0.0
-
-        correct_formats = 0.0
-        total_weight = 0.0
-
-        # Check intermediate turns (all except last)
-        for action in self.actions[:-1]:
-            has_think = think_correct(completion=action.content)
-
-            # Since we've executed this tool call, we are sure that the <tool_call> tags content is valid
-            correct_formats += 0.5
-
-            # If we have the think block, we increase the score by 0.5
-            if has_think:
-                correct_formats += 0.5
-            total_weight += 1.0
-
-        # Check final turn (weight = 2.0 for answer importance)
-        final_action = self.actions[-1]
-        has_think = think_correct(completion=final_action.content)
-        has_answer = answer_correct(completion=final_action.content)
-
-        if has_think:
-            correct_formats += 1.0
-        if has_answer:
-            correct_formats += 1.0
-        total_weight += 2.0
-
-        return correct_formats / total_weight if total_weight > 0 else 0.0
-
     async def calculate_reward_old(self, format_weight: float = 0.1) -> RewardResult:
         """
         Revised Reward Function for GRPO:
@@ -260,14 +212,14 @@ class LinearAlgebraEnv(Env):
 
         # Weights for each component. `format_weight` controls the impact of formatting.
         correctness_weight = 1.0
-        format_component_weight = 0.2
+        format_weight = 0.2
         tool_success_weight = 0.2
         reasoning_depth_weight = 0.1
         efficiency_weight = 0.1
 
         total_reward = (
             correctness_weight * correctness
-            + format_component_weight * format_score
+            + format_weight * format_score
             + tool_success_weight * tool_success
             + reasoning_depth_weight * reasoning_depth
             - efficiency_weight * efficiency_penalty
@@ -338,3 +290,51 @@ class LinearAlgebraEnv(Env):
                 successful_executions += 1
 
         return successful_executions / tool_attempts if tool_attempts > 0 else 0.0
+
+    def format_reward(self) -> float:
+        """
+        Reward proper formatting with higher weight for final answer.
+
+        Intermediate turns (tool calls):
+        - Check for <think> tag in content
+        - Check for valid tool_call (not None)
+        - Weight: 1.0 per turn
+
+        Final turn (answer):
+        - Check for <think> tag in content
+        - Check for <answer> tag in content
+        - Weight: 2.0 (higher importance)
+
+        Returns:
+            Float between 0.0 and 1.0 (weighted average of correct formats)
+        """
+        if not self.actions:
+            return 0.0
+
+        correct_formats = 0.0
+        total_weight = 0.0
+
+        # Check intermediate turns (all except last)
+        for action in self.actions[:-1]:
+            has_think = think_correct(completion=action.content)
+
+            # Since we've executed this tool call, we are sure that the <tool_call> tags content is valid
+            correct_formats += 0.5
+
+            # If we have the think block, we increase the score by 0.5
+            if has_think:
+                correct_formats += 0.5
+            total_weight += 1.0
+
+        # Check final turn (weight = 2.0 for answer importance)
+        final_action = self.actions[-1]
+        has_think = think_correct(completion=final_action.content)
+        has_answer = answer_correct(completion=final_action.content)
+
+        if has_think:
+            correct_formats += 1.0
+        if has_answer:
+            correct_formats += 1.0
+        total_weight += 2.0
+
+        return correct_formats / total_weight if total_weight > 0 else 0.0

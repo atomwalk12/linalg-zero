@@ -13,9 +13,6 @@ class ScriptArguments(ScriptArgs):
     dataset_name: str | None = field(
         default=None, metadata={"help": "Training dataset name. Contains chain-of-thought solutions."}
     )
-    eval_dataset_name: str | None = field(
-        default=None, metadata={"help": "Evaluation dataset name. Contains ground-truth solutions only."}
-    )
     eval_dataset_config: str | None = field(default=None, metadata={"help": "Evaluation dataset config."})
     take_n: int | None = field(default=None, metadata={"help": "Number of examples to take from the dataset."})
 

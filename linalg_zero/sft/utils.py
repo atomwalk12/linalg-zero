@@ -110,9 +110,10 @@ def add_special_tokens_and_resize(
     tokenizer: PreTrainedTokenizer,
 ) -> bool:
     """
-    Add special reasoning/tool-calling tokens to tokenizer and resize model embeddings.
+    Add special reasoning/tool-calling tokens to tokenizer and resize model embeddings if needed.
 
-    Returns True if tokens were added and embeddings resized, False otherwise.
+    Returns True if any new tokens were added (regardless of whether a resize was needed),
+    False if no new tokens were added.
     """
     special_tags = [THINK_OPEN, THINK_CLOSE, TOOL_CALL_OPEN, TOOL_CALL_CLOSE, ANSWER_OPEN, ANSWER_CLOSE]
     num_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tags})
@@ -143,7 +144,7 @@ def add_special_tokens_and_resize(
                 model_vocab,
                 tok_vocab,
             )
-            return False
+            return True
     else:
         logger.info("No new special tokens added (tokens likely already present). Skipping resize.")
         return False
@@ -209,7 +210,14 @@ def get_unsloth_model(
     use_vllm: bool = False,
 ) -> tuple[FastLanguageModel, PreTrainedTokenizer]:
     """Fetch the model and optimizer for training."""
-    assert resume_path is None, "Resuming from a checkpoint is not supported"
+    # Checkpoint loading is handled by the Trainer via `resume_from_checkpoint`.
+    # We keep `resume_path` for API compatibility but do not use it here.
+    if resume_path is not None:
+        logger.info(
+            "Received resume_path=%s in get_unsloth_model, but checkpoint loading is "
+            "handled by the Trainer. Ignoring this argument.",
+            resume_path,
+        )
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_args.model_name_or_path,

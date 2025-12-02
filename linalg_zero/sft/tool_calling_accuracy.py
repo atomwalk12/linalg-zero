@@ -116,7 +116,7 @@ class ToolCallingAccuracyCallback(TrainerCallback):
             }
 
             # Sanitize model name for Weave scorer validation
-            sanitized_model_name = self.model_name.replace("/", "_").replace("-", "_")
+            sanitized_model_name = self.model_name.replace("/", "_").replace("-", "_").replace(".", "_")
 
             weave_logger = EvaluationLogger(
                 name=f"linalg_zero_sft_eval_{state.global_step}",

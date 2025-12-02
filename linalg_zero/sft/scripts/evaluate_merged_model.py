@@ -9,7 +9,8 @@ from linalg_zero.sft.tool_calling_accuracy import ToolCallingAccuracyCallback
 
 
 def load_unmerged():
-    path = "results/LinalgZero-SFT-LoRA/checkpoint-400"
+    # path = "results/LinalgZero-SFT-LoRA/checkpoint-400"
+    path = "results/LinalgZero-SFT-LoRA-110/checkpoint-110"
     tokenizer = AutoTokenizer.from_pretrained(path)
     print(f"Tokenizer vocab size: {len(tokenizer)}")
 

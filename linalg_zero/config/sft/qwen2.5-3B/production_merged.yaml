@@ -16,7 +16,6 @@ use_peft: false                # IMPORTANT: do not create new LoRA adapters
 # Data training arguments
 dataset_name: atomwalk12/linalgzero-sft
 dataset_config: default
-eval_dataset_name: atomwalk12/linalgzero
 eval_dataset_config: default
 dataset_num_proc: 12
 dataset_text_field: text
