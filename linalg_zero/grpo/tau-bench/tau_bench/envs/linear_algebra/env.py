@@ -183,9 +183,9 @@ class LinearAlgebraEnv(Env):
         # No tool calls: treat as maximally lazy.
         if len(tool_calls) == 0:
             return RewardResult(
-                reward=-1.0,
+                reward=-0.3,
                 info=RewardOutputInfo(
-                    r_outputs=-1.0,
+                    r_outputs=-0.3,
                     outputs={"structural_error": "no_tool_calls", "answer_found": False},
                 ),
                 actions=self.actions,
