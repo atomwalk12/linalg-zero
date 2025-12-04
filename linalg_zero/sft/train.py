@@ -229,7 +229,7 @@ if __name__ == "__main__":
     """Script entry point for SFT training."""
     if "--config" not in sys.argv:
         sys.argv.append("--config")
-        # sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_merged.yaml")
+        sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_merged.yaml")
         # sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_instruct.yaml")
         # sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production.yaml")
 

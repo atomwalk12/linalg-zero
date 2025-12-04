@@ -213,15 +213,15 @@ class LinearAlgebraEnv(Env):
         # Weights for each component. `format_weight` controls the impact of formatting.
         correctness_weight = 1.0
         format_weight = 0.2
-        tool_success_weight = 0.2
-        reasoning_depth_weight = 0.1
+        # tool_success_weight = 0.2
+        # reasoning_depth_weight = 0.1
         efficiency_weight = 0.1
 
         total_reward = (
             correctness_weight * correctness
             + format_weight * format_score
-            + tool_success_weight * tool_success
-            + reasoning_depth_weight * reasoning_depth
+            # + tool_success_weight * tool_success
+            # + reasoning_depth_weight * reasoning_depth
             - efficiency_weight * efficiency_penalty
         )
 
@@ -258,7 +258,7 @@ class LinearAlgebraEnv(Env):
         if expected_turns == 0:
             return 0.0
 
-        diff = abs(num_turns - expected_turns)
+        diff = max(0, num_turns - expected_turns)
         return min(1.0, diff / expected_turns)
 
     def reasoning_depth_reward(self) -> float:

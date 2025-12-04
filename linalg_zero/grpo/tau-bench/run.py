@@ -20,7 +20,7 @@ def parse_args() -> RunConfig:
     parser.add_argument("--project-id", type=int, default=0)
     parser.add_argument("--project-name", type=str, default="linalgzero-grpo-eval")
     parser.add_argument("--num-trials", type=int, default=1)
-    parser.add_argument("--env", type=str, choices=["retail", "airline"], default="retail")
+    parser.add_argument("--env", type=str, choices=["linear_algebra"], default="linear_algebra")
     parser.add_argument(
         "--model",
         type=str,
@@ -91,10 +91,17 @@ def parse_args() -> RunConfig:
         type=str,
         help="Path to a jsonlines file containing few shot displays",
     )
+    parser.add_argument(
+        "--dataset-path",
+        default="atomwalk12/linalgzero-grpo",
+        type=str,
+        help="Path to the huggingface dataset"
+    )
     args = parser.parse_args()
     print(args)
     return RunConfig(
         project_id=args.project_id,
+        dataset_path=args.dataset_path,
         project=args.project_name,
         model_provider=args.model_provider,
         user_model_provider=args.user_model_provider,

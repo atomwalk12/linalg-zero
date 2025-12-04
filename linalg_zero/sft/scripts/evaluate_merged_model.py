@@ -47,7 +47,10 @@ def load_merged():
     # GRPO prep.
     # DONE
     # checkpoint_path = "results/LinalgZero-SFT-110/checkpoint-110"
-    checkpoint_path = "results/LinalgZero-SFT-105/checkpoint-105"
+    # checkpoint_path = "results/LinalgZero-SFT-105/checkpoint-105"
+
+    # DONE
+    checkpoint_path = "results/LinalgZero-SFT-110-checkpoint-300/checkpoint-300"
 
     tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
     print(f"Tokenizer vocab size: {len(tokenizer)}")
@@ -75,6 +78,10 @@ def load_merged():
     # DONE
     # model.push_to_hub("atomwalk12/LinalgZero-SFT-110")
     # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-110")
+
+    # DONE
+    model.push_to_hub("atomwalk12/LinalgZero-SFT-110-checkpoint-300")
+    tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-110-checkpoint-300")
 
     FastLanguageModel.for_inference(model)
 
