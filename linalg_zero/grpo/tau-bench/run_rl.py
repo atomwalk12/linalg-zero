@@ -122,7 +122,7 @@ async def rollout_tau_bench_task(
             task_index=task_index,
             max_assistant_turns=config.max_assistant_turns,
         )
-        # trajectory_perfect: 1 if the entire trajectory is perfect (correct answer + optimal efficiency)
+        # optimal_trajectory: 1 if the entire trajectory is optimal (correct answer + optimal efficiency)
         optimal_trajectory = 1 if abs(result.reward - success_reward) <= 1e-6 else 0
 
         # Convert result to trajectory format
@@ -130,6 +130,7 @@ async def rollout_tau_bench_task(
 
         # Build metrics dictionary
         outputs = result.info.get("reward_info", {}).get("info", {}).get("outputs", {})
+        has_valid_outputs = "correctness_score" in outputs
         traj.metrics = {
             "total_steps": result.info["total_steps"],
             "final_prompt_tokens": result.info["final_prompt_tokens"],
@@ -137,10 +138,10 @@ async def rollout_tau_bench_task(
             "max_completion_tokens": result.info["max_completion_tokens"],
             "forced_stop": result.info["forced_stop"],
             "optimal_trajectory": optimal_trajectory,
-            "valid_trajectory": 1 if outputs else 0,
+            "valid_trajectory": 1 if has_valid_outputs else 0,
         }
 
-        if outputs:
+        if has_valid_outputs:
             traj.metrics.update({
                 "correctness_score": outputs["correctness_score"],
                 "format_score": outputs["format_score"],
