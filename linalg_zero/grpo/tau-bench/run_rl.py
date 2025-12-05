@@ -144,11 +144,13 @@ async def rollout_tau_bench_task(
             "efficiency_penalty": outputs.get("efficiency_penalty", -1.0),
             "num_turns": outputs.get("num_turns", -1),
             "expected_turns": outputs.get("expected_turns", -1),
-            "turn_deviation": (outputs.get("num_turns", -1) - outputs.get("expected_turns", -1)) if "num_turns" in outputs and "expected_turns" in outputs else -1,
+            "turn_deviation": (outputs.get("num_turns", -1) - outputs.get("expected_turns", -1))
+            if "num_turns" in outputs and "expected_turns" in outputs
+            else -1,
         }
         traj.metadata.update(result.info)
         traj.metadata["reward"] = "pending_general_rm" if config.reward_type == "general_rm" else traj.reward
-        traj.metadata["trajectory_perfect"] = traj.metrics["trajectory_perfect"]
+        traj.metadata["optimal_trajectory"] = traj.metrics["optimal_trajectory"]
         traj.metadata["judge_explanation"] = explanation
 
         if config.messages_only:
