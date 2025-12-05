@@ -165,7 +165,7 @@ sft = [
 # Install with: uv sync --group grpo
 # IMPORTANT: These versions CONFLICT with distillation group - use separate sync!
 grpo = [
-    "openpipe-art==0.5.1",
+    "openpipe-art==0.5.3",
     # The following are pinned dependencies required by art library
     "distilabel[openai,outlines,instructor]>=1.5.3",
     "math-verify",
