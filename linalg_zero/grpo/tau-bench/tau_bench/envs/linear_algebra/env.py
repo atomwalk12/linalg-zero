@@ -207,7 +207,6 @@ class LinearAlgebraEnv(Env):
         correctness = self.correctness_reward()
         format_score = self.format_reward()
         tool_success = self.tool_success_reward()
-        reasoning_depth = self.reasoning_depth_reward()
         efficiency_penalty = self.efficiency_penalty()
 
         # Weights for each component. `format_weight` controls the impact of formatting.
@@ -234,7 +233,6 @@ class LinearAlgebraEnv(Env):
                     "correctness_score": correctness,
                     "format_score": format_score,
                     "tool_success_score": tool_success,
-                    "reasoning_depth_score": reasoning_depth,
                     "efficiency_penalty": efficiency_penalty,
                     "num_turns": len(tool_calls),
                     "expected_turns": len(self.task.actions),

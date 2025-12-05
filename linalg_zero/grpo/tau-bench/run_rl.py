@@ -140,6 +140,7 @@ async def rollout_tau_bench_task(
             "answer_found": outputs["answer_found"],
             "correctness_score": outputs["correctness_score"],
             "format_score": outputs["format_score"],
+            "tool_success_score": outputs["tool_success_score"],
             "efficiency_penalty": outputs["efficiency_penalty"],
             "num_turns": outputs["num_turns"],
             "expected_turns": outputs["expected_turns"],
