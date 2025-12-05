@@ -129,7 +129,9 @@ async def rollout_tau_bench_task(
         traj.reward, explanation = await calculate_reward(result, config)
 
         # Build metrics dictionary
-        outputs = result.info.get("reward_info", {}).get("info", {}).get("outputs", {})
+        reward_info = result.info.get("reward_info") or {}
+        info = reward_info.get("info") or {}
+        outputs = info.get("outputs") or {}
         has_valid_outputs = "correctness_score" in outputs
         traj.metrics = {
             "total_steps": result.info["total_steps"],
