@@ -122,21 +122,32 @@ async def rollout_tau_bench_task(
             task_index=task_index,
             max_assistant_turns=config.max_assistant_turns,
         )
-        outcome_correct = 1 if abs(result.reward - success_reward) <= 1e-6 else 0
+        # trajectory_perfect: 1 if the entire trajectory is perfect (correct answer + optimal efficiency)
+        optimal_trajectory = 1 if abs(result.reward - success_reward) <= 1e-6 else 0
 
         # Convert result to trajectory format
         traj.reward, explanation = await calculate_reward(result, config)
+
+        # Build metrics dictionary with reward components
+        outputs = result.info["outputs"]
         traj.metrics = {
             "total_steps": result.info["total_steps"],
             "final_prompt_tokens": result.info["final_prompt_tokens"],
             "avg_completion_tokens": result.info["avg_completion_tokens"],
             "max_completion_tokens": result.info["max_completion_tokens"],
-            "outcome_correct": outcome_correct,
+            "optimal_trajectory": optimal_trajectory,
             "forced_stop": result.info["forced_stop"],
+            "answer_found": outputs["answer_found"],
+            "correctness_score": outputs["correctness_score"],
+            "format_score": outputs["format_score"],
+            "efficiency_penalty": outputs["efficiency_penalty"],
+            "num_turns": outputs["num_turns"],
+            "expected_turns": outputs["expected_turns"],
+            "turn_deviation": outputs["num_turns"] - outputs["expected_turns"],
         }
         traj.metadata.update(result.info)
         traj.metadata["reward"] = "pending_general_rm" if config.reward_type == "general_rm" else traj.reward
-        traj.metadata["outcome_correct"] = traj.metrics["outcome_correct"]
+        traj.metadata["trajectory_perfect"] = traj.metrics["trajectory_perfect"]
         traj.metadata["judge_explanation"] = explanation
 
         if config.messages_only:
