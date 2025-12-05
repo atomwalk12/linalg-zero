@@ -128,9 +128,8 @@ async def rollout_tau_bench_task(
         # Convert result to trajectory format
         traj.reward, explanation = await calculate_reward(result, config)
 
-        # Build metrics dictionary with reward components
-        # Use -1 for count/penalty metrics in error cases to make them obvious in plots
-        outputs = result.info.get("outputs", {})
+        # Build metrics dictionary
+        outputs = result.info.get("reward_info", {}).get("info", {}).get("outputs", {})
         traj.metrics = {
             "total_steps": result.info["total_steps"],
             "final_prompt_tokens": result.info["final_prompt_tokens"],
@@ -138,16 +137,19 @@ async def rollout_tau_bench_task(
             "max_completion_tokens": result.info["max_completion_tokens"],
             "forced_stop": result.info["forced_stop"],
             "optimal_trajectory": optimal_trajectory,
-            "correctness_score": outputs.get("correctness_score", 0.0),
-            "format_score": outputs.get("format_score", 0.0),
-            "tool_success_score": outputs.get("tool_success_score", 0.0),
-            "efficiency_penalty": outputs.get("efficiency_penalty", -1.0),
-            "num_turns": outputs.get("num_turns", -1),
-            "expected_turns": outputs.get("expected_turns", -1),
-            "turn_deviation": (outputs.get("num_turns", -1) - outputs.get("expected_turns", -1))
-            if "num_turns" in outputs and "expected_turns" in outputs
-            else -1,
+            "valid_trajectory": 1 if outputs else 0,
         }
+
+        if outputs:
+            traj.metrics.update({
+                "correctness_score": outputs["correctness_score"],
+                "format_score": outputs["format_score"],
+                "tool_success_score": outputs["tool_success_score"],
+                "efficiency_penalty": outputs["efficiency_penalty"],
+                "num_turns": outputs["num_turns"],
+                "expected_turns": outputs["expected_turns"],
+                "turn_deviation": outputs["num_turns"] - outputs["expected_turns"],
+            })
         traj.metadata.update(result.info)
         traj.metadata["reward"] = "pending_general_rm" if config.reward_type == "general_rm" else traj.reward
         traj.metadata["optimal_trajectory"] = traj.metrics["optimal_trajectory"]
