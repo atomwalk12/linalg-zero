@@ -69,6 +69,7 @@ async def rollout_tau_bench_task(
     """
     # print(f"Rolling out task {task_index} (step {step}, phase {phase})")
     config = copy.deepcopy(model.config.run_config)
+    success_reward = 1.2 if config.env == "linear_algebra" else 1.0
     if is_shadow:
         config.model = "gpt-4.1"
         config.model_provider = "openai"
@@ -121,7 +122,7 @@ async def rollout_tau_bench_task(
             task_index=task_index,
             max_assistant_turns=config.max_assistant_turns,
         )
-        outcome_correct = 1 if result.reward == 1 else 0
+        outcome_correct = 1 if abs(result.reward - success_reward) <= 1e-6 else 0
 
         # Convert result to trajectory format
         traj.reward, explanation = await calculate_reward(result, config)
