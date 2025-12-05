@@ -253,13 +253,15 @@ class LinearAlgebraEnv(Env):
         1.0  -> large deviation from expected (capped)
         """
         expected_turns = len(self.task.actions)
-        num_turns = len(self.actions[:-1])
+        actual_turns = len(self.actions[:-1])
 
         if expected_turns == 0:
             return 0.0
 
-        diff = max(0, num_turns - expected_turns)
-        return min(1.0, diff / expected_turns)
+        diff = max(0, actual_turns - expected_turns)
+        # The max number of turns is capped at 5, effectively enabling at most 4
+        # tool calls per conversation.
+        return float(diff)
 
     def reasoning_depth_reward(self) -> float:
         """Reward appropriate reasoning depth."""
@@ -294,7 +296,7 @@ class LinearAlgebraEnv(Env):
 
     def format_reward(self) -> float:
         """
-        Reward proper formatting with higher weight for final answer.
+        Reward proper formatting AND valid tool execution.
 
         Intermediate turns (tool calls):
         - Check for <think> tag in content
@@ -315,12 +317,13 @@ class LinearAlgebraEnv(Env):
         correct_formats = 0.0
         total_weight = 0.0
 
-        # Check intermediate turns (all except last)
         for action in self.actions[:-1]:
             has_think = think_correct(completion=action.content)
 
-            # Since we've executed this tool call, we are sure that the <tool_call> tags content is valid
-            correct_formats += 0.5
+            obs = action._observation
+            is_successful = isinstance(obs, str) and not (obs.startswith("Error:") or obs.startswith("Unknown action"))
+            if is_successful:
+                correct_formats += 0.5
 
             # If we have the think block, we increase the score by 0.5
             if has_think:
