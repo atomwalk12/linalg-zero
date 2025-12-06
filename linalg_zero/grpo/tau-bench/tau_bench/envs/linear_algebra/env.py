@@ -212,15 +212,11 @@ class LinearAlgebraEnv(Env):
         # Weights for each component. `format_weight` controls the impact of formatting.
         correctness_weight = 1.0
         format_weight = 0.2
-        # tool_success_weight = 0.2
-        # reasoning_depth_weight = 0.1
         efficiency_weight = 0.1
 
         total_reward = (
             correctness_weight * correctness
             + format_weight * format_score
-            # + tool_success_weight * tool_success
-            # + reasoning_depth_weight * reasoning_depth
             - efficiency_weight * efficiency_penalty
         )
 
