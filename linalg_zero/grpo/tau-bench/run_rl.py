@@ -216,6 +216,7 @@ async def evaluate_model(
     for traj in trajectories:
         total_reward += traj.reward
         print(f"Eval task {traj.metadata['task_index']}: reward={traj.reward}")
+        print(f"Eval task {traj.metadata['task_index']}: optimal_trajectory={traj.metadata['optimal_trajectory']}")
 
     avg_reward = total_reward / len(val_task_indices)
     print(f"Average evaluation reward: {avg_reward}")
