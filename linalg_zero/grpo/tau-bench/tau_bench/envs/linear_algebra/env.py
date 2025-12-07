@@ -157,6 +157,37 @@ class LinearAlgebraEnv(Env):
             actions=tool_calls,
         )
 
+    def reasoning_depth_reward(self) -> float:
+        """Reward appropriate reasoning depth."""
+        contents = [a.content for a in self.actions if isinstance(a.content, str)]
+        if not contents:
+            return 0.0
+
+        # Approximate response length to a range of approx. 100 and 550 tokens.
+        rewards = [1.0 if 650 < len(c) < 3500 else 0.5 for c in contents]
+        return sum(rewards) / len(rewards)
+
+    def tool_success_reward(self) -> float:
+        """Track successful tool execution, not just presence."""
+        if not self.actions:
+            return 0.0
+
+        tool_attempts = 0
+        successful_executions = 0
+
+        # Check each tool call's cached observation from Env.step instead of re-invoking tools.
+        for action in self.actions[:-1]:
+            obs = action._observation
+            if not isinstance(obs, str):
+                continue
+
+            tool_attempts += 1
+            # Treat both explicit tool errors and unknown actions as failures.
+            if not (obs.startswith("Error:") or obs.startswith("Unknown action")):
+                successful_executions += 1
+
+        return successful_executions / tool_attempts if tool_attempts > 0 else 0.0
+
     async def calculate_reward(self) -> RewardResult:
         """Composite reward that combines several components:
 
@@ -215,9 +246,7 @@ class LinearAlgebraEnv(Env):
         efficiency_weight = 0.1
 
         total_reward = (
-            correctness_weight * correctness
-            + format_weight * format_score
-            - efficiency_weight * efficiency_penalty
+            correctness_weight * correctness + format_weight * format_score - efficiency_weight * efficiency_penalty
         )
 
         return RewardResult(
@@ -241,10 +270,10 @@ class LinearAlgebraEnv(Env):
         return 1.0 if validate_answer(ground_truth=self.task.outputs[0], completion=self.actions[-1].content) else 0.0
 
     def efficiency_penalty(self) -> float:
-        """Return a normalized penalty based on deviation from the expected number of tool calls.
+        """Return an absolute penalty based on deviation from the expected number of tool calls.
 
         0.0  -> used exactly the expected number of tool calls
-        1.0  -> large deviation from expected (capped)
+        3.0  -> maximum deviation (3+ extra tool calls beyond expected)
         """
         expected_turns = len(self.task.actions)
         actual_turns = len(self.actions[:-1])
@@ -253,40 +282,7 @@ class LinearAlgebraEnv(Env):
             return 0.0
 
         diff = max(0, actual_turns - expected_turns)
-        # The max number of turns is capped at 5, effectively enabling at most 4
-        # tool calls per conversation.
-        return float(diff)
-
-    def reasoning_depth_reward(self) -> float:
-        """Reward appropriate reasoning depth."""
-        contents = [a.content for a in self.actions if isinstance(a.content, str)]
-        if not contents:
-            return 0.0
-
-        # Approximate response length to a range of approx. 100 and 550 tokens.
-        rewards = [1.0 if 650 < len(c) < 3500 else 0.5 for c in contents]
-        return sum(rewards) / len(rewards)
-
-    def tool_success_reward(self) -> float:
-        """Track successful tool execution, not just presence."""
-        if not self.actions:
-            return 0.0
-
-        tool_attempts = 0
-        successful_executions = 0
-
-        # Check each tool call's cached observation from Env.step instead of re-invoking tools.
-        for action in self.actions[:-1]:
-            obs = action._observation
-            if not isinstance(obs, str):
-                continue
-
-            tool_attempts += 1
-            # Treat both explicit tool errors and unknown actions as failures.
-            if not (obs.startswith("Error:") or obs.startswith("Unknown action")):
-                successful_executions += 1
-
-        return successful_executions / tool_attempts if tool_attempts > 0 else 0.0
+        return min(float(diff), 3)
 
     def format_reward(self) -> float:
         """

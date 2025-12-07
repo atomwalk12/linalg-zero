@@ -138,6 +138,9 @@ class RunConfig:
     max_completion_tokens: int = 1024
     skip_special_tokens: bool = False
     stop: list[str] | None = None
+    resume: bool = False
+    resume_step: int | None = None
+    resume_from: str | None = None
 
 
 @dataclass

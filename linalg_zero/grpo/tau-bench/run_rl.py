@@ -197,6 +197,7 @@ async def evaluate_model(
     print(f"Evaluating model on {len(val_task_indices)} tasks...")
 
     total_reward = 0.0
+    total_optimal_trajectory = 0.0
 
     model_step = await model.get_step()
     eval_step = max(step, model_step)
@@ -215,11 +216,14 @@ async def evaluate_model(
 
     for traj in trajectories:
         total_reward += traj.reward
+        total_optimal_trajectory += float(traj.metadata["optimal_trajectory"])
         print(f"Eval task {traj.metadata['task_index']}: reward={traj.reward}")
         print(f"Eval task {traj.metadata['task_index']}: optimal_trajectory={traj.metadata['optimal_trajectory']}")
 
     avg_reward = total_reward / len(val_task_indices)
+    avg_optimal_trajectory = total_optimal_trajectory / len(val_task_indices)
     print(f"Average evaluation reward: {avg_reward}")
+    print(f"Average optimal trajectory: {avg_optimal_trajectory}")
     return avg_reward
 
 
@@ -244,6 +248,17 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
     with LocalBackend(in_process=config.in_process) as backend:
         # Setup model with backend
         await model.register(backend, **register_kwargs)
+
+        # Resume from checkpoint if configured
+        if model.config.run_config.resume:
+            await backend._experimental_fork_checkpoint(
+                model,
+                from_model=model.config.run_config.resume_from,
+                from_project=model.config.run_config.project,
+                not_after_step=model.config.run_config.resume_step,
+                verbose=True,
+            )
+
         config.api_key = model.inference_api_key
         config.base_url = model.inference_base_url
         config.base_model = model.base_model
