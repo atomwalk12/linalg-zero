@@ -192,6 +192,7 @@ async def evaluate_model(
     config: RunConfig,
     step: int,
     val_task_indices: list[int],
+    split: str = "val",
 ) -> float:
     """Evaluate the model on a subset of tasks"""
     print(f"Evaluating model on {len(val_task_indices)} tasks...")
@@ -207,12 +208,12 @@ async def evaluate_model(
             model,
             val_task_index,
             eval_step,
-            "val",
+            split,
             reward_type=config.reward_type,
         )
         for val_task_index in val_task_indices
     )
-    await model.log(trajectories=trajectories, split="val")
+    await model.log(trajectories=trajectories, split=split)
 
     for traj in trajectories:
         total_reward += traj.reward
@@ -225,6 +226,72 @@ async def evaluate_model(
     print(f"Average evaluation reward: {avg_reward}")
     print(f"Average optimal trajectory: {avg_optimal_trajectory}")
     return avg_reward
+
+
+async def test(model: art.TrainableModel[TauBenchPolicyConfig]):
+    """Main evaluation loop"""
+    loop = asyncio.get_event_loop()
+    big_pool = concurrent.futures.ThreadPoolExecutor(max_workers=50)
+    loop.set_default_executor(big_pool)
+
+    config = model.config.run_config
+    training_config = model.config.training_config
+
+    if training_config is None:
+        raise ValueError("Training config is not set")
+
+    register_kwargs = {}
+    if model.config.training_config.chat_template is not None:
+        register_kwargs["_openai_client_config"] = art.dev.OpenAIServerConfig(
+            server_args=art.dev.ServerArgs(chat_template=model.config.training_config.chat_template)
+        )
+
+    with LocalBackend(in_process=config.in_process) as backend:
+        # Setup model with backend
+        await model.register(backend, **register_kwargs)
+
+        # Resume from checkpoint if configured
+        if model.config.run_config.resume:
+            await backend._experimental_fork_checkpoint(
+                model,
+                from_model=model.config.run_config.resume_from,
+                from_project=model.config.run_config.project,
+                not_after_step=model.config.run_config.resume_step,
+                verbose=True,
+            )
+
+        config.api_key = model.inference_api_key
+        config.base_url = model.inference_base_url
+        config.base_model = model.base_model
+
+        print("Loading training tasks...")
+
+        # Load validation environment
+        test_env = get_env(
+            config.env,
+            user_strategy=config.user_strategy,
+            user_model=config.user_model,
+            task_split="test",
+            dataset_path=config.dataset_path,
+            user_provider=config.user_model_provider,
+        )
+
+        test_task_indices = _get_task_indices(
+            task_ids=None,
+            start_index=0,
+            end_index=-1,
+            tasks_length=len(test_env.tasks),
+        )
+
+        print(f"Validation on {len(test_task_indices)} tasks")
+
+        # Final evaluation
+        print("\n--- Final Evaluation ---")
+        final_step = await model.get_step()
+        final_reward = await evaluate_model(model, config, final_step, test_task_indices, split="test")
+        print(f"Final average reward: {final_reward}")
+
+        print("Evaluation complete!")
 
 
 async def train(model: art.TrainableModel[TauBenchPolicyConfig]):

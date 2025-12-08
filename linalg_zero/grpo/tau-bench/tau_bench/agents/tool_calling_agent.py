@@ -125,6 +125,7 @@ class ToolCallingRLAgent(ToolCallingAgent):
         self.top_p = kwargs.get("top_p")
         self.repetition_penalty = kwargs.get("repetition_penalty")
         self.stop = kwargs.get("stop")
+        self.seed = kwargs.get("seed")
         self.choices = []
 
     async def llm_completion(self, messages: list[dict[str, Any]]) -> ModelResponse:
@@ -138,10 +139,12 @@ class ToolCallingRLAgent(ToolCallingAgent):
             temperature=self.temperature,
             max_completion_tokens=self.max_completion_tokens,
             top_p=self.top_p,
+            do_sample=self.temperature > 0.0,
             repetition_penalty=self.repetition_penalty,
             logprobs=False if self.provider == "openai" else True,
             extra_body={"skip_special_tokens": self.skip_special_tokens},
             stop=self.stop,
+            seed=self.seed,
             # extra_body={"chat_template_kwargs": {"enable_thinking": False}}
             # if "Qwen3-" in self.base_model
             # else {},
