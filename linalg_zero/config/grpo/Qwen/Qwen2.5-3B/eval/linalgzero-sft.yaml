@@ -1,49 +1,25 @@
-defaults:
-  - /training@training: training_schema
-  - /run@run: run_schema
-  - _self_
-  # Note: _self_ at end means local overrides take precedence
-  # engine and torchtune configs use plain dicts (TypedDicts from art.dev, not dataclasses)
-
-# NOTES: important parameters
-#  - trajectories_per_group: if 80gb gpu increment to 16, otherwise keep at 8 (8 is likely best. GRPO works well with 8.)
-#  - gpu_memory_utilization from 0.33 to 0.7
-#  - beta: change from 0.0 to 0.001
-#  - max_prompt_length: default 5000 for local development (≈4×800-token tool calls + ~1800-token system prompt).
-#  - eval_steps: from 50 to 200. With groups_per_step = 8 and 7648 train tasks we get 956 steps per epoch = 7648 / 8.
-#                If we want ≈10 evals per epoch (recommended), then do 956/10≈95, so set eval_steps to 100. For cheaper eval, use 200.
-#  - groups_per_step: if memory is not sufficient, reduce to 4 to lower effective batch size.
-#    - num_epochs: if reducing groups_per_step (and thus effective batch size), you can increase num_epochs to keep total samples seen similar. Default 2, otherwise 3 if there is room for improvement at the end of epoch 2.
-#  - learning_rate: for this config with effective batch size 64 we use 1e-5 as a conservative default. If unstable, reduce toward 5e-6; if under-updating with smaller batch sizes, consider 2e-5.
-
-# Debugging:
-# - val_task_ids: [1,2,3]
-
 init:
   max_lora_rank: 32
   dtype: bfloat16
   load_in_4bit: false
   load_in_8bit: false
-  # Keep this aligned with engine.max_model_len; we cap at ~5800 effective tokens
-  # (5000 prompt + 800 completion), so 6144 (with buffer for special tokens) is enough and saves KV-cache memory.
   max_seq_length: 6144
 
-# Note that effective batch size is 64 = trajectories_per_group * groups_per_step
 training:
-  trajectories_per_group: 8 # scale first to 16 if memory permits
-  groups_per_step: 8      # change to 8 for larger batch size
-  learning_rate: 2e-5
-  beta: 0.001
+  trajectories_per_group: 4
+  groups_per_step: 8
+  learning_rate: 2e-6
+  beta: 0.03
   eval_steps: 100
   num_epochs: 2
   train_mode: sync_rl
   chat_template: "{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n        {{- messages[0]['content'] }}\n    {%- else %}\n        {{- 'You are a helpful assistant.' }}\n    {%- endif %}\n    {{- \"\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>\" }}\n    {%- for tool in tools %}\n        {{- \"\\n\" }}\n        {{- tool | tojson }}\n    {%- endfor %}\n    {{- \"\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\\\"name\\\": <function-name>, \\\"arguments\\\": <args-json-object>}\\n</tool_call><|im_end|>\\n\" }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n        {{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n        {{- '<|im_start|>system\\nYou are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == \"user\") or (message.role == \"system\" and not loop.first) or (message.role == \"assistant\" and not message.tool_calls) %}\n        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == \"assistant\" %}\n        {{- '<|im_start|>' + message.role }}\n        {%- if message.content %}\n            {{- '\\n' + message.content }}\n        {%- endif %}\n        {%- for tool_call in message.tool_calls %}\n            {%- if tool_call.function is defined %}\n                {%- set tool_call = tool_call.function %}\n            {%- endif %}\n            {{- '\\n<tool_call>\\n{\"name\": \"' }}\n            {{- tool_call.name }}\n            {{- '\", \"arguments\": ' }}\n            {{- tool_call.arguments | tojson }}\n            {{- '}\\n</tool_call>' }}\n        {%- endfor %}\n        {{- '<|im_end|>\\n' }}\n    {%- elif message.role == \"tool\" %}\n        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != \"tool\") %}\n            {{- '<|im_start|>user' }}\n        {%- endif %}\n        {{- '\\n<tool_response>\\n' }}\n        {{- message.content }}\n        {{- '\\n</tool_response>' }}\n        {%- if loop.last or (messages[loop.index0 + 1].role != \"tool\") %}\n            {{- '<|im_end|>\\n' }}\n        {%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}\n"
 
 run:
-  project_id: run001-linalgzero-sft-110
-  project: linalgzero-grpo
-  base_model: "atomwalk12/LinalgZero-SFT-110"
-  model: "atomwalk12/LinalgZero-SFT-110"
+  project_id: 004-linalgzero-sft
+  project: linalgzero-eval
+  base_model: "results/LinalgZero-SFT/checkpoint-300-best"
+  model: "results/LinalgZero-SFT/checkpoint-300-best"
   dataset_path: "atomwalk12/linalgzero-grpo"
   env: linear_algebra
   model_provider: hosted_vllm
@@ -51,14 +27,14 @@ run:
   user_strategy: mathematician
   user_model: gpt-4o
   agent_strategy: tool-calling-rl
-  temperature: 0.7
-  top_p: 0.8
+  temperature: 0.0
+  top_p: null
   repetition_penalty: 1.0
   task_split: test
   log_dir: rl_results
   skip_eval: False
   in_process: False
-  max_assistant_turns: 5 # Can set to 4 for optimised trajectories
+  max_assistant_turns: 5
   max_completion_tokens: 800
   skip_special_tokens: False
   stop: [
@@ -66,45 +42,19 @@ run:
     "</tool_response>",
     "User:",
   ]
-  # val_task_ids: [1,2,3]
   seed: 42
 
-peft:
-  r: 32
-  lora_alpha: 64
-  use_gradient_checkpointing: "unsloth"
-  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-  random_state: 42
-
-# Use peft instead of torchtune for lora training
-# torchtune:
-#   model: qwen3_4b_base
-#   model_type: QWEN3
-#   async_weight_syncing: True
-
-# Other parameters:
-# kl_coef: 0.02
-# temperature: 0.8
-
 trainer:
-  learning_rate: 5e-6
-  # Note that per_device_train_batch_size must be divisible by num_generations.
-  per_device_train_batch_size: 2
-  gradient_accumulation_steps: 1   # if != 1, deadlock occurs
-  num_generations: 2
-  max_prompt_length: 5000 # We have a maximum of 4 tool calls (800 * 4) + system prompt and user query (1800) = 5000
-  max_completion_length: 800 # Maximum number of tokens per completion
+  max_prompt_length: 5000
+  max_completion_length: 800
   report_to: ["wandb"]
-  save_total_limit: 10
   seed: 42
   data_seed: 42
 
 engine:
-  gpu_memory_utilization: 0.33
+  gpu_memory_utilization: 0.6
   max_lora_rank: 32
   enable_sleep_mode: true
-  # Match the actual maximum used context (prompt + completion) to reduce KV cache.
-  # 5000 (prompt) + 800 (completion) ≈ 5800, so 6144 (with buffer for special tokens) is sufficient.
   max_model_len: 6144
   dtype: 'bfloat16'
   quantization: null

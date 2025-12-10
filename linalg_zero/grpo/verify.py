@@ -45,7 +45,10 @@ def verify_answers(ground_truth: LibTypes | None, target_answer: LibTypes | None
     if ground_truth is None or target_answer is None:
         return False
 
-    target = convert_to_sympy(target_answer)
-    gt = convert_to_sympy(ground_truth)
+    try:
+        target = convert_to_sympy(target_answer)
+        gt = convert_to_sympy(ground_truth)
 
-    return verify(gt, target, timeout_seconds=timeout)
+        return verify(gt, target, timeout_seconds=timeout)
+    except Exception:
+        return False

@@ -94,7 +94,7 @@ def main(
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--push_dataset", action="store_true", default=True)
+    parser.add_argument("--push_dataset", action="store_true", default=False)
     parser.add_argument("--dataset_name", type=str, default="atomwalk12/linalgzero")
     parser.add_argument(
         "--use_optimized_registry",

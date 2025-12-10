@@ -7,7 +7,12 @@ from typing import Any
 from datasets import Dataset, DatasetDict, DownloadMode, load_dataset
 
 from linalg_zero.shared.lib import get_tools
-from linalg_zero.shared.utils import get_logger, setup_logging
+from linalg_zero.shared.utils import (
+    get_logger,
+    get_representative_examples_indices,
+    normalize_text,
+    setup_logging,
+)
 
 # Log both to file and console
 setup_logging(level=logging.INFO, include_timestamp=True)
@@ -22,7 +27,7 @@ def load_datasets(src_train: str, src_test: str) -> DatasetDict:
 
     # Load base dataset to get validation and test splits
     logger.info(f"Loading base dataset from https://huggingface.co/datasets/{src_test}")
-    base_dataset = load_dataset(src_test)
+    base_dataset = load_dataset(src_test, download_mode=DownloadMode.FORCE_REDOWNLOAD)
 
     # Extract validation and test splits from the base dataset
     validation_dataset = base_dataset["validation"]
@@ -44,8 +49,57 @@ def fix_think_tags(content: str) -> str:
     return content
 
 
-def process_dataset_for_grpo(dataset: DatasetDict) -> DatasetDict:
+def process_dataset_for_grpo(  # noqa: C901
+    dataset: DatasetDict, normalize_unicode: bool, seed: int, per_category: int
+) -> DatasetDict:
     """Process dataset specifically for GRPO training."""
+
+    def ensure_tools(example: dict[str, Any]) -> dict[str, Any]:
+        """Ensure tools field is present."""
+        if "tools" not in example or example["tools"] is None:
+            example["tools"] = get_tools()
+        return example
+
+    def normalize_query(example: dict[str, Any]) -> dict[str, Any]:
+        """Normalize query text if unicode normalization is enabled."""
+        if "query" in example:
+            example["query"] = normalize_text(example["query"], normalize_unicode)
+        return example
+
+    def parse_messages_for_grpo(example: dict[str, Any]) -> dict[str, Any]:
+        """Convert messages from JSON string to array and fix think tag formatting for GRPO."""
+        if example.get("messages"):
+            messages = json.loads(example["messages"])
+
+            # Fix think tags in assistant messages and normalize content
+            for msg in messages:
+                if isinstance(msg, dict) and msg.get("role") == "assistant" and "content" in msg:
+                    content = fix_think_tags(msg["content"])
+                    msg["content"] = normalize_text(content, normalize_unicode)
+
+            # Store processed messages for reference (optional)
+            example["processed_messages"] = messages
+
+        return example
+
+    def process_train_split(train_data: Dataset) -> Dataset:
+        """Process training dataset (has messages field with solutions)."""
+        train_data = train_data.shuffle(seed=seed)
+        train_data = train_data.map(parse_messages_for_grpo)
+        train_data = train_data.map(ensure_tools)
+        train_data = train_data.map(normalize_query)
+        return train_data
+
+    def process_eval_split(eval_data: Dataset) -> Dataset:
+        """Process evaluation dataset (validation or test - no messages, just problems)."""
+        eval_data = eval_data.shuffle(seed=seed)
+        eval_data = eval_data.map(ensure_tools)
+        eval_data = eval_data.map(normalize_query)
+        eval_indices = get_representative_examples_indices(
+            eval_data, per_category=per_category, include_remaining=False
+        )
+        eval_data = eval_data.select(eval_indices)
+        return eval_data
 
     # The necessary columns for GRPO training
     keep_columns = [
@@ -55,39 +109,10 @@ def process_dataset_for_grpo(dataset: DatasetDict) -> DatasetDict:
         "tools",
     ]
 
-    def ensure_tools(example: dict[str, Any]) -> dict[str, Any]:
-        """Ensure tools field is present."""
-        if "tools" not in example or example["tools"] is None:
-            example["tools"] = get_tools()
-        return example
-
-    def parse_messages_for_grpo(example: dict[str, Any]) -> dict[str, Any]:
-        """Convert messages from JSON string to array and fix think tag formatting for GRPO."""
-        if example.get("messages"):
-            messages = json.loads(example["messages"])
-
-            # Fix think tags in assistant messages
-            for msg in messages:
-                if isinstance(msg, dict) and msg.get("role") == "assistant" and "content" in msg:
-                    msg["content"] = fix_think_tags(msg["content"])
-
-            # Store processed messages for reference (optional)
-            example["processed_messages"] = messages
-
-        return example
-
-    # Process training dataset (has messages field with solutions)
-    train_dataset = dataset["train"]
-    train_dataset = train_dataset.map(parse_messages_for_grpo)
-    train_dataset = train_dataset.map(ensure_tools)
-
-    # Process validation dataset (no messages, just problems)
-    validation_dataset = dataset["validation"]
-    validation_dataset = validation_dataset.map(ensure_tools)
-
-    # Process test dataset (no messages, just problems)
-    test_dataset = dataset["test"]
-    test_dataset = test_dataset.map(ensure_tools)
+    # Process all splits
+    train_dataset = process_train_split(dataset["train"])
+    validation_dataset = process_eval_split(dataset["validation"])
+    test_dataset = process_eval_split(dataset["test"])
 
     # Remove unnecessary columns from all splits
     strip_cols = set(train_dataset.column_names) - set(keep_columns)
@@ -119,8 +144,6 @@ def process_dataset_for_grpo(dataset: DatasetDict) -> DatasetDict:
 
 def validate_grpo_dataset(dataset: DatasetDict) -> None:
     """Validate that the dataset is properly formatted for GRPO training."""
-    logger.info("*** Validating GRPO dataset ***")
-
     required_columns = ["query", "ground_truth", "stepwise_ground_truths", "tools"]
 
     for split_name, split_data in dataset.items():
@@ -157,8 +180,6 @@ def validate_grpo_dataset(dataset: DatasetDict) -> None:
             if not isinstance(sample["tools"], list):
                 raise ValueError(f"Tools field must be a list in {split_name}")
 
-        logger.info(f"✓ {split_name} split validation passed ({len(split_data)} examples)")
-
     logger.info("*** Dataset validation completed successfully ***")
 
 
@@ -170,42 +191,27 @@ def prepare_debug(train: Dataset, validation: Dataset, test: Dataset, dataset_si
     return DatasetDict({"train": train, "validation": validation, "test": test})
 
 
-def main(output_repo: str, push_to_hub: bool, debug_mode: bool) -> None:
+def main(
+    train_repo: str,
+    test_repo: str,
+    output_repo: str,
+    push_to_hub: bool,
+    normalize_unicode: bool,
+    seed: int,
+    per_category: int,
+) -> None:
     """Main processing function for GRPO dataset preparation."""
-    # Source datasets
-    train_repo = "atomwalk12/linalgzero-distilled"  # Has solutions (train split)
-    test_repo = "atomwalk12/linalgzero"  # No solutions (validation and test splits)
-
     logger.info("*** Loading datasets for GRPO training ***")
     dataset = load_datasets(train_repo, test_repo)
 
-    # For debugging
-    if debug_mode:
-        size = 60
-        logger.info(f"*** Preparing debug dataset (size: {size}) ***")
-        dataset = prepare_debug(dataset["train"], dataset["validation"], dataset["test"], dataset_size=size)
-
     # Process for GRPO
     logger.info("*** Processing dataset for GRPO training ***")
-    dataset = process_dataset_for_grpo(dataset)
+    dataset = process_dataset_for_grpo(
+        dataset, normalize_unicode=normalize_unicode, seed=seed, per_category=per_category
+    )
 
     # Validate the processed dataset
     validate_grpo_dataset(dataset)
-
-    # Log dataset info
-    logger.info("*** Dataset processing completed ***")
-    logger.info("Processed dataset contains:")
-    for split_name, split_data in dataset.items():
-        logger.info(f"  - {split_name}: {len(split_data)} examples")
-        logger.info(f"    Columns: {split_data.column_names}")
-
-        # Show sample for verification
-        if len(split_data) > 0:
-            sample = split_data[0]
-            logger.info(f"    Sample query: {sample['query'][:100]}...")
-            logger.info(f"    Has ground_truth: {bool(sample['ground_truth'])}")
-            logger.info(f"    Has stepwise_ground_truths: {bool(sample['stepwise_ground_truths'])}")
-            logger.info(f"    Number of tools: {len(sample['tools'])}")
 
     # Push to hub
     if push_to_hub:
@@ -224,10 +230,36 @@ if __name__ == "__main__":
     """Script entry point for GRPO dataset preparation."""
     parser = ArgumentParser(description="Prepare dataset for GRPO training")
     parser.add_argument(
+        "--src_train", type=str, default="atomwalk12/linalgzero-distilled-clean", help="Source training dataset"
+    )
+    parser.add_argument("--src_test", type=str, default="atomwalk12/linalgzero", help="Source test dataset")
+    parser.add_argument(
         "--output_repo", default="atomwalk12/linalgzero-grpo", type=str, help="Output repository name for GRPO dataset"
     )
-    parser.add_argument("--push_to_hub", action="store_true", help="Whether to push the dataset to HuggingFace Hub")
-    parser.add_argument("--debug_mode", action="store_true", help="Reduces dataset size to 60 examples for testing")
+    parser.add_argument(
+        "--push_to_hub", default=False, action="store_true", help="Whether to push the dataset to HuggingFace Hub"
+    )
+    parser.add_argument(
+        "--no_normalize_unicode",
+        default=False,
+        action="store_true",
+        help="Disable Unicode NFKC normalization and minus-sign replacement during dataset prep",
+    )
+    parser.add_argument("--seed", default=20, type=int, help="Random seed for dataset shuffling")
+    parser.add_argument(
+        "--per_category",
+        default=40,
+        type=int,
+        help="Number of representative examples per category for validation and test sets",
+    )
     args = parser.parse_args()
 
-    main(args.output_repo, args.push_to_hub, args.debug_mode)
+    main(
+        train_repo=args.src_train,
+        test_repo=args.src_test,
+        output_repo=args.output_repo,
+        push_to_hub=args.push_to_hub,
+        normalize_unicode=(not args.no_normalize_unicode),
+        seed=args.seed,
+        per_category=args.per_category,
+    )

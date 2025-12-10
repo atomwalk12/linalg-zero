@@ -10,12 +10,15 @@ defaults:
 #  - gpu_memory_utilization from 0.33 to 0.7
 #  - beta: change from 0.0 to 0.001
 #  - max_prompt_length: default 5000 for local development (≈4×800-token tool calls + ~1800-token system prompt).
-#  - eval_steps: from 50 to 200. With groups_per_step = 8 and 7648 train tasks we get 956 steps per epoch = 7648 / 8.
-#                If we want ≈10 evals per epoch (recommended), then do 956/10≈95, so set eval_steps to 100. For cheaper eval, use 200.
+#  - eval_steps: from 8 to 50, 75, 100, 200. If groups_per_step is 8, then we get 1912 steps = 7648 / 4.
+#                If we want 10 evals per epoch (recommended), then do 1912/10=190, so set eval_steps to 200.
 #  - groups_per_step: if memory is not sufficient, reduce to 4 to lower effective batch size.
 #    - num_epochs: if reducing groups_per_step (and thus effective batch size), you can increase num_epochs to keep total samples seen similar. Default 2, otherwise 3 if there is room for improvement at the end of epoch 2.
-#  - learning_rate: for this config with effective batch size 64 we use 1e-5 as a conservative default. If unstable, reduce toward 5e-6; if under-updating with smaller batch sizes, consider 2e-5.
-
+#  - learning_rate: originally was 5e-6, but adjusted to 2e-5 to compensate for smaller effective batch size. If unstable adjust learnign rate to 1e-5 in both places.
+#                   Observations:
+#                     - Tried with 2e-5 and running into infinite loss
+#                     - Currently trying 1e-5
+#                     - Note that default lr for full fine-tuning is 5e-6 (to try next)
 # Debugging:
 # - val_task_ids: [1,2,3]
 
@@ -28,22 +31,22 @@ init:
   # (5000 prompt + 800 completion), so 6144 (with buffer for special tokens) is enough and saves KV-cache memory.
   max_seq_length: 6144
 
-# Note that effective batch size is 64 = trajectories_per_group * groups_per_step
+# Note that effective batch size is 32 = trajectories_per_group * groups_per_step
 training:
-  trajectories_per_group: 8 # scale first to 16 if memory permits
-  groups_per_step: 8      # change to 8 for larger batch size
-  learning_rate: 2e-5
-  beta: 0.001
+  trajectories_per_group: 4
+  groups_per_step: 8
+  learning_rate: 1e-6
+  beta: 0.03
   eval_steps: 100
   num_epochs: 2
   train_mode: sync_rl
   chat_template: "{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n        {{- messages[0]['content'] }}\n    {%- else %}\n        {{- 'You are a helpful assistant.' }}\n    {%- endif %}\n    {{- \"\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>\" }}\n    {%- for tool in tools %}\n        {{- \"\\n\" }}\n        {{- tool | tojson }}\n    {%- endfor %}\n    {{- \"\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\\\"name\\\": <function-name>, \\\"arguments\\\": <args-json-object>}\\n</tool_call><|im_end|>\\n\" }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n        {{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n        {{- '<|im_start|>system\\nYou are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == \"user\") or (message.role == \"system\" and not loop.first) or (message.role == \"assistant\" and not message.tool_calls) %}\n        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == \"assistant\" %}\n        {{- '<|im_start|>' + message.role }}\n        {%- if message.content %}\n            {{- '\\n' + message.content }}\n        {%- endif %}\n        {%- for tool_call in message.tool_calls %}\n            {%- if tool_call.function is defined %}\n                {%- set tool_call = tool_call.function %}\n            {%- endif %}\n            {{- '\\n<tool_call>\\n{\"name\": \"' }}\n            {{- tool_call.name }}\n            {{- '\", \"arguments\": ' }}\n            {{- tool_call.arguments | tojson }}\n            {{- '}\\n</tool_call>' }}\n        {%- endfor %}\n        {{- '<|im_end|>\\n' }}\n    {%- elif message.role == \"tool\" %}\n        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != \"tool\") %}\n            {{- '<|im_start|>user' }}\n        {%- endif %}\n        {{- '\\n<tool_response>\\n' }}\n        {{- message.content }}\n        {{- '\\n</tool_response>' }}\n        {%- if loop.last or (messages[loop.index0 + 1].role != \"tool\") %}\n            {{- '<|im_end|>\\n' }}\n        {%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}\n"
 
 run:
-  project_id: run001-linalgzero-sft-110
+  project_id: run022-004-linalgzero-sft-110-checkpoint-300-forked-step-700
   project: linalgzero-grpo
-  base_model: "atomwalk12/LinalgZero-SFT-110"
-  model: "atomwalk12/LinalgZero-SFT-110"
+  base_model: "atomwalk12/LinalgZero-SFT-110-checkpoint-300"
+  model: "atomwalk12/LinalgZero-SFT-110-checkpoint-300"
   dataset_path: "atomwalk12/linalgzero-grpo"
   env: linear_algebra
   model_provider: hosted_vllm
@@ -68,6 +71,23 @@ run:
   ]
   # val_task_ids: [1,2,3]
   seed: 42
+  resume: True
+  resume_step: 700
+  resume_from: run022-linalgzero-sft-110-checkpoint-300
+# Adjust learning rate to 5e-6 and beta to 0.001
+# https://deepwiki.com/search/what-learning-rate-is-recommen_6dd63e61-167a-4c85-a305-bc58338d82f3?mode=fast
+# Implementation Priority
+#  First check KL divergence in your training metrics
+#  If KL > 0.1: Increase beta to 0.01
+#  if 0.01 <= KL_div <= 0.1: Increase beta to 0.005
+#  If KL < 0.01: Lower learning rate to 1e-6
+
+# Next step: groups_per_step = 6, beta = 0.005 or 0.01
+# Minimal regularization: beta = 0.001
+# Moderate regularization: beta = 0.003
+# Strong regularization: beta = 0.005-0.01
+# Some say 0.01 is best
+# https://aistudio.google.com/prompts/1nB_f7VpDqaivxU-eqI-tTmFfMiBWobfF
 
 peft:
   r: 32
@@ -87,9 +107,9 @@ peft:
 # temperature: 0.8
 
 trainer:
-  learning_rate: 5e-6
+  learning_rate: 1e-6
   # Note that per_device_train_batch_size must be divisible by num_generations.
-  per_device_train_batch_size: 2
+  per_device_train_batch_size: 4
   gradient_accumulation_steps: 1   # if != 1, deadlock occurs
   num_generations: 2
   max_prompt_length: 5000 # We have a maximum of 4 tool calls (800 * 4) + system prompt and user query (1800) = 5000
@@ -98,6 +118,7 @@ trainer:
   save_total_limit: 10
   seed: 42
   data_seed: 42
+  max_grad_norm: 0.1
 
 engine:
   gpu_memory_utilization: 0.33
@@ -110,3 +131,8 @@ engine:
   quantization: null
   load_format: 'auto'
   seed: 42
+
+# Modifications:
+# V1: Up to step 700: lr 2e-6 and beta 0.03
+# V2: From step 700: lr 1e-6 and beta 0.03
+#     Resume from step 700

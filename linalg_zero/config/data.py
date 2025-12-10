@@ -13,9 +13,6 @@ class ScriptArguments(ScriptArgs):
     dataset_name: str | None = field(
         default=None, metadata={"help": "Training dataset name. Contains chain-of-thought solutions."}
     )
-    eval_dataset_name: str | None = field(
-        default=None, metadata={"help": "Evaluation dataset name. Contains ground-truth solutions only."}
-    )
     eval_dataset_config: str | None = field(default=None, metadata={"help": "Evaluation dataset config."})
     take_n: int | None = field(default=None, metadata={"help": "Number of examples to take from the dataset."})
 
@@ -89,6 +86,10 @@ class SFTRunConfig:
     final_eval_max_samples: int | None = field(
         default=None,
         metadata={"help": "Maximum number of eval samples for periodic evaluations. None/-1 for full dataset."},
+    )
+    add_special_tokens: bool = field(
+        default=False,
+        metadata={"help": "Whether to add special tokens to the model."},
     )
 
 

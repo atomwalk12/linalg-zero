@@ -84,7 +84,7 @@ class ToolCallingAgent(Agent):
             self.messages.append(next_message)
 
             total_cost += res._hidden_params.get("response_cost") or 0.0
-            action = message_to_action(next_message)
+            action = message_to_action(next_message, res)
             env_response = await env.step(action)
             reward = env_response.reward
             info = {**info, **env_response.info.model_dump()}
@@ -120,6 +120,12 @@ class ToolCallingRLAgent(ToolCallingAgent):
         self.api_key = kwargs.get("api_key")
         self.base_url = kwargs.get("base_url")
         self.base_model = kwargs.get("base_model")
+        self.max_completion_tokens = kwargs.get("max_completion_tokens")
+        self.skip_special_tokens = kwargs.get("skip_special_tokens")
+        self.top_p = kwargs.get("top_p")
+        self.repetition_penalty = kwargs.get("repetition_penalty")
+        self.stop = kwargs.get("stop")
+        self.seed = kwargs.get("seed")
         self.choices = []
 
     async def llm_completion(self, messages: list[dict[str, Any]]) -> ModelResponse:
@@ -131,8 +137,14 @@ class ToolCallingRLAgent(ToolCallingAgent):
             base_url=self.base_url,
             tools=self.tools_info,
             temperature=self.temperature,
-            max_completion_tokens=1024,
+            max_completion_tokens=self.max_completion_tokens,
+            top_p=self.top_p,
+            do_sample=self.temperature > 0.0,
+            repetition_penalty=self.repetition_penalty,
             logprobs=False if self.provider == "openai" else True,
+            extra_body={"skip_special_tokens": self.skip_special_tokens},
+            stop=self.stop,
+            seed=self.seed,
             # extra_body={"chat_template_kwargs": {"enable_thinking": False}}
             # if "Qwen3-" in self.base_model
             # else {},
@@ -165,9 +177,41 @@ class ToolCallingRLAgent(ToolCallingAgent):
         return messages_and_choices
 
 
-def message_to_action(
-    message: dict[str, Any],
-) -> Action:
+def _parse_tool_arguments(raw_args: Any) -> dict[str, Any]:
+    """
+    Robustly parse tool call arguments into a dict.
+
+    Handles:
+      - None -> {}
+      - dict -> as-is
+      - JSON string -> dict
+      - double-encoded JSON string -> dict
+    Falls back to {} on any failure.
+    """
+    if raw_args is None:
+        return {}
+    if isinstance(raw_args, dict):
+        return raw_args
+    if not isinstance(raw_args, str):
+        return {}
+
+    current: Any = raw_args
+    for _ in range(2):
+        try:
+            parsed = json.loads(current)
+        except Exception:
+            break
+        if isinstance(parsed, dict):
+            return parsed
+        if isinstance(parsed, str) and parsed != current:
+            current = parsed
+            continue
+        break
+
+    return {}
+
+
+def message_to_action(message: dict[str, Any], res: Any) -> Action:
     if (
         "tool_calls" in message
         and message["tool_calls"] is not None
@@ -175,10 +219,14 @@ def message_to_action(
         and message["tool_calls"][0]["function"] is not None
     ):
         tool_call = message["tool_calls"][0]
+        raw_args = tool_call["function"].get("arguments")
+        kwargs = _parse_tool_arguments(raw_args)
         return Action(
             name=tool_call["function"]["name"],
-            kwargs=json.loads(tool_call["function"]["arguments"]),
+            kwargs=kwargs,
             content=message["content"],
+            completion_tokens=res.usage.completion_tokens,
         )
-    else:
-        return Action(name=RESPOND_ACTION_NAME, content=message["content"], kwargs={})
+    return Action(
+        name=RESPOND_ACTION_NAME, content=message["content"], kwargs={}, completion_tokens=res.usage.completion_tokens
+    )

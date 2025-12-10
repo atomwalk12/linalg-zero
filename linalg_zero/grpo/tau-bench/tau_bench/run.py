@@ -38,6 +38,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
         public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
         host=os.getenv("LANGFUSE_HOST"),
     )
+    success_reward = 1.2 if config.env == "linear_algebra" else 1.0
     random.seed(config.seed)
     time_str = datetime.now().strftime("%m%d%H%M%S")
     ckpt_path = f"{config.log_dir}/{config.agent_strategy}-{config.model.split('/')[-1]}-{config.temperature}_range_{config.start_index}-{config.end_index}_user-{config.user_model}-{config.user_strategy}_{time_str}.json"
@@ -49,8 +50,9 @@ def run(config: RunConfig) -> list[EnvRunResult]:
         config.env,
         user_strategy=config.user_strategy,
         user_model=config.user_model,
-        user_provider=config.user_model_provider,
         task_split=config.task_split,
+        dataset_path=config.dataset_path,
+        user_provider=config.user_model_provider,
     )
     agent = agent_factory(
         tools_info=env.tools_info,
@@ -92,6 +94,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
                 user_strategy=config.user_strategy,
                 user_model=config.user_model,
                 task_split=config.task_split,
+                dataset_path=config.dataset_path,
                 user_provider=config.user_model_provider,
                 task_index=idx,
             )
@@ -119,7 +122,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
                 )
             log_trace_to_langfuse(result, idx, config)
             print(
-                "✅" if result.reward == 1.3 else "❌",
+                "✅" if abs(result.reward - success_reward) <= 1e-6 else "❌",
                 f"task_id={idx}",
                 result.info,
             )
@@ -137,7 +140,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
             res = list(executor.map(_run, idxs))
             results.extend(res)
 
-    display_metrics(results)
+    display_metrics(results, success_reward=success_reward)
 
     with open(ckpt_path, "w") as f:
         json.dump([result.model_dump() for result in results], f, indent=2)
@@ -156,9 +159,14 @@ def agent_factory(tools_info: list[dict[str, Any]], wiki, config: RunConfig) -> 
             model=config.model,
             provider=config.model_provider,
             temperature=config.temperature,
+            top_p=config.top_p,
+            repetition_penalty=config.repetition_penalty,
             api_key=config.api_key,
             base_url=config.base_url,
             base_model=config.base_model,
+            max_completion_tokens=config.max_completion_tokens,
+            skip_special_tokens=config.skip_special_tokens,
+            stop=config.stop,
         )
     elif config.agent_strategy == "tool-calling":
         # native tool calling
@@ -216,9 +224,9 @@ def agent_factory(tools_info: list[dict[str, Any]], wiki, config: RunConfig) -> 
         raise ValueError(f"Unknown agent strategy: {config.agent_strategy}")
 
 
-def display_metrics(results: list[EnvRunResult]) -> None:
+def display_metrics(results: list[EnvRunResult], success_reward: float = 1.0) -> None:
     def is_successful(reward: float) -> bool:
-        return (1 - 1e-6) <= reward <= (1 + 1e-6)
+        return abs(reward - success_reward) <= 1e-6
 
     num_trials = len(set([r.trial for r in results]))
     rewards = [r.reward for r in results]

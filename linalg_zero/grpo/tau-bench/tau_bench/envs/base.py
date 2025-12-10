@@ -110,6 +110,7 @@ class Env:
             observation = f"Unknown action {action.name}"
             info.source = action.name
 
+        action._observation = observation
         if done:
             reward_res = await self.calculate_reward()
             reward = reward_res.reward

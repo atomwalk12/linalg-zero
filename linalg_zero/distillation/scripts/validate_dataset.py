@@ -17,6 +17,7 @@ import copy
 import json
 import re
 import shutil
+import sys
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -803,11 +804,23 @@ def save_dataset_to_disk(dataset: Dataset, path: str):
     shutil.move(temp_path, path)
 
 
+def inspect(indices: list[int], ds: Dataset):
+    analyse_indices("original", indices=indices, ds=ds)
+
+
 if __name__ == "__main__":
     # TODO: check for duplicate function calls and fix them
+    inspect_indices = False
     analyse = False
     local_dataset = False
     commit = False
+
+    if inspect_indices:
+        dataset_path = local_dataset_path if local_dataset else "atomwalk12/linalgzero-distilled"
+        dataset = load_dataset(dataset_path, "default", split="train")
+        inspect(indices=[177, 285], ds=dataset)
+        sys.exit()
+
     # Set to None to disable token threshold check, or set to a number (e.g., 1000) to enable
     assistant_token_threshold = None
     dataset_path = local_dataset_path if local_dataset else "atomwalk12/linalgzero-distilled"

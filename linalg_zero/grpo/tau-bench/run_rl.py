@@ -23,6 +23,8 @@ from tau_bench.run import agent_factory
 from tau_bench.types import RunConfig, SolveResult, TauBenchPolicyConfig
 from tqdm.asyncio import tqdm_asyncio
 
+import wandb
+
 # Load environment variables
 load_dotenv(override=True)
 
@@ -43,14 +45,14 @@ def _get_task_indices(
     start_index: int,
     end_index: int,
     tasks_length: int,
-    dataset_size: int,
 ) -> list[int]:
     """Get task indices either from explicit IDs or computed range."""
     if task_ids:
         return task_ids
 
-    actual_end = min(end_index, tasks_length) if end_index != -1 else tasks_length
-    return list(range(start_index, min(actual_end, dataset_size)))
+    actual_end = tasks_length if end_index == -1 else min(end_index, tasks_length)
+
+    return list(range(start_index, actual_end))
 
 
 @limit_concurrency(256)
@@ -69,6 +71,7 @@ async def rollout_tau_bench_task(
     """
     # print(f"Rolling out task {task_index} (step {step}, phase {phase})")
     config = copy.deepcopy(model.config.run_config)
+    success_reward = 1.2 if config.env == "linear_algebra" else 1.0
     if is_shadow:
         config.model = "gpt-4.1"
         config.model_provider = "openai"
@@ -80,8 +83,9 @@ async def rollout_tau_bench_task(
         config.env,
         user_strategy=config.user_strategy,
         user_model=config.user_model,
-        user_provider=config.user_model_provider,
         task_split=phase,
+        dataset_path=config.dataset_path,
+        user_provider=config.user_model_provider,
         task_index=task_index,
     )
     if config.add_no_think:
@@ -120,21 +124,40 @@ async def rollout_tau_bench_task(
             task_index=task_index,
             max_assistant_turns=config.max_assistant_turns,
         )
-        outcome_correct = 1 if result.reward == 1 else 0
+        # optimal_trajectory: 1 if the entire trajectory is optimal (correct answer + optimal efficiency)
+        optimal_trajectory = 1 if abs(result.reward - success_reward) <= 1e-6 else 0
 
         # Convert result to trajectory format
         traj.reward, explanation = await calculate_reward(result, config)
+
+        # Build metrics dictionary
+        reward_info = result.info.get("reward_info") or {}
+        info = reward_info.get("info") or {}
+        outputs = info.get("outputs") or {}
+        has_valid_outputs = "correctness_score" in outputs
         traj.metrics = {
             "total_steps": result.info["total_steps"],
             "final_prompt_tokens": result.info["final_prompt_tokens"],
             "avg_completion_tokens": result.info["avg_completion_tokens"],
             "max_completion_tokens": result.info["max_completion_tokens"],
-            "outcome_correct": outcome_correct,
             "forced_stop": result.info["forced_stop"],
+            "optimal_trajectory": optimal_trajectory,
+            "valid_trajectory": 1 if has_valid_outputs else 0,
         }
+
+        if has_valid_outputs:
+            traj.metrics.update({
+                "correctness_score": outputs["correctness_score"],
+                "format_score": outputs["format_score"],
+                "tool_success_score": outputs["tool_success_score"],
+                "efficiency_penalty": outputs["efficiency_penalty"],
+                "num_turns": outputs["num_turns"],
+                "expected_turns": outputs["expected_turns"],
+                "turn_deviation": outputs["num_turns"] - outputs["expected_turns"],
+            })
         traj.metadata.update(result.info)
         traj.metadata["reward"] = "pending_general_rm" if config.reward_type == "general_rm" else traj.reward
-        traj.metadata["outcome_correct"] = traj.metrics["outcome_correct"]
+        traj.metadata["optimal_trajectory"] = traj.metrics["optimal_trajectory"]
         traj.metadata["judge_explanation"] = explanation
 
         if config.messages_only:
@@ -171,11 +194,13 @@ async def evaluate_model(
     config: RunConfig,
     step: int,
     val_task_indices: list[int],
+    split: str = "val",
 ) -> float:
     """Evaluate the model on a subset of tasks"""
     print(f"Evaluating model on {len(val_task_indices)} tasks...")
 
     total_reward = 0.0
+    total_optimal_trajectory = 0.0
 
     model_step = await model.get_step()
     eval_step = max(step, model_step)
@@ -185,20 +210,90 @@ async def evaluate_model(
             model,
             val_task_index,
             eval_step,
-            "val",
+            split,
             reward_type=config.reward_type,
         )
         for val_task_index in val_task_indices
     )
-    await model.log(trajectories=trajectories, split="val")
+    await model.log(trajectories=trajectories, split=split)
 
     for traj in trajectories:
         total_reward += traj.reward
+        total_optimal_trajectory += float(traj.metadata["optimal_trajectory"])
         print(f"Eval task {traj.metadata['task_index']}: reward={traj.reward}")
+        print(f"Eval task {traj.metadata['task_index']}: optimal_trajectory={traj.metadata['optimal_trajectory']}")
 
     avg_reward = total_reward / len(val_task_indices)
+    avg_optimal_trajectory = total_optimal_trajectory / len(val_task_indices)
     print(f"Average evaluation reward: {avg_reward}")
+    print(f"Average optimal trajectory: {avg_optimal_trajectory}")
     return avg_reward
+
+
+async def test(model: art.TrainableModel[TauBenchPolicyConfig]):
+    """Main evaluation loop"""
+    loop = asyncio.get_event_loop()
+    big_pool = concurrent.futures.ThreadPoolExecutor(max_workers=50)
+    loop.set_default_executor(big_pool)
+
+    config = model.config.run_config
+    training_config = model.config.training_config
+
+    if training_config is None:
+        raise ValueError("Training config is not set")
+
+    register_kwargs = {}
+    if model.config.training_config.chat_template is not None:
+        register_kwargs["_openai_client_config"] = art.dev.OpenAIServerConfig(
+            server_args=art.dev.ServerArgs(chat_template=model.config.training_config.chat_template)
+        )
+
+    with LocalBackend(in_process=config.in_process) as backend:
+        # Setup model with backend
+        await model.register(backend, **register_kwargs)
+
+        # Resume from checkpoint if configured
+        if model.config.run_config.resume:
+            await backend._experimental_fork_checkpoint(
+                model,
+                from_model=model.config.run_config.resume_from,
+                from_project=model.config.run_config.project,
+                not_after_step=model.config.run_config.resume_step,
+                verbose=True,
+            )
+
+        config.api_key = model.inference_api_key
+        config.base_url = model.inference_base_url
+        config.base_model = model.base_model
+
+        print("Loading training tasks...")
+
+        # Load validation environment
+        test_env = get_env(
+            config.env,
+            user_strategy=config.user_strategy,
+            user_model=config.user_model,
+            task_split="test",
+            dataset_path=config.dataset_path,
+            user_provider=config.user_model_provider,
+        )
+
+        test_task_indices = _get_task_indices(
+            task_ids=None,
+            start_index=0,
+            end_index=-1,
+            tasks_length=len(test_env.tasks),
+        )
+
+        print(f"Validation on {len(test_task_indices)} tasks")
+
+        # Final evaluation
+        print("\n--- Final Evaluation ---")
+        final_step = await model.get_step()
+        final_reward = await evaluate_model(model, config, final_step, test_task_indices, split="test")
+        print(f"Final average reward: {final_reward}")
+
+        print("Evaluation complete!")
 
 
 async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
@@ -222,6 +317,17 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
     with LocalBackend(in_process=config.in_process) as backend:
         # Setup model with backend
         await model.register(backend, **register_kwargs)
+
+        # Resume from checkpoint if configured
+        if model.config.run_config.resume:
+            await backend._experimental_fork_checkpoint(
+                model,
+                from_model=model.config.run_config.resume_from,
+                from_project=model.config.run_config.project,
+                not_after_step=model.config.run_config.resume_step,
+                verbose=True,
+            )
+
         config.api_key = model.inference_api_key
         config.base_url = model.inference_base_url
         config.base_model = model.base_model
@@ -232,8 +338,9 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             config.env,
             user_strategy=config.user_strategy,
             user_model=config.user_model,
-            user_provider=config.user_model_provider,
             task_split="train",
+            dataset_path=config.dataset_path,
+            user_provider=config.user_model_provider,
         )
 
         # Load validation environment
@@ -241,8 +348,9 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             config.env,
             user_strategy=config.user_strategy,
             user_model=config.user_model,
-            user_provider=config.user_model_provider,
             task_split="val",
+            dataset_path=config.dataset_path,
+            user_provider=config.user_model_provider,
         )
 
         train_task_indices = _get_task_indices(
@@ -250,7 +358,6 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             config.start_index,
             config.end_index,
             len(train_env.tasks),
-            training_config.training_dataset_size,
         )
 
         val_task_indices = _get_task_indices(
@@ -258,7 +365,6 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             config.start_val_index,
             config.end_val_index,
             len(val_env.tasks),
-            training_config.val_dataset_size,
         )
 
         print(f"Training on {len(train_task_indices)} tasks")
@@ -325,17 +431,12 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             )
 
             for batch in train_iterator:
-                model_step = await model.get_step()
-                current_step = max(batch.step, model_step)
-
-                print(
-                    f"\n--- Training Step {current_step} (Dataset Step {batch.step}, Epoch {batch.epoch}, Step {batch.epoch_step}) ---"
-                )
+                print(f"\n--- Training Step {batch.step} (Epoch {batch.epoch}, Step {batch.epoch_step}) ---")
 
                 # Evaluation
                 if batch.step % training_config.eval_steps == 0 and not config.skip_eval:
-                    print(f"\n--- Evaluating at Step {current_step} ---")
-                    await evaluate_model(model, config, current_step, val_task_indices)
+                    print(f"\n--- Evaluating at Step {batch.step} ---")
+                    await evaluate_model(model, config, batch.step, val_task_indices)
                     await model.delete_checkpoints()
 
                 # Generate trajectory groups
@@ -345,7 +446,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                         rollout_tau_bench_task(
                             model,
                             task_index,
-                            current_step,
+                            batch.step,
                             "train",
                             reward_type=config.reward_type,
                             is_shadow=config.add_shadow_trajectory
@@ -355,6 +456,8 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                     )
                     for task_index in batch.items
                 )
+                # await model.log(groups, split="train")
+
                 if config.reward_type == "general_rm":
                     print("Creating general RM trajectory groups...")
                     updated_groups = await tqdm_asyncio.gather(
@@ -377,18 +480,17 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 if config.is_multi_gpu:
                     await model.delete_checkpoints()
 
-                post_train_step = await model.get_step()
-
                 # Log progress
                 total_reward = sum(sum(traj.reward for traj in group.trajectories) for group in groups)
                 num_trajectories = sum(len(group.trajectories) for group in groups)
                 avg_reward = total_reward / num_trajectories if num_trajectories > 0 else 0
-                print(f"Step {post_train_step}: Average training reward = {avg_reward}")
+                print(f"Step {batch.step}: Average training reward = {avg_reward}")
 
         # Final evaluation
         print("\n--- Final Evaluation ---")
         final_step = await model.get_step()
         final_reward = await evaluate_model(model, config, final_step, val_task_indices)
+        wandb.finish()
         print(f"Final average reward: {final_reward}")
 
         print("Training completed!")

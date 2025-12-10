@@ -18,6 +18,8 @@ class Action(BaseModel):
     name: str
     kwargs: dict[str, Any]
     content: str | None = None
+    _observation: str | None = None
+    completion_tokens: int = 0
 
 
 class Task(BaseModel):
@@ -97,12 +99,15 @@ class RunConfig:
     project: str
     model_provider: str
     user_model_provider: str
+    dataset_path: str
     model: str = "gpt-4.1"
     user_model: str = "gpt-4o"
     num_trials: int = 1
     env: str = "retail"
     agent_strategy: str = "tool-calling"
     temperature: float = 0.0
+    top_p: float | None = 1.0
+    repetition_penalty: float = 1.0
     task_split: str = "test"
     start_index: int = 0
     end_index: int = -1
@@ -130,6 +135,12 @@ class RunConfig:
     add_no_think: bool = False
     plot_tensors: bool = False
     in_process: bool = False
+    max_completion_tokens: int = 1024
+    skip_special_tokens: bool = False
+    stop: list[str] | None = None
+    resume: bool = False
+    resume_step: int | None = None
+    resume_from: str | None = None
 
 
 @dataclass
@@ -143,8 +154,6 @@ class TauBenchTrainingConfig:
     beta: float = 0.0
     eval_steps: int = 10
     val_set_size: int = 85
-    training_dataset_size: int = 30
-    val_dataset_size: int = 30
     num_epochs: int = 50
     train_mode: str = "sync_rl"
     importance_sampling_level: str = "token"  # or "sequence"
