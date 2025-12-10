@@ -23,6 +23,8 @@ from tau_bench.run import agent_factory
 from tau_bench.types import RunConfig, SolveResult, TauBenchPolicyConfig
 from tqdm.asyncio import tqdm_asyncio
 
+import wandb
+
 # Load environment variables
 load_dotenv(override=True)
 
@@ -488,6 +490,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
         print("\n--- Final Evaluation ---")
         final_step = await model.get_step()
         final_reward = await evaluate_model(model, config, final_step, val_task_indices)
+        wandb.finish()
         print(f"Final average reward: {final_reward}")
 
         print("Training completed!")
