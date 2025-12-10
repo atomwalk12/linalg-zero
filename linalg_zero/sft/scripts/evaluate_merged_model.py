@@ -9,8 +9,8 @@ from linalg_zero.sft.tool_calling_accuracy import ToolCallingAccuracyCallback
 
 
 def load_unmerged():
-    # path = "results/LinalgZero-SFT-LoRA/checkpoint-400"
-    path = "results/LinalgZero-SFT-LoRA-110/checkpoint-110"
+    path = "results/LinalgZero-SFT-LoRA/checkpoint-400-best"
+    # path = "results/LinalgZero-SFT-LoRA-110/checkpoint-110"
     tokenizer = AutoTokenizer.from_pretrained(path)
     print(f"Tokenizer vocab size: {len(tokenizer)}")
 
@@ -38,7 +38,7 @@ def load_unmerged():
 def load_merged():
     # Best models
     # Notice that best LoRA is checkpoint 400, while best merged is 300
-    # checkpoint_path = "results/LinalgZero-SFT/checkpoint-300-best"            # DONE
+    checkpoint_path = "results/LinalgZero-SFT/checkpoint-300-best"
     # checkpoint_path = "results/LinalgZero-SFT-merged"
 
     # checkpoint_path = "atomwalk12/LinalgZero-SFT-merged"
@@ -50,7 +50,7 @@ def load_merged():
     # checkpoint_path = "results/LinalgZero-SFT-105/checkpoint-105"
 
     # DONE
-    checkpoint_path = "results/LinalgZero-SFT-110-checkpoint-300/checkpoint-300"
+    # checkpoint_path = "results/LinalgZero-SFT-110-checkpoint-300/checkpoint-300"
 
     tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
     print(f"Tokenizer vocab size: {len(tokenizer)}")
@@ -80,15 +80,18 @@ def load_merged():
     # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-110")
 
     # DONE
-    model.push_to_hub("atomwalk12/LinalgZero-SFT-110-checkpoint-300")
-    tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-110-checkpoint-300")
+    # model.push_to_hub("atomwalk12/LinalgZero-SFT-110-checkpoint-300")
+    # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT-110-checkpoint-300")
+
+    # model.push_to_hub("atomwalk12/LinalgZero-SFT")
+    # tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT")
 
     FastLanguageModel.for_inference(model)
 
     return model, tokenizer
 
 
-model, tokenizer = load_merged()
+model, tokenizer = load_unmerged()
 
 eval_ds = load_dataset("atomwalk12/linalgzero-sft", split="test")  # or whatever split you used
 
