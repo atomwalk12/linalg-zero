@@ -71,20 +71,6 @@ run:
   ]
   # val_task_ids: [1,2,3]
   seed: 42
-# Adjust learning rate to 5e-6 and beta to 0.001
-# https://deepwiki.com/search/what-learning-rate-is-recommen_6dd63e61-167a-4c85-a305-bc58338d82f3?mode=fast
-# Implementation Priority
-#  First check KL divergence in your training metrics
-#  If KL > 0.1: Increase beta to 0.01
-#  if 0.01 <= KL_div <= 0.1: Increase beta to 0.005
-#  If KL < 0.01: Lower learning rate to 1e-6
-
-# Next step: groups_per_step = 6, beta = 0.005 or 0.01
-# Minimal regularization: beta = 0.001
-# Moderate regularization: beta = 0.003
-# Strong regularization: beta = 0.005-0.01
-# Some say 0.01 is best
-# https://aistudio.google.com/prompts/1nB_f7VpDqaivxU-eqI-tTmFfMiBWobfF
 
 peft:
   r: 32
@@ -92,16 +78,6 @@ peft:
   use_gradient_checkpointing: "unsloth"
   target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
   random_state: 42
-
-# Use peft instead of torchtune for lora training
-# torchtune:
-#   model: qwen3_4b_base
-#   model_type: QWEN3
-#   async_weight_syncing: True
-
-# Other parameters:
-# kl_coef: 0.02
-# temperature: 0.8
 
 trainer:
   learning_rate: 1e-6
@@ -121,8 +97,6 @@ engine:
   gpu_memory_utilization: 0.33
   max_lora_rank: 32
   enable_sleep_mode: true
-  # Match the actual maximum used context (prompt + completion) to reduce KV cache.
-  # 5000 (prompt) + 800 (completion) ≈ 5800, so 6144 (with buffer for special tokens) is sufficient.
   max_model_len: 6144
   dtype: 'bfloat16'
   quantization: null

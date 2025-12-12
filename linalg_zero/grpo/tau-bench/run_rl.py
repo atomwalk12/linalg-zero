@@ -207,10 +207,10 @@ async def evaluate_model(
 
     trajectories = await art.gather_trajectories(
         rollout_tau_bench_task(
-            model,
-            val_task_index,
-            eval_step,
-            split,
+            model=model,
+            task_index=val_task_index,
+            step=eval_step,
+            phase=split,
             reward_type=config.reward_type,
         )
         for val_task_index in val_task_indices
@@ -380,7 +380,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 (
                     art.TrajectoryGroup(
                         (
-                            rollout_tau_bench_task(model, task_index, -1, "train")
+                            rollout_tau_bench_task(model=model, task_index=task_index, step=-1, phase="train")
                             for _ in range(training_config.trajectories_per_group)
                         )
                     )
@@ -444,10 +444,10 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 groups = await art.gather_trajectory_groups(
                     art.TrajectoryGroup(
                         rollout_tau_bench_task(
-                            model,
-                            task_index,
-                            batch.step,
-                            "train",
+                            model=model,
+                            task_index=task_index,
+                            step=batch.step,
+                            phase="train",
                             reward_type=config.reward_type,
                             is_shadow=config.add_shadow_trajectory
                             and rollout_idx % training_config.trajectories_per_group == 0,

@@ -42,13 +42,14 @@ class ToolCallingAgent(Agent):
         self.temperature = temperature
         self.messages = []
 
-    async def llm_completion(self, messages: list[dict[str, Any]]) -> ModelResponse:
+    async def llm_completion(self, messages: list[dict[str, Any]], deterministic: bool = False) -> ModelResponse:
+        temperature = 0.0 if deterministic else self.temperature
         completion_obj = await acompletion(
             messages=messages,
             model=self.model,
             custom_llm_provider=self.provider,
             tools=self.tools_info,
-            temperature=self.temperature,
+            temperature=temperature,
         )
         assert isinstance(completion_obj, ModelResponse), "Completion object is not a ModelResponse"
         return completion_obj
@@ -69,7 +70,7 @@ class ToolCallingAgent(Agent):
         forced_stop = True
         curr_step_number = 0
         for curr_step_number in range(max_assistant_turns):
-            res = await self.llm_completion(self.messages)
+            res = await self.llm_completion(self.messages, deterministic=env.task_split != "train")
             final_prompt_tokens = res.usage.prompt_tokens  # type: ignore
             avg_completion_tokens += res.usage.completion_tokens  # type: ignore
             max_completion_tokens = max(max_completion_tokens, res.usage.completion_tokens)  # type: ignore
@@ -128,7 +129,10 @@ class ToolCallingRLAgent(ToolCallingAgent):
         self.seed = kwargs.get("seed")
         self.choices = []
 
-    async def llm_completion(self, messages: list[dict[str, Any]]) -> ModelResponse:
+    async def llm_completion(self, messages: list[dict[str, Any]], deterministic: bool = False) -> ModelResponse:
+        temperature = 0.0 if deterministic else self.temperature
+        do_sample = not deterministic
+        top_p = None if deterministic else self.top_p
         response = await acompletion_with_limit_concurrency(
             messages=messages,
             model=self.model,
@@ -136,10 +140,10 @@ class ToolCallingRLAgent(ToolCallingAgent):
             api_key=self.api_key,
             base_url=self.base_url,
             tools=self.tools_info,
-            temperature=self.temperature,
+            temperature=temperature,
             max_completion_tokens=self.max_completion_tokens,
-            top_p=self.top_p,
-            do_sample=self.temperature > 0.0,
+            top_p=top_p,
+            do_sample=do_sample,
             repetition_penalty=self.repetition_penalty,
             logprobs=False if self.provider == "openai" else True,
             extra_body={"skip_special_tokens": self.skip_special_tokens},

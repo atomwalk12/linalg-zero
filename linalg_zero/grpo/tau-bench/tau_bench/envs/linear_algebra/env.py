@@ -1,5 +1,6 @@
 # Copyright Sierra
 
+import random
 from functools import cache
 
 from tau_bench.envs.base import Env
@@ -51,6 +52,7 @@ class LinearAlgebraEnv(Env):
             user_provider=user_provider,
             task_index=task_index,
             parser=XMLParser(),
+            task_split=task_split
         )
         self.terminate_tools = []
 
@@ -265,6 +267,9 @@ class LinearAlgebraEnv(Env):
             ),
             actions=tool_calls,
         )
+
+    def get_jitter(self):
+        return random.uniform(0, 1e-4)
 
     def correctness_reward(self) -> float:
         return 1.0 if validate_answer(ground_truth=self.task.outputs[0], completion=self.actions[-1].content) else 0.0

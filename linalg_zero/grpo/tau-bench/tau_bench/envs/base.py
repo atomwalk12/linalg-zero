@@ -56,6 +56,7 @@ class Env:
         user_provider: str | None = None,
         task_index: int | None = None,
         parser: XMLParser | None = None,
+        task_split: str = "train",
     ) -> None:
         super().__init__()
         self.data_load_func = data_load_func
@@ -74,6 +75,7 @@ class Env:
         self.rules = rules
         self.user = load_user(user_strategy=user_strategy, model=user_model, provider=user_provider)
         self.actions: list[Action] = []
+        self.task_split = task_split
 
     async def reset(self, task_index: int | None = None) -> EnvResetResponse:
         if task_index is None:
