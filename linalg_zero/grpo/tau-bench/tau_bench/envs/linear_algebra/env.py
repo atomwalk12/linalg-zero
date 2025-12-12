@@ -52,7 +52,7 @@ class LinearAlgebraEnv(Env):
             user_provider=user_provider,
             task_index=task_index,
             parser=XMLParser(),
-            task_split=task_split
+            task_split=task_split,
         )
         self.terminate_tools = []
 
