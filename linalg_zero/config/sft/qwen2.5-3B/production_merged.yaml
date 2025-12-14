@@ -20,6 +20,7 @@ eval_dataset_config: default
 dataset_num_proc: 12
 dataset_text_field: text
 eos_token: <|im_end|>
+add_special_tokens: true
 
 # SFT trainer config
 bf16: true

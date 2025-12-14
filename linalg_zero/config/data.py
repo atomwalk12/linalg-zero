@@ -24,6 +24,10 @@ class SFTModelConfig(ModelConfig):
 
 @dataclass
 class SFTRunConfig:
+    add_special_tokens: bool = field(
+        metadata={"help": "Whether to add special tokens to the model."},
+    )
+
     early_stopping_patience: int = field(
         default=3, metadata={"help": "The number of epochs to wait before early stopping."}
     )
@@ -63,6 +67,7 @@ class SFTRunConfig:
         default=None,
         metadata={"help": ("The group to store runs under.")},
     )
+    wandb_run_id: str | None = field(default=None, metadata={"help": {"The wandb run id."}})
 
     eval_max_new_tokens: int | None = field(
         default=None,
@@ -86,10 +91,6 @@ class SFTRunConfig:
     final_eval_max_samples: int | None = field(
         default=None,
         metadata={"help": "Maximum number of eval samples for periodic evaluations. None/-1 for full dataset."},
-    )
-    add_special_tokens: bool = field(
-        default=False,
-        metadata={"help": "Whether to add special tokens to the model."},
     )
 
 

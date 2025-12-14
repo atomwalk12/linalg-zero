@@ -64,6 +64,9 @@ def init_wandb_training(training_args: SFTRunConfig) -> None:
             os.environ["WANDB_PROJECT"] = training_args.wandb_project
         if training_args.wandb_run_group is not None:
             os.environ["WANDB_RUN_GROUP"] = training_args.wandb_run_group
+        if training_args.wandb_run_id is not None:
+            os.environ["WANDB_RUN_ID"] = training_args.wandb_run_id
+        os.environ["WANDB_RESUME"] = "allow"
 
         logger.info("Set wandb environment variables from training args")
 
@@ -231,7 +234,9 @@ def get_unsloth_model(
     )
 
     # Add special tokens and resize embeddings
-    has_added_tokens = add_special_tokens_and_resize(model, tokenizer)
+    has_added_tokens = False
+    if training_args.add_special_tokens:
+        has_added_tokens = add_special_tokens_and_resize(model, tokenizer)
 
     model = FastLanguageModel.get_peft_model(
         model,

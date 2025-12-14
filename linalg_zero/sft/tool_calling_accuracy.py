@@ -248,11 +248,12 @@ class ToolCallingAccuracyCallback(TrainerCallback):
         for token_str in [TOOL_CALL_CLOSE, ANSWER_CLOSE]:
             token_ids = tokenizer.encode(token_str, add_special_tokens=False)
             if len(token_ids) != 1:
-                raise ValueError(
+                logger.warning(
                     f"Special token '{token_str}' was split into {len(token_ids)} tokens. "
                     f"Ensure it's registered as a special token."
                 )
-            stop_token_ids.append(token_ids[0])
+            else:
+                stop_token_ids.append(token_ids[0])
 
         return {
             "max_new_tokens": max_new_tokens,

@@ -5,6 +5,8 @@ model_name_or_path: Qwen/Qwen2.5-3B
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
+wandb_project: linalgzero-sft
+wandb_run_id: run001-sft-nst
 
 # Model arguments
 load_in_4bit: false
@@ -22,7 +24,7 @@ lora_task_type: "CAUSAL_LM"
 # fast_inference: true
 
 # Data training arguments
-dataset_name: atomwalk12/linalgzero-sft
+dataset_name: atomwalk12/linalgzero-sft-110
 dataset_config: default
 eval_dataset_config: default
 dataset_num_proc: 12
@@ -34,11 +36,12 @@ bf16: true
 
 ## Evaluation parameters
 do_eval: true                  # does a final evaluation step at the end of training
-eval_on_start: true           # does an evaluation step at the start of training
+eval_on_start: false           # does an evaluation step at the start of training
 eval_strategy: 'steps'         # can be "no","epoch","steps"
-eval_steps: 100                # NOTE: Check also save_steps
-max_eval_samples: 520          # use all evaluation samples (720 format checks -- 40*6*2+40*4*3+40*3*4 (520 samples))
-final_eval_max_samples: 520
+eval_steps: 110                # NOTE: Check also save_steps
+max_eval_samples: 260          # use all evaluation samples (720 format checks -- 40*6*2+40*4*3+40*3*4 (520 samples))
+final_eval_max_samples: 260
+add_special_tokens: False
 
 # NOTE: if we use a customized metric for best model selection, ensure to adjust:
 # - metric_for_best_model: eval_format_accuracy or eval_loss
@@ -47,7 +50,7 @@ final_eval_max_samples: 520
 metric_for_best_model: eval_format_accuracy
 greater_is_better: true
 load_best_model_at_end: true
-save_total_limit: 5
+save_total_limit: 30
 eval_max_new_tokens: 800
 # NOTE: for early stopping:
 #  - early_stopping_patience (3)
@@ -65,7 +68,7 @@ gradient_accumulation_steps: 16   # Recommended batch size: 16
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: atomwalk12/LinalgZero-SFT-LoRA
+hub_model_id: atomwalk12/LinalgZero-SFT-LoRA-NST
 hub_strategy: every_save
 learning_rate: 2e-5 # Alternatives: 5e-5/4e-5/3e-5/2e-5 and train for 2 epochs
 log_level: info
@@ -80,7 +83,7 @@ max_seq_length: 8192
 max_length: 8192
 max_steps: -1
 num_train_epochs: 1               # NOTE: Alternatively 2 if underfitting
-output_dir: results/LinalgZero-SFT-LoRA
+output_dir: results/LinalgZero-SFT-LoRA-NST
 overwrite_output_dir: true
 per_device_eval_batch_size: 1 # Overridden to 1 by unsloth
 per_device_train_batch_size: 1
@@ -88,7 +91,7 @@ push_to_hub: true
 report_to:
 - wandb
 save_strategy: steps
-save_steps: 100
+save_steps: 110
 seed: 42
 use_liger_kernel: false     # Supported only for Llama, Mistral, Mixtral, and Gemma models
 warmup_ratio: 0.03
