@@ -2,25 +2,8 @@ defaults:
   - /training@training: training_schema
   - /run@run: run_schema
   - _self_
-  # Note: _self_ at end means local overrides take precedence
-  # engine and torchtune configs use plain dicts (TypedDicts from art.dev, not dataclasses)
 
-# NOTES: important parameters
-#  - trajectories_per_group: if 80gb gpu increment to 16, otherwise keep at 8 (8 is likely best. GRPO works well with 8.)
-#  - gpu_memory_utilization from 0.33 to 0.7
-#  - beta: change from 0.0 to 0.001
-#  - max_prompt_length: default 5000 for local development (≈4×800-token tool calls + ~1800-token system prompt).
-#  - eval_steps: from 8 to 50, 75, 100, 200. If groups_per_step is 8, then we get 1912 steps = 7648 / 4.
-#                If we want 10 evals per epoch (recommended), then do 1912/10=190, so set eval_steps to 200.
-#  - groups_per_step: if memory is not sufficient, reduce to 4 to lower effective batch size.
-#    - num_epochs: if reducing groups_per_step (and thus effective batch size), you can increase num_epochs to keep total samples seen similar. Default 2, otherwise 3 if there is room for improvement at the end of epoch 2.
-#  - learning_rate: originally was 5e-6, but adjusted to 2e-5 to compensate for smaller effective batch size. If unstable adjust learnign rate to 1e-5 in both places.
-#                   Observations:
-#                     - Tried with 2e-5 and running into infinite loss
-#                     - Currently trying 1e-5
-#                     - Note that default lr for full fine-tuning is 5e-6 (to try next)
-# Debugging:
-# - val_task_ids: [1,2,3]
+# This file basically takes the absolute best SFT model for training
 
 init:
   max_lora_rank: 32
