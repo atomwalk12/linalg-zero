@@ -17,8 +17,10 @@ from run_rl import test
 from tau_bench.types import TauBenchPolicyConfig
 
 
-# @hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B/eval", config_name="linalgzero-grpo")
-@hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B/eval", config_name="linalgzero-sft.yaml")
+# @hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B/eval", config_name="linalgzero-sft.yaml")
+@hydra.main(
+    version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B/eval", config_name="linalgzero-grpo.yaml"
+)
 def main(cfg: DictConfig) -> None:
     # Convert all configs to plain dicts
     init_config = OmegaConf.to_container(cfg.init, resolve=True)
