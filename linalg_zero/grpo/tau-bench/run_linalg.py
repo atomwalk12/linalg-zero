@@ -24,7 +24,9 @@ from tau_bench.types import TauBenchPolicyConfig
 # @hydra.main(
 #    version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B-Instruct", config_name="production"
 # )  # 2.5
-@hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B", config_name="v3")  # 2.5
+@hydra.main(
+    version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B", config_name="v3_medium_model.yaml"
+)  # 2.5
 def main(cfg: DictConfig) -> None:
     # Convert all configs to plain dicts
     init_config = OmegaConf.to_container(cfg.init, resolve=True)

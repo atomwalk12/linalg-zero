@@ -1,0 +1,4 @@
+ - v2.*: the initial experiments tagged with v2 on wandb (this is what i have in my report)
+ - v3: the evaluation requested by Prof. Ferrara
+ - v3: my current run that is trying to replace v2 runs with a single well behaved run
+ - runpod: my last attempt on runpod
