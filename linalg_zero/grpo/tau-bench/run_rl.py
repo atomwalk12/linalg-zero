@@ -5,7 +5,9 @@ import copy
 import json
 import logging
 import random
+import statistics
 import traceback
+from collections import Counter
 from typing import Any
 
 import art
@@ -30,6 +32,96 @@ load_dotenv(override=True)
 
 # Suppress LiteLLM logging spam
 logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+
+BEST_CHECKPOINT_METRIC = "val/reward"
+
+
+async def _delete_checkpoints_keep_best(model: art.TrainableModel[TauBenchPolicyConfig]) -> None:
+    try:
+        await model.delete_checkpoints(best_checkpoint_metric=BEST_CHECKPOINT_METRIC)
+    except Exception as e:
+        print(f"Warning: delete_checkpoints failed for metric '{BEST_CHECKPOINT_METRIC}': {e}")
+        await model.delete_checkpoints()
+
+
+def _messages_and_choices_to_messages(messages_and_choices: art.MessagesAndChoices) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
+    for item in messages_and_choices:
+        if hasattr(item, "message"):  # openai Choice-like
+            messages.append(item.message.model_dump())  # type: ignore[attr-defined]
+        else:
+            messages.append(item)  # type: ignore[arg-type]
+    return messages
+
+
+def _extract_tool_name_sequence(traj: art.Trajectory) -> tuple[str, ...]:
+    if not traj.messages_and_choices:
+        return ()
+    messages = _messages_and_choices_to_messages(traj.messages_and_choices)
+    tool_names: list[str] = []
+    for msg in messages:
+        if msg.get("role") != "assistant":
+            continue
+        tool_calls = msg.get("tool_calls") or []
+        for tool_call in tool_calls:
+            fn = tool_call.get("function") or {}
+            name = fn.get("name")
+            if isinstance(name, str) and name:
+                tool_names.append(name)
+    return tuple(tool_names)
+
+
+def _log_group_diversity(
+    *,
+    step: int,
+    groups: list[art.TrajectoryGroup],
+    split: str,
+) -> None:
+    if not groups:
+        return
+
+    group_reward_stds: list[float] = []
+    group_first_tool_diversity: list[float] = []
+    first_tool_names: list[str] = []
+
+    for group in groups:
+        rewards = [float(traj.reward) for traj in group.trajectories]
+        group_reward_stds.append(statistics.pstdev(rewards) if len(rewards) > 1 else 0.0)
+
+        first_tools: list[str] = []
+        for traj in group.trajectories:
+            seq = _extract_tool_name_sequence(traj)
+            if seq:
+                first_tools.append(seq[0])
+        if first_tools:
+            first_tool_names.extend(first_tools)
+            group_first_tool_diversity.append(len(set(first_tools)) / len(first_tools))
+        else:
+            group_first_tool_diversity.append(0.0)
+
+    top_first_tools = Counter(first_tool_names).most_common(5)
+    reward_std_p95 = (
+        float(statistics.quantiles(group_reward_stds, n=20)[-1]) if len(group_reward_stds) >= 20 else float(max(group_reward_stds))
+    )
+    metrics: dict[str, float | str] = {
+        f"{split}/group_reward_std_mean": float(statistics.mean(group_reward_stds)),
+        f"{split}/group_reward_std_p95": reward_std_p95,
+        f"{split}/group_first_tool_diversity_mean": float(statistics.mean(group_first_tool_diversity)),
+        f"{split}/group_first_tool_diversity_min": float(min(group_first_tool_diversity)),
+    }
+    for idx, (name, count) in enumerate(top_first_tools, start=1):
+        metrics[f"{split}/first_tool_top{idx}_name"] = name
+        metrics[f"{split}/first_tool_top{idx}_count"] = float(count)
+
+    if wandb.run is not None:
+        wandb.log(metrics, step=step)
+
+    if step % 10 == 0:
+        print(
+            f"[{split}] step={step} reward_std_mean={metrics[f'{split}/group_reward_std_mean']:.4f} "
+            f"first_tool_div_mean={metrics[f'{split}/group_first_tool_diversity_mean']:.3f} "
+            f"top_first_tools={top_first_tools}"
+        )
 
 
 def clean_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -413,13 +505,14 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
 
                 # Training step
                 print(f"Training on {len(trajectory_groups)} trajectory groups...")
+                _log_group_diversity(step=step_for_iteration, groups=trajectory_groups, split="train")
                 await model.train(
                     trajectory_groups,
                     config=art.TrainConfig(learning_rate=training_config.learning_rate, beta=training_config.beta),
                     _config=art.dev.TrainConfig(plot_tensors=config.plot_tensors),
                 )
                 if config.is_multi_gpu:
-                    await model.delete_checkpoints()
+                    await _delete_checkpoints_keep_best(model)
                 global_step = await model.get_step()
         else:
             # Training iterator
@@ -437,7 +530,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 if batch.step % training_config.eval_steps == 0 and not config.skip_eval:
                     print(f"\n--- Evaluating at Step {batch.step} ---")
                     await evaluate_model(model, config, batch.step, val_task_indices)
-                    await model.delete_checkpoints()
+                    await _delete_checkpoints_keep_best(model)
 
                 # Generate trajectory groups
                 print(f"Generating trajectories for {len(batch.items)} tasks...")
@@ -457,6 +550,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                     for task_index in batch.items
                 )
                 # await model.log(groups, split="train")
+                _log_group_diversity(step=batch.step, groups=groups, split="train")
 
                 if config.reward_type == "general_rm":
                     print("Creating general RM trajectory groups...")
@@ -478,7 +572,7 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                     ),
                 )
                 if config.is_multi_gpu:
-                    await model.delete_checkpoints()
+                    await _delete_checkpoints_keep_best(model)
 
                 # Log progress
                 total_reward = sum(sum(traj.reward for traj in group.trajectories) for group in groups)

@@ -133,6 +133,13 @@ class ToolCallingRLAgent(ToolCallingAgent):
         temperature = 0.0 if deterministic else self.temperature
         do_sample = not deterministic
         top_p = None if deterministic else self.top_p
+        # For training we want *stochastic* sampling across rollouts.
+        # Passing a fixed seed can make rollouts nearly deterministic for identical prompts,
+        # collapsing within-group diversity (bad for GRPO advantage estimation).
+        seed = self.seed if deterministic else None
+        request_kwargs: dict[str, Any] = {}
+        if seed is not None:
+            request_kwargs["seed"] = seed
         response = await acompletion_with_limit_concurrency(
             messages=messages,
             model=self.model,
@@ -148,7 +155,7 @@ class ToolCallingRLAgent(ToolCallingAgent):
             logprobs=False if self.provider == "openai" else True,
             extra_body={"skip_special_tokens": self.skip_special_tokens},
             stop=self.stop,
-            seed=self.seed,
+            **request_kwargs,
             # extra_body={"chat_template_kwargs": {"enable_thinking": False}}
             # if "Qwen3-" in self.base_model
             # else {},
