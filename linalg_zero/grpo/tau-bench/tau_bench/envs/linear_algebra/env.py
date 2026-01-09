@@ -195,8 +195,7 @@ class LinearAlgebraEnv(Env):
 
         - Correctness (primary signal)
         - Formatting of thoughts/answers
-        - Tool-call success
-        - Reasoning depth
+        - Tool-call success (to avoid "dummy" tool calls)
         - Efficiency (penalizes over/under-using tools)
         """
         # Handle degenerate / structurally invalid trajectories similarly to calculate_reward_old.
@@ -242,14 +241,18 @@ class LinearAlgebraEnv(Env):
         tool_success = self.tool_success_reward()
         efficiency_penalty = self.efficiency_penalty()
 
-        # Weights for each component. `format_weight` controls the impact of formatting.
+        # Weights for each component.
         correctness_weight = 1.0
-        format_weight = 0.2
+        format_weight = 0.1
+        tool_success_weight = 0.1
         efficiency_weight = 0.1
 
         total_reward = (
-            correctness_weight * correctness + format_weight * format_score - efficiency_weight * efficiency_penalty
-        )
+            correctness_weight * correctness
+            + format_weight * format_score
+            + tool_success_weight * tool_success
+            - efficiency_weight * efficiency_penalty
+        ) / 1.2
 
         return RewardResult(
             reward=total_reward,
@@ -291,17 +294,16 @@ class LinearAlgebraEnv(Env):
 
     def format_reward(self) -> float:
         """
-        Reward proper formatting AND valid tool execution.
+        Reward proper formatting.
 
         Intermediate turns (tool calls):
         - Check for <think> tag in content
-        - Check for valid tool_call (not None)
         - Weight: 1.0 per turn
 
         Final turn (answer):
         - Check for <think> tag in content
         - Check for <answer> tag in content
-        - Weight: 2.0 (higher importance)
+        - Weight: 3.0 total (answer tag is more important than think)
 
         Returns:
             Float between 0.0 and 1.0 (weighted average of correct formats)
@@ -314,18 +316,11 @@ class LinearAlgebraEnv(Env):
 
         for action in self.actions[:-1]:
             has_think = think_correct(completion=action.content)
-
-            obs = action._observation
-            is_successful = isinstance(obs, str) and not (obs.startswith("Error:") or obs.startswith("Unknown action"))
-            if is_successful:
-                correct_formats += 0.5
-
-            # If we have the think block, we increase the score by 0.5
             if has_think:
-                correct_formats += 0.5
+                correct_formats += 1.0
             total_weight += 1.0
 
-        # Check final turn (weight = 2.0 for answer importance)
+        # Check final turn (weight = 3.0; answer tag is twice as important as think)
         final_action = self.actions[-1]
         has_think = think_correct(completion=final_action.content)
         has_answer = answer_correct(completion=final_action.content)
@@ -333,7 +328,7 @@ class LinearAlgebraEnv(Env):
         if has_think:
             correct_formats += 1.0
         if has_answer:
-            correct_formats += 1.0
-        total_weight += 2.0
+            correct_formats += 2.0
+        total_weight += 3.0
 
         return correct_formats / total_weight if total_weight > 0 else 0.0

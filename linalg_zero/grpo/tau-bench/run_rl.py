@@ -4,15 +4,22 @@ import concurrent.futures
 import copy
 import json
 import logging
-import random
+import math
+import os
+import re
+import shutil
 import statistics
 import traceback
-from collections import Counter
+from collections import Counter, deque
+from collections.abc import Generator
+from pathlib import Path
 from typing import Any
 
 import art
 from art.local import LocalBackend
 from art.utils import iterate_dataset, limit_concurrency
+from art.utils.iterate_dataset import DatasetBatch
+from art.utils.output_dirs import get_default_art_path, get_model_dir, get_step_checkpoint_dir
 from dotenv import load_dotenv
 from tau_bench.agents.tool_calling_agent import ToolCallingRLAgent
 from tau_bench.envs import get_env
@@ -22,7 +29,9 @@ from tau_bench.rl_utils import (
     update_steps_for_openpipe_logs,
 )
 from tau_bench.run import agent_factory
+from tau_bench.task_selection import ShuffleBagSampler, ToolCallsMixtureSampler, get_task_indices
 from tau_bench.types import RunConfig, SolveResult, TauBenchPolicyConfig
+from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
 
 import wandb
@@ -33,7 +42,24 @@ load_dotenv(override=True)
 # Suppress LiteLLM logging spam
 logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 
-BEST_CHECKPOINT_METRIC = "val/reward"
+BEST_CHECKPOINT_METRIC = "val/optimal_trajectory"
+
+_KL_ADVISOR_WINDOW = 200
+_KL_ADVISOR_MIN_POINTS = 100
+_KL_ADVISOR_OVER_THRESHOLD = 0.3
+_KL_ADVISOR_RATE_THRESHOLD = 0.02  # 2% of steps in window exceed 0.3
+_KL_ADVISOR_P99_THRESHOLD = 0.5
+_KL_ADVISOR_RECOMMENDED_KL_CAP = 0.5
+_KL_ADVISOR_PRINT_EVERY_STEPS = 20
+
+_COVERAGE_LOG_MAX_TOOL_CALLS_BUCKET = 3
+_COVERAGE_PRINT_EVERY_STEPS = 50
+
+_HF_REPO_NAME_ALLOWED = re.compile(r"[^A-Za-z0-9_.-]+")
+_HF_UPLOAD_IGNORE_PATTERNS: tuple[str, ...] = (
+    "**/__pycache__/**",
+    "**/.DS_Store",
+)
 
 
 async def _delete_checkpoints_keep_best(model: art.TrainableModel[TauBenchPolicyConfig]) -> None:
@@ -42,6 +68,213 @@ async def _delete_checkpoints_keep_best(model: art.TrainableModel[TauBenchPolicy
     except Exception as e:
         print(f"Warning: delete_checkpoints failed for metric '{BEST_CHECKPOINT_METRIC}': {e}")
         await model.delete_checkpoints()
+
+
+def _archive_checkpoint(*, model: art.Model[TauBenchPolicyConfig], step: int, split: str) -> None:
+    """
+    Copy the checkpoint directory for `step` into a persistent archive directory under the model output dir.
+
+    This preserves all checkpoints that were evaluated, even if we later prune the main `checkpoints/` directory.
+    """
+    try:
+        art_path = get_default_art_path()
+        model_dir = get_model_dir(model=model, art_path=art_path)
+        src = get_step_checkpoint_dir(model_dir, step)
+        if not os.path.isdir(src):
+            print(f"Warning: checkpoint dir not found for archiving: {src}")
+            return
+
+        dst_base = os.path.join(model_dir, "best_models", split)
+        os.makedirs(dst_base, exist_ok=True)
+        dst = os.path.join(dst_base, f"{step:04d}")
+        if os.path.exists(dst):
+            return
+        shutil.copytree(src, dst)
+    except Exception as e:
+        print(f"Warning: failed to archive checkpoint at step {step} ({split}): {e}")
+
+
+def _sanitize_hf_repo_name(name: str) -> str:
+    name = _HF_REPO_NAME_ALLOWED.sub("-", name).strip("-.")
+    name = re.sub(r"-{2,}", "-", name)
+    if not name:
+        raise ValueError("Sanitized repo name is empty.")
+    return name
+
+
+def _should_push_experiment_to_hub() -> bool:
+    # Explicit opt-out even if namespace is set.
+    if os.environ.get("HF_PUSH_EXPERIMENT", "").strip().lower() in {"0", "false", "no"}:
+        return False
+    return bool(os.environ.get("HF_HUB_NAMESPACE"))
+
+
+def _get_rank() -> int:
+    for key in ("RANK", "LOCAL_RANK"):
+        raw = os.environ.get(key)
+        if raw is None:
+            continue
+        try:
+            return int(raw)
+        except ValueError:
+            return 0
+    return 0
+
+
+def _push_experiment_dir_to_hf_sync(*, model: art.Model[TauBenchPolicyConfig]) -> None:
+    """
+    Upload `.art/<project>/models/<experiment>/` to the HF Hub.
+
+    Enabled when `HF_HUB_NAMESPACE` is set and not explicitly disabled via `HF_PUSH_EXPERIMENT=0`.
+    """
+    if not _should_push_experiment_to_hub():
+        print("[hf] Skipping upload: set `HF_HUB_NAMESPACE` to enable post-training push.")
+        return
+
+    if _get_rank() != 0:
+        print("[hf] Skipping upload on non-zero rank.")
+        return
+
+    namespace = os.environ.get("HF_HUB_NAMESPACE")
+    assert namespace is not None
+
+    art_path = get_default_art_path()
+    experiment_dir = Path(get_model_dir(model=model, art_path=art_path))
+    if not experiment_dir.is_dir():
+        print(f"[hf] Skipping upload: experiment dir not found: {experiment_dir}")
+        return
+
+    project = model.config.run_config.project
+    experiment = model.name
+    repo_name = _sanitize_hf_repo_name(f"{project}--{experiment}--experiment")
+    repo_id = f"{namespace}/{repo_name}"
+
+    private = os.environ.get("HF_REPO_PRIVATE", "").strip().lower() in {"1", "true", "yes"}
+
+    try:
+        from huggingface_hub import HfApi
+    except Exception as e:  # pragma: no cover
+        print("[hf] Skipping upload: missing dependency `huggingface_hub`.")
+        print(f"[hf] Import error: {e}")
+        return
+
+    print(f"[hf] Uploading experiment dir: {experiment_dir} -> https://huggingface.co/{repo_id}")
+    api = HfApi()
+    api.create_repo(repo_id=repo_id, private=private, exist_ok=True)
+    api.upload_folder(
+        repo_id=repo_id,
+        repo_type="model",
+        folder_path=str(experiment_dir),
+        path_in_repo="",
+        commit_message=f"Upload {project}/{experiment} experiment directory",
+        ignore_patterns=list(_HF_UPLOAD_IGNORE_PATTERNS),
+    )
+    print("[hf] Upload complete.")
+
+
+def _quantile(values: list[float], q: float) -> float:
+    if not values:
+        return 0.0
+    if q <= 0:
+        return float(min(values))
+    if q >= 1:
+        return float(max(values))
+    values_sorted = sorted(values)
+    idx = int(round((len(values_sorted) - 1) * q))
+    return float(values_sorted[idx])
+
+
+class _HistoryTail:
+    def __init__(self, path: str) -> None:
+        self._path = path
+        self._pos = 0
+
+    def read_new(self) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        try:
+            with open(self._path, encoding="utf-8") as f:
+                f.seek(self._pos)
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rows.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+                self._pos = f.tell()
+        except FileNotFoundError:
+            return rows
+        return rows
+
+
+class _KlAdvisor:
+    """
+    Read-only heuristic: monitors `train/kl_div_raw` tail risk and recommends `kl_cap=0.5`
+    when medium KL spikes become frequent enough to plausibly harm stability.
+    """
+
+    def __init__(self, *, history_path: str) -> None:
+        self._tail = _HistoryTail(history_path)
+        self._raw_kl: deque[float] = deque(maxlen=_KL_ADVISOR_WINDOW)
+        self._skip: deque[float] = deque(maxlen=_KL_ADVISOR_WINDOW)
+        self._last_seen_step: int | None = None
+
+    def update(self) -> None:
+        for row in self._tail.read_new():
+            step = row.get("step")
+            if not isinstance(step, int):
+                continue
+            # Avoid double-counting if multiple rows exist for a step.
+            if self._last_seen_step is not None and step <= self._last_seen_step:
+                continue
+
+            kl_raw = row.get("train/kl_div_raw", row.get("train/kl_div"))
+            if isinstance(kl_raw, (int, float)):
+                self._raw_kl.append(float(kl_raw))
+
+            skip = row.get("train/kl_skip_update")
+            if isinstance(skip, (int, float)):
+                self._skip.append(float(skip))
+            else:
+                self._skip.append(0.0)
+
+            self._last_seen_step = step
+
+    def maybe_log_and_print(self, *, step: int) -> None:
+        if len(self._raw_kl) < _KL_ADVISOR_MIN_POINTS:
+            return
+        if step % _KL_ADVISOR_PRINT_EVERY_STEPS != 0:
+            return
+
+        raw = list(self._raw_kl)
+        skip = list(self._skip) if len(self._skip) == len(self._raw_kl) else [0.0] * len(raw)
+
+        rate_over = sum(v > _KL_ADVISOR_OVER_THRESHOLD for v in raw) / max(1, len(raw))
+        p95 = _quantile(raw, 0.95)
+        p99 = _quantile(raw, 0.99)
+        skip_rate = sum(1.0 for v in skip if v >= 0.5) / max(1, len(skip))
+
+        recommend_kl_cap = (
+            skip_rate < 0.005 and rate_over >= _KL_ADVISOR_RATE_THRESHOLD and p99 >= _KL_ADVISOR_P99_THRESHOLD
+        )
+
+        metrics = {
+            "train/kl_advisor_window": float(len(raw)),
+            "train/kl_advisor_rate_over_0.3": float(rate_over),
+            "train/kl_advisor_p95_raw": float(p95),
+            "train/kl_advisor_p99_raw": float(p99),
+            "train/kl_advisor_skip_rate": float(skip_rate),
+            "train/kl_advisor_recommend_kl_cap_0_5": 1.0 if recommend_kl_cap else 0.0,
+        }
+        if wandb.run is not None:
+            wandb.log(metrics, step=step)
+
+        if recommend_kl_cap:
+            print(
+                f"[kl_advisor] step={step} p99={p99:.3f} rate(kl>{_KL_ADVISOR_OVER_THRESHOLD})={rate_over:.3%} "
+                f"skip_rate={skip_rate:.3%} -> consider setting training.kl_cap={_KL_ADVISOR_RECOMMENDED_KL_CAP}"
+            )
 
 
 def _messages_and_choices_to_messages(messages_and_choices: art.MessagesAndChoices) -> list[dict[str, Any]]:
@@ -69,6 +302,130 @@ def _extract_tool_name_sequence(traj: art.Trajectory) -> tuple[str, ...]:
             if isinstance(name, str) and name:
                 tool_names.append(name)
     return tuple(tool_names)
+
+
+class _CurriculumCoverageTracker:
+    """
+    Per-step task coverage logging.
+
+    Tracks which task indices have been sampled so far, broken down by a simple difficulty proxy:
+    the number of teacher tool calls in the task (`len(task.actions)`).
+
+    Intended for debugging curriculum exposure (e.g., ensuring harder tasks actually show up),
+    not as a training signal.
+    """
+
+    def __init__(self, *, tool_calls_by_index: dict[int, int], max_bucket_to_log: int) -> None:
+        self._tool_calls_by_index = dict(tool_calls_by_index)
+        self._max_bucket_to_log = int(max_bucket_to_log)
+        self._seen: set[int] = set()
+        self._seen_unique_by_bucket: Counter[int] = Counter()
+        self._total_by_bucket: Counter[int] = Counter(self._tool_calls_by_index.values())
+        self._total = len(self._tool_calls_by_index)
+
+    def _bucket_key(self, tool_calls: int) -> int:
+        if tool_calls <= self._max_bucket_to_log:
+            return tool_calls
+        return self._max_bucket_to_log + 1
+
+    def _record_sampled_indices(self, *, sampled_indices: list[int]) -> Counter[int]:
+        sampled_by_bucket: Counter[int] = Counter()
+        for idx in sampled_indices:
+            tool_calls = self._tool_calls_by_index.get(idx)
+            if tool_calls is None:
+                continue
+            bucket = self._bucket_key(tool_calls)
+            sampled_by_bucket[bucket] += 1
+            if idx in self._seen:
+                continue
+            self._seen.add(idx)
+            self._seen_unique_by_bucket[bucket] += 1
+        return sampled_by_bucket
+
+    def advance(self, *, sampled_indices: list[int]) -> None:
+        """Update internal coverage state without emitting metrics (used for resuming)."""
+        self._record_sampled_indices(sampled_indices=sampled_indices)
+
+    def update(self, *, step: int, sampled_indices: list[int]) -> dict[str, float]:
+        sampled_by_bucket = self._record_sampled_indices(sampled_indices=sampled_indices)
+
+        metrics: dict[str, float] = {
+            "train/curriculum_seen_unique_total": float(len(self._seen)),
+            "train/curriculum_seen_frac_total": float(len(self._seen) / max(1, self._total)),
+        }
+
+        for bucket in range(0, self._max_bucket_to_log + 2):
+            if bucket == self._max_bucket_to_log + 1:
+                suffix = f"{self._max_bucket_to_log + 1}_plus"
+                denom = sum(v for k, v in self._total_by_bucket.items() if k > self._max_bucket_to_log)
+            else:
+                suffix = str(bucket)
+                denom = self._total_by_bucket.get(bucket, 0)
+
+            metrics[f"train/curriculum_batch_tool_calls_{suffix}"] = float(sampled_by_bucket.get(bucket, 0))
+            metrics[f"train/curriculum_seen_unique_tool_calls_{suffix}"] = float(
+                self._seen_unique_by_bucket.get(bucket, 0)
+            )
+            metrics[f"train/curriculum_seen_frac_tool_calls_{suffix}"] = float(
+                self._seen_unique_by_bucket.get(bucket, 0) / max(1, denom)
+            )
+
+        if step % _COVERAGE_PRINT_EVERY_STEPS == 0:
+            hard_bucket = self._max_bucket_to_log + 1
+            hard_total = sum(v for k, v in self._total_by_bucket.items() if k > self._max_bucket_to_log)
+            print(
+                "[coverage] "
+                f"step={step} seen={len(self._seen)}/{self._total} "
+                f"batch(tool_calls>={self._max_bucket_to_log + 1})={sampled_by_bucket.get(hard_bucket, 0)} "
+                f"seen(tool_calls>={self._max_bucket_to_log + 1})={self._seen_unique_by_bucket.get(hard_bucket, 0)}/{hard_total}"
+            )
+
+        return metrics
+
+
+def _prefill_coverage_tracker(
+    *,
+    coverage: _CurriculumCoverageTracker,
+    initial_step: int,
+    train_task_indices: list[int],
+    tasks: list[Any],
+    config: RunConfig,
+    training_config: Any,
+) -> None:
+    """
+    When resuming training mid-run, W&B logging uses the global step index, but the
+    in-memory coverage tracker resets on process restart.
+
+    To keep `train/curriculum_seen_*` continuous across restarts, replay the deterministic
+    sampler for steps < `initial_step` and update coverage state without logging.
+    """
+    if initial_step <= 0:
+        return
+
+    if config.curriculum is not None and config.curriculum.enabled:
+        prefill_iter = _iterate_curriculum(
+            base_epoch_size=len(train_task_indices),
+            groups_per_step=training_config.groups_per_step,
+            num_epochs=training_config.num_epochs,
+            initial_step=0,
+            tasks=tasks,
+            config=config,
+            seed=config.seed,
+            use_tqdm=False,
+        )
+    else:
+        prefill_iter = iterate_dataset(
+            train_task_indices,
+            groups_per_step=training_config.groups_per_step,
+            num_epochs=training_config.num_epochs,
+            initial_step=0,
+            use_tqdm=False,
+        )
+
+    for batch in prefill_iter:
+        if batch.step >= initial_step:
+            break
+        coverage.advance(sampled_indices=list(batch.items))
 
 
 def _log_group_diversity(
@@ -101,7 +458,9 @@ def _log_group_diversity(
 
     top_first_tools = Counter(first_tool_names).most_common(5)
     reward_std_p95 = (
-        float(statistics.quantiles(group_reward_stds, n=20)[-1]) if len(group_reward_stds) >= 20 else float(max(group_reward_stds))
+        float(statistics.quantiles(group_reward_stds, n=20)[-1])
+        if len(group_reward_stds) >= 20
+        else float(max(group_reward_stds))
     )
     metrics: dict[str, float | str] = {
         f"{split}/group_reward_std_mean": float(statistics.mean(group_reward_stds)),
@@ -132,19 +491,202 @@ def clean_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return cleaned_messages
 
 
-def _get_task_indices(
-    task_ids: list[int] | None,
-    start_index: int,
-    end_index: int,
-    tasks_length: int,
-) -> list[int]:
-    """Get task indices either from explicit IDs or computed range."""
-    if task_ids:
-        return task_ids
+def _log_retry_evaluation(aggregate: dict[str, float], batch: Any) -> None:
+    for metric in ["mean", "min", "max"]:
+        print(
+            f"[val_retry] step={batch.step} n={int(aggregate.get('n', 0))} "
+            f"reward_{metric}={aggregate.get(f'reward_{metric}', float('nan')):.4f} "
+            f"optimal_trajectory_{metric}={aggregate.get(f'optimal_trajectory_{metric}', float('nan')):.4f} "
+            f"correctness_{metric}={aggregate.get(f'correctness_score_{metric}', float('nan')):.4f} "
+            f"format_{metric}={aggregate.get(f'format_score_{metric}', float('nan')):.4f}"
+        )
 
-    actual_end = tasks_length if end_index == -1 else min(end_index, tasks_length)
 
-    return list(range(start_index, actual_end))
+def _log_eval_aggregate(*, split: str, step: int, aggregate: dict[str, float]) -> None:
+    """
+    Log a single aggregated evaluation point (mean across `eval_retries`) to W&B.
+
+    This avoids writing multiple `val/*` points at the same training step.
+    """
+    if wandb.run is None:
+        return
+
+    payload: dict[str, float] = {}
+
+    # For each metric `k`, log the mean under the canonical `split/k` key and
+    for k, v in aggregate.items():
+        if not isinstance(v, (int, float)):
+            continue
+        if k == "n":
+            continue
+        if k.endswith("_mean"):
+            base = k[: -len("_mean")]
+            payload[f"{split}/{base}"] = float(v)
+
+    wandb.log(payload, step=step)
+
+
+def _summarize_trajectories(trajectories: list[art.Trajectory]) -> dict[str, float]:
+    """Compute simple mean metrics from a list of trajectories (used for eval retries)."""
+    if not trajectories:
+        return {}
+
+    rewards = [float(t.reward) for t in trajectories]
+    summary: dict[str, float] = {
+        "reward": float(statistics.mean(rewards)),
+        "reward_std_dev": float(statistics.pstdev(rewards)) if len(rewards) > 1 else 0.0,
+    }
+
+    keys: set[str] = set()
+    for t in trajectories:
+        if t.metrics:
+            keys.update(t.metrics.keys())
+
+    for key in sorted(keys):
+        vals: list[float] = []
+        for t in trajectories:
+            if not t.metrics:
+                continue
+            v = t.metrics.get(key)
+            if isinstance(v, bool):
+                vals.append(1.0 if v else 0.0)
+            elif isinstance(v, (int, float)):
+                vals.append(float(v))
+        if vals:
+            summary[key] = float(statistics.mean(vals))
+
+    # Exception rate from rollout errors.
+    errors = 0
+    for t in trajectories:
+        if isinstance((t.metadata or {}).get("error"), str):
+            errors += 1
+    summary["exception_rate"] = errors / len(trajectories)
+    return summary
+
+
+def _aggregate_retry_summaries(*, summaries: list[dict[str, float]]) -> dict[str, float]:
+    """
+    Aggregate multiple eval summaries (each summary is already averaged over tasks).
+
+    Produces mean/min/max/std across retries for each key plus `n` retries.
+    """
+    if not summaries:
+        return {"n": 0.0}
+
+    keys: set[str] = set()
+    for s in summaries:
+        keys.update(s.keys())
+
+    out: dict[str, float] = {"n": float(len(summaries))}
+    for key in sorted(keys):
+        vals = [s[key] for s in summaries if isinstance(s.get(key), (int, float))]
+        if not vals:
+            continue
+        out[f"{key}_mean"] = float(statistics.mean(vals))
+        out[f"{key}_min"] = float(min(vals))
+        out[f"{key}_max"] = float(max(vals))
+        out[f"{key}_std"] = float(statistics.pstdev(vals)) if len(vals) > 1 else 0.0
+
+    return out
+
+
+def _difficulty_for_step(*, step: int, total_steps: int) -> float:
+    if total_steps <= 1:
+        return 1.0
+    return float(max(0.0, min(1.0, step / (total_steps - 1))))
+
+
+def _iterate_curriculum(
+    *,
+    base_epoch_size: int,
+    groups_per_step: int,
+    num_epochs: int,
+    initial_step: int,
+    tasks: list[Any],
+    config: RunConfig,
+    seed: int,
+    use_tqdm: bool = True,
+) -> Generator[DatasetBatch[int], None, None]:
+    """
+    Build deterministic curriculum batches.
+
+    Keeps steps-per-epoch constant (based on `base_epoch_size`) by cycling through the eligible
+    pool with coverage guarantees (no repeats until the pool is exhausted), and only repeating
+    when the curriculum pool is smaller than the required number of draws.
+
+    If `run.curriculum.sampling == "mixture"`, each step draws a fixed-size mixture across
+    tool-call buckets (via `ToolCallsMixtureSampler`) instead of sampling uniformly from a
+    single eligible pool.
+    """
+    if base_epoch_size <= 0:
+        return
+
+    steps_per_epoch = math.ceil(base_epoch_size / groups_per_step)
+    total_steps = steps_per_epoch * num_epochs
+
+    curriculum = config.curriculum
+    use_mixture = (
+        curriculum is not None
+        and curriculum.enabled
+        and not config.task_ids
+        and getattr(curriculum, "sampling", "unlock") == "mixture"
+    )
+
+    sampler = ShuffleBagSampler(seed=seed)
+    mixture_sampler: ToolCallsMixtureSampler | None = None
+    if use_mixture:
+        base_indices = get_task_indices(
+            task_ids=config.task_ids,
+            start_index=config.start_index,
+            end_index=config.end_index,
+            tasks=tasks,
+            curriculum=None,
+            difficulty=None,
+            seed=seed,
+        )
+        mixture_sampler = ToolCallsMixtureSampler(
+            tasks=tasks,
+            indices=base_indices,
+            curriculum=curriculum,
+            seed=seed,
+        )
+
+    progress_bar = None
+    if use_tqdm:
+        progress_bar = tqdm(
+            initial=initial_step,
+            total=total_steps,
+            desc="Iterating curriculum",
+            unit="batch",
+        )
+
+    try:
+        for global_step in range(total_steps):
+            epoch = global_step // steps_per_epoch
+            epoch_step = global_step % steps_per_epoch
+
+            difficulty = _difficulty_for_step(step=global_step, total_steps=total_steps)
+            if mixture_sampler is not None:
+                items = mixture_sampler.sample_batch(difficulty=difficulty, batch_size=groups_per_step)
+            else:
+                eligible = get_task_indices(
+                    task_ids=config.task_ids,
+                    start_index=config.start_index,
+                    end_index=config.end_index,
+                    tasks=tasks,
+                    curriculum=config.curriculum,
+                    difficulty=difficulty,
+                    seed=seed,
+                )
+                items = sampler.sample_batch(eligible=eligible, batch_size=groups_per_step)
+            if global_step < initial_step:
+                continue
+            yield DatasetBatch(step=global_step, epoch=epoch, epoch_step=epoch_step, items=items)
+            if progress_bar:
+                progress_bar.update(1)
+    finally:
+        if progress_bar:
+            progress_bar.close()
 
 
 @limit_concurrency(256)
@@ -163,7 +705,7 @@ async def rollout_tau_bench_task(
     """
     # print(f"Rolling out task {task_index} (step {step}, phase {phase})")
     config = copy.deepcopy(model.config.run_config)
-    success_reward = 1.2 if config.env == "linear_algebra" else 1.0
+    success_reward = 1.0 if config.env == "linear_algebra" else 1.0
     if is_shadow:
         config.model = "gpt-4.1"
         config.model_provider = "openai"
@@ -227,9 +769,13 @@ async def rollout_tau_bench_task(
         info = reward_info.get("info") or {}
         outputs = info.get("outputs") or {}
         has_valid_outputs = "correctness_score" in outputs
+        total_completion_tokens = result.info.get("total_completion_tokens")
+        if not isinstance(total_completion_tokens, (int, float)):
+            total_completion_tokens = result.info["avg_completion_tokens"] * result.info["total_steps"]
         traj.metrics = {
             "total_steps": result.info["total_steps"],
             "final_prompt_tokens": result.info["final_prompt_tokens"],
+            "total_completion_tokens": float(total_completion_tokens),
             "avg_completion_tokens": result.info["avg_completion_tokens"],
             "max_completion_tokens": result.info["max_completion_tokens"],
             "forced_stop": result.info["forced_stop"],
@@ -289,37 +835,51 @@ async def evaluate_model(
     split: str = "val",
 ) -> float:
     """Evaluate the model on a subset of tasks"""
-    print(f"Evaluating model on {len(val_task_indices)} tasks...")
+    eval_retries = 1
+    try:
+        training_config = model.config.training_config
+        if training_config is not None and getattr(training_config, "eval_retries", None) is not None:
+            eval_retries = max(1, int(training_config.eval_retries))
+    except Exception:
+        eval_retries = 1
 
-    total_reward = 0.0
-    total_optimal_trajectory = 0.0
+    print(f"Evaluating model on {len(val_task_indices)} tasks (passes={eval_retries})...")
+
+    summaries: list[dict[str, float]] = []
 
     model_step = await model.get_step()
     eval_step = max(step, model_step)
 
-    trajectories = await art.gather_trajectories(
-        rollout_tau_bench_task(
-            model=model,
-            task_index=val_task_index,
-            step=eval_step,
-            phase=split,
-            reward_type=config.reward_type,
+    last_trajectories: list[art.Trajectory] = []
+    for pass_idx in range(eval_retries):
+        trajectories = await art.gather_trajectories(
+            rollout_tau_bench_task(
+                model=model,
+                task_index=val_task_index,
+                step=eval_step,
+                phase=split,
+                reward_type=config.reward_type,
+            )
+            for val_task_index in val_task_indices
         )
-        for val_task_index in val_task_indices
+        last_trajectories = trajectories
+        summaries.append(_summarize_trajectories(trajectories))
+        if eval_retries > 1:
+            print(f"Eval pass {pass_idx + 1}/{eval_retries}: reward={summaries[-1].get('reward', float('nan')):.4f}")
+
+    aggregate = _aggregate_retry_summaries(summaries=summaries)
+    _log_eval_aggregate(split=split, step=eval_step, aggregate=aggregate)
+
+    print(
+        f"[{split}] step={eval_step} n={int(aggregate.get('n', 0))} "
+        f"reward_mean={aggregate.get('reward_mean', float('nan')):.4f} "
+        f"reward_retry_std={aggregate.get('reward_std', float('nan')):.4f}"
     )
-    await model.log(trajectories=trajectories, split=split)
+    if "optimal_trajectory_mean" in aggregate:
+        print(f"[{split}] optimal_trajectory_mean={aggregate.get('optimal_trajectory_mean', float('nan')):.4f}")
 
-    for traj in trajectories:
-        total_reward += traj.reward
-        total_optimal_trajectory += float(traj.metadata["optimal_trajectory"])
-        print(f"Eval task {traj.metadata['task_index']}: reward={traj.reward}")
-        print(f"Eval task {traj.metadata['task_index']}: optimal_trajectory={traj.metadata['optimal_trajectory']}")
-
-    avg_reward = total_reward / len(val_task_indices)
-    avg_optimal_trajectory = total_optimal_trajectory / len(val_task_indices)
-    print(f"Average evaluation reward: {avg_reward}")
-    print(f"Average optimal trajectory: {avg_optimal_trajectory}")
-    return avg_reward
+    # Return mean reward across retries (for callers that use the float).
+    return float(aggregate.get("reward_mean", float("nan")))
 
 
 async def test(model: art.TrainableModel[TauBenchPolicyConfig]):
@@ -341,10 +901,8 @@ async def test(model: art.TrainableModel[TauBenchPolicyConfig]):
         )
 
     with LocalBackend(in_process=config.in_process) as backend:
-        # Setup model with backend
-        await model.register(backend, **register_kwargs)
-
-        # Resume from checkpoint if configured
+        # Resume/fork must happen *before* register() so the Unsloth/vLLM service
+        # loads the correct LoRA adapter on startup.
         if model.config.run_config.resume:
             await backend._experimental_fork_checkpoint(
                 model,
@@ -353,6 +911,9 @@ async def test(model: art.TrainableModel[TauBenchPolicyConfig]):
                 not_after_step=model.config.run_config.resume_step,
                 verbose=True,
             )
+
+        # Setup model with backend (starts the inference server + loads LoRA)
+        await model.register(backend, **register_kwargs)
 
         config.api_key = model.inference_api_key
         config.base_url = model.inference_base_url
@@ -370,11 +931,14 @@ async def test(model: art.TrainableModel[TauBenchPolicyConfig]):
             user_provider=config.user_model_provider,
         )
 
-        test_task_indices = _get_task_indices(
+        test_task_indices = get_task_indices(
             task_ids=None,
             start_index=0,
             end_index=-1,
-            tasks_length=len(test_env.tasks),
+            tasks=test_env.tasks,
+            curriculum=None,
+            difficulty=None,
+            seed=config.seed,
         )
 
         print(f"Validation on {len(test_task_indices)} tasks")
@@ -407,10 +971,8 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
         )
 
     with LocalBackend(in_process=config.in_process) as backend:
-        # Setup model with backend
-        await model.register(backend, **register_kwargs)
-
-        # Resume from checkpoint if configured
+        # Resume/fork must happen *before* register() so the Unsloth/vLLM service
+        # loads the correct LoRA adapter on startup.
         if model.config.run_config.resume:
             await backend._experimental_fork_checkpoint(
                 model,
@@ -419,6 +981,15 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 not_after_step=model.config.run_config.resume_step,
                 verbose=True,
             )
+        else:
+            print("Will continue training from previous latest checkpoint")
+
+        # Setup model with backend (starts the inference server + loads LoRA)
+        await model.register(backend, **register_kwargs)
+
+        art_path = get_default_art_path()
+        model_dir = get_model_dir(model=model, art_path=art_path)
+        kl_advisor = _KlAdvisor(history_path=os.path.join(model_dir, "history.jsonl"))
 
         config.api_key = model.inference_api_key
         config.base_url = model.inference_base_url
@@ -445,28 +1016,56 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             user_provider=config.user_model_provider,
         )
 
-        train_task_indices = _get_task_indices(
-            config.task_ids,
-            config.start_index,
-            config.end_index,
-            len(train_env.tasks),
+        train_task_indices = get_task_indices(
+            task_ids=config.task_ids,
+            start_index=config.start_index,
+            end_index=config.end_index,
+            tasks=train_env.tasks,
+            curriculum=None,
+            difficulty=None,
+            seed=config.seed,
         )
 
-        val_task_indices = _get_task_indices(
-            config.val_task_ids,
-            config.start_val_index,
-            config.end_val_index,
-            len(val_env.tasks),
+        val_task_indices = get_task_indices(
+            task_ids=config.val_task_ids,
+            start_index=config.start_val_index,
+            end_index=config.end_val_index,
+            tasks=val_env.tasks,
+            curriculum=None,
+            difficulty=None,
+            seed=config.seed,
         )
 
         print(f"Training on {len(train_task_indices)} tasks")
         print(f"Validation on {len(val_task_indices)} tasks")
 
+        coverage: _CurriculumCoverageTracker | None = None
+        if config.curriculum is not None and config.curriculum.enabled:
+            tool_calls_by_index = {idx: len(train_env.tasks[idx].actions) for idx in train_task_indices}
+            coverage = _CurriculumCoverageTracker(
+                tool_calls_by_index=tool_calls_by_index,
+                max_bucket_to_log=_COVERAGE_LOG_MAX_TOOL_CALLS_BUCKET,
+            )
+
         if training_config.train_mode == "async_rl":
             global_step = await model.get_step()
-            train_task_indices_async_rl = []
-            for _ in range(training_config.num_epochs):
-                train_task_indices_async_rl.extend(random.sample(train_task_indices, len(train_task_indices)))
+            base_epoch_size = len(train_task_indices)
+            iterator = _iterate_curriculum(
+                base_epoch_size=base_epoch_size,
+                groups_per_step=training_config.groups_per_step,
+                num_epochs=training_config.num_epochs,
+                initial_step=0,
+                tasks=train_env.tasks,
+                config=config,
+                seed=config.seed,
+                use_tqdm=False,
+            )
+            async_step_batches = [list(batch.items) for batch in iterator]
+            train_task_indices_async_rl = [idx for batch in async_step_batches for idx in batch]
+
+            if coverage is not None and global_step > 0:
+                for prev_step in range(min(global_step, len(async_step_batches))):
+                    coverage.advance(sampled_indices=async_step_batches[prev_step])
 
             async for trajectory_groups in art.trajectory_group_batches(
                 (
@@ -484,9 +1083,17 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
             ):
                 # NOT UPDATED FOR TRAINING WITH SHADOW TRAJECTORIES
                 step_for_iteration = global_step
+                if coverage is not None and step_for_iteration < len(async_step_batches):
+                    coverage_metrics = coverage.update(
+                        step=step_for_iteration,
+                        sampled_indices=async_step_batches[step_for_iteration],
+                    )
+                    if wandb.run is not None:
+                        wandb.log(coverage_metrics, step=step_for_iteration)
                 if step_for_iteration % training_config.eval_steps == 0 and not config.skip_eval:
                     print(f"\n--- Evaluating at Step {step_for_iteration} ---")
                     await evaluate_model(model, config, step_for_iteration, val_task_indices)
+                    _archive_checkpoint(model=model, step=await model.get_step(), split="val")
                     # await model.delete_checkpoints()
 
                 if config.reward_type == "general_rm":
@@ -506,31 +1113,99 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
                 # Training step
                 print(f"Training on {len(trajectory_groups)} trajectory groups...")
                 _log_group_diversity(step=step_for_iteration, groups=trajectory_groups, split="train")
+                dev_train_config: art.dev.TrainConfig = {
+                    "plot_tensors": config.plot_tensors,
+                    "importance_sampling_level": training_config.importance_sampling_level,
+                    "allow_training_without_logprobs": bool(config.messages_only),
+                }
+                if getattr(training_config, "scale_rewards", None) is not None:
+                    dev_train_config["scale_rewards"] = training_config.scale_rewards
+                if training_config.epsilon is not None:
+                    dev_train_config["epsilon"] = training_config.epsilon
+                if training_config.epsilon_high is not None:
+                    dev_train_config["epsilon_high"] = training_config.epsilon_high
+                if training_config.max_negative_advantage_importance_sampling_weight is not None:
+                    dev_train_config["max_negative_advantage_importance_sampling_weight"] = (
+                        training_config.max_negative_advantage_importance_sampling_weight
+                    )
+                if training_config.truncated_importance_sampling is not None:
+                    dev_train_config["truncated_importance_sampling"] = training_config.truncated_importance_sampling
+                if getattr(training_config, "kl_cap", None) is not None:
+                    dev_train_config["kl_cap"] = training_config.kl_cap
+                if getattr(training_config, "kl_skip_threshold", None) is not None:
+                    dev_train_config["kl_skip_threshold"] = training_config.kl_skip_threshold
                 await model.train(
                     trajectory_groups,
                     config=art.TrainConfig(learning_rate=training_config.learning_rate, beta=training_config.beta),
-                    _config=art.dev.TrainConfig(plot_tensors=config.plot_tensors),
+                    _config=dev_train_config,
                 )
+                kl_advisor.update()
+                kl_advisor.maybe_log_and_print(step=step_for_iteration)
                 if config.is_multi_gpu:
                     await _delete_checkpoints_keep_best(model)
                 global_step = await model.get_step()
         else:
-            # Training iterator
-            train_iterator = iterate_dataset(
-                train_task_indices,
-                groups_per_step=training_config.groups_per_step,
-                num_epochs=training_config.num_epochs,
-                initial_step=await model.get_step(),
-            )
+            initial_step = await model.get_step()
+            base_epoch_size = len(train_task_indices)
+            if config.curriculum is not None and config.curriculum.enabled:
+                if coverage is not None:
+                    _prefill_coverage_tracker(
+                        coverage=coverage,
+                        initial_step=initial_step,
+                        train_task_indices=train_task_indices,
+                        tasks=train_env.tasks,
+                        config=config,
+                        training_config=training_config,
+                    )
+                train_iterator = _iterate_curriculum(
+                    base_epoch_size=base_epoch_size,
+                    groups_per_step=training_config.groups_per_step,
+                    num_epochs=training_config.num_epochs,
+                    initial_step=initial_step,
+                    tasks=train_env.tasks,
+                    config=config,
+                    seed=config.seed,
+                )
+            else:
+                # Training iterator
+                train_iterator = iterate_dataset(
+                    train_task_indices,
+                    groups_per_step=training_config.groups_per_step,
+                    num_epochs=training_config.num_epochs,
+                    initial_step=initial_step,
+                )
 
             for batch in train_iterator:
                 print(f"\n--- Training Step {batch.step} (Epoch {batch.epoch}, Step {batch.epoch_step}) ---")
+
+                if coverage is not None:
+                    coverage_metrics = coverage.update(step=batch.step, sampled_indices=list(batch.items))
+                    if wandb.run is not None:
+                        wandb.log(coverage_metrics, step=batch.step)
 
                 # Evaluation
                 if batch.step % training_config.eval_steps == 0 and not config.skip_eval:
                     print(f"\n--- Evaluating at Step {batch.step} ---")
                     await evaluate_model(model, config, batch.step, val_task_indices)
-                    await _delete_checkpoints_keep_best(model)
+                    _archive_checkpoint(model=model, step=await model.get_step(), split="val")
+                    while True:
+                        # proceed = input("Delete all previous checkpoints? (yes/no/exit): ").lower().strip()
+                        proceed = "yes"
+
+                        if proceed == "yes":
+                            print("Deleting checkpoints...")
+                            await _delete_checkpoints_keep_best(model)
+                            break
+                        elif proceed == "no":
+                            print("Skipping checkpoint deletion.")
+                            break
+                        elif proceed == "exit":
+                            print("Exiting...")
+                            if wandb.run is not None:
+                                wandb.finish()
+                            return
+                        else:
+                            print("Please type 'yes', 'no', or 'exit'.")
 
                 # Generate trajectory groups
                 print(f"Generating trajectories for {len(batch.items)} tasks...")
@@ -563,14 +1238,34 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
 
                 # Training step
                 print(f"Training on {len(groups)} trajectory groups...")
+                dev_train_config: art.dev.TrainConfig = {
+                    "plot_tensors": config.plot_tensors,
+                    "importance_sampling_level": training_config.importance_sampling_level,
+                    "allow_training_without_logprobs": bool(config.messages_only),
+                }
+                if getattr(training_config, "scale_rewards", None) is not None:
+                    dev_train_config["scale_rewards"] = training_config.scale_rewards
+                if training_config.epsilon is not None:
+                    dev_train_config["epsilon"] = training_config.epsilon
+                if training_config.epsilon_high is not None:
+                    dev_train_config["epsilon_high"] = training_config.epsilon_high
+                if training_config.max_negative_advantage_importance_sampling_weight is not None:
+                    dev_train_config["max_negative_advantage_importance_sampling_weight"] = (
+                        training_config.max_negative_advantage_importance_sampling_weight
+                    )
+                if training_config.truncated_importance_sampling is not None:
+                    dev_train_config["truncated_importance_sampling"] = training_config.truncated_importance_sampling
+                if getattr(training_config, "kl_cap", None) is not None:
+                    dev_train_config["kl_cap"] = training_config.kl_cap
+                if getattr(training_config, "kl_skip_threshold", None) is not None:
+                    dev_train_config["kl_skip_threshold"] = training_config.kl_skip_threshold
                 await model.train(
                     groups,
                     config=art.TrainConfig(learning_rate=training_config.learning_rate, beta=training_config.beta),
-                    _config=art.dev.TrainConfig(
-                        importance_sampling_level=training_config.importance_sampling_level,
-                        allow_training_without_logprobs=True if config.messages_only else False,
-                    ),
+                    _config=dev_train_config,
                 )
+                kl_advisor.update()
+                kl_advisor.maybe_log_and_print(step=batch.step)
                 if config.is_multi_gpu:
                     await _delete_checkpoints_keep_best(model)
 
@@ -584,8 +1279,15 @@ async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
         print("\n--- Final Evaluation ---")
         final_step = await model.get_step()
         final_reward = await evaluate_model(model, config, final_step, val_task_indices)
+        _archive_checkpoint(model=model, step=await model.get_step(), split="val")
         wandb.finish()
         print(f"Final average reward: {final_reward}")
+
+        # Optional post-training upload to HF Hub (enabled when `HF_HUB_NAMESPACE` is set).
+        try:
+            await asyncio.to_thread(_push_experiment_dir_to_hf_sync, model=model)
+        except Exception as e:
+            print(f"[hf] Warning: post-training upload failed: {e}")
 
         print("Training completed!")
 

@@ -65,14 +65,14 @@ class ToolCallingAgent(Agent):
             {"role": "user", "content": obs},
         ]
         final_prompt_tokens = 0
-        avg_completion_tokens = 0
+        total_completion_tokens = 0
         max_completion_tokens = 0
         forced_stop = True
         curr_step_number = 0
         for curr_step_number in range(max_assistant_turns):
             res = await self.llm_completion(self.messages, deterministic=env.task_split != "train")
             final_prompt_tokens = res.usage.prompt_tokens  # type: ignore
-            avg_completion_tokens += res.usage.completion_tokens  # type: ignore
+            total_completion_tokens += res.usage.completion_tokens  # type: ignore
             max_completion_tokens = max(max_completion_tokens, res.usage.completion_tokens)  # type: ignore
             next_message = res.choices[0].message.model_dump()  # type: ignore
             if (
@@ -103,7 +103,8 @@ class ToolCallingAgent(Agent):
             if final_prompt_tokens > 20000 or res.choices[0].finish_reason == "length":
                 break
         info["total_steps"] = curr_step_number + 1
-        info["avg_completion_tokens"] = avg_completion_tokens / info["total_steps"]
+        info["total_completion_tokens"] = int(total_completion_tokens)
+        info["avg_completion_tokens"] = total_completion_tokens / info["total_steps"]
         info["max_completion_tokens"] = max_completion_tokens
         info["final_prompt_tokens"] = final_prompt_tokens
         info["forced_stop"] = 1 if forced_stop else 0

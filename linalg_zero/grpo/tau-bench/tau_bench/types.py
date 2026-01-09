@@ -5,7 +5,10 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from hydra.core.config_store import ConfigStore
+try:
+    from hydra.core.config_store import ConfigStore
+except ModuleNotFoundError:  # pragma: no cover
+    ConfigStore = None  # type: ignore[assignment]
 from pydantic import BaseModel
 
 from linalg_zero.shared.types import LibTypes
@@ -94,6 +97,31 @@ class EnvRunResult(BaseModel):
 
 
 @dataclass
+class CurriculumConfig:
+    """
+    Task curriculum configuration.
+
+    Currently supports a simple "tool_calls" curriculum where difficulty is approximated by
+    the number of teacher tool calls in the task (`len(task.actions)`).
+
+    Sampling strategies:
+    - "unlock": deterministic subset that grows with difficulty (legacy behavior)
+    - "mixture": per-step fixed-size mixture across tool-call buckets (reduces end-of-epoch unlock plateaus)
+    """
+
+    enabled: bool = False
+    metric: str = "tool_calls"
+    initial_max_tool_calls: int = 1
+    final_max_tool_calls: int | None = None
+    fraction_at_start: float = 0.25
+    fraction_at_end: float = 1.0
+    min_total_tasks: int = 1
+    sampling: str = "mixture"
+    mixture_sigma: float = 0.5
+    mixture_min_prob_easiest: float = 0.1
+
+
+@dataclass
 class RunConfig:
     project_id: str
     project: str
@@ -141,6 +169,7 @@ class RunConfig:
     resume: bool = False
     resume_step: int | None = None
     resume_from: str | None = None
+    curriculum: CurriculumConfig | None = None
 
 
 @dataclass
@@ -154,9 +183,19 @@ class TauBenchTrainingConfig:
     beta: float = 0.0
     eval_steps: int = 10
     val_set_size: int = 85
+    eval_retries: int = 5
     num_epochs: int = 50
     train_mode: str = "sync_rl"
     importance_sampling_level: str = "token"  # or "sequence"
+    # Advanced GRPO/PPO stability knobs (passed to art.dev.TrainConfig).
+    # Keep unset unless you are actively tuning stability/exploration trade-offs.
+    scale_rewards: bool | None = True
+    epsilon: float | None = None
+    epsilon_high: float | None = None
+    max_negative_advantage_importance_sampling_weight: float | None = None
+    truncated_importance_sampling: float | None = None
+    kl_cap: float | None = None
+    kl_skip_threshold: float | None = None
 
 
 class TauBenchPolicyConfig(BaseModel):
@@ -171,6 +210,7 @@ class TauBenchPolicyConfig(BaseModel):
 
 # Note: Both EngineArgs and TorchtuneArgs from art.dev are TypedDicts, not dataclasses,
 # so we cannot register them with ConfigStore. Use plain dict configuration in YAML instead.
-cs = ConfigStore.instance()
-cs.store(name="training_schema", node=TauBenchTrainingConfig, group="training")
-cs.store(name="run_schema", node=RunConfig, group="run")
+if ConfigStore is not None:  # pragma: no cover
+    cs = ConfigStore.instance()
+    cs.store(name="training_schema", node=TauBenchTrainingConfig, group="training")
+    cs.store(name="run_schema", node=RunConfig, group="run")
