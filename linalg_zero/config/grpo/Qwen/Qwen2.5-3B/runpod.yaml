@@ -45,9 +45,7 @@ run:
     fraction_at_end: 1.0
     min_total_tasks: 64
   model_provider: hosted_vllm
-  user_model_provider: openai
   user_strategy: mathematician
-  user_model: gpt-4o
   agent_strategy: tool-calling-rl
   temperature: 1.0
   top_p: 1.0
