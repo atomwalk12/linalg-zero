@@ -96,7 +96,7 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         # This ensures both calculations work with the same precision
         matrix_a_precision_matched = Matrix(matrix_a_primitive)
         sympy_result = matrix_a_precision_matched.det()
-        assert isinstance(sympy_result, (Float, Integer, Rational))
+        assert isinstance(sympy_result, Float | Integer | Rational)
 
         return sympy_result, lib_result
 

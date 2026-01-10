@@ -8,7 +8,7 @@ from linalg_zero.shared.lib import matrix_trace
 
 class Trace(Tool):
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
+    def invoke(data: dict[str, Any], **kwargs: Any) -> str:
         try:
             return str(matrix_trace(**kwargs))
         except Exception as e:

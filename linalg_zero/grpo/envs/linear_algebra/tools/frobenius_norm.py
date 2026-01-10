@@ -8,7 +8,7 @@ from linalg_zero.shared.lib import frobenius_norm
 
 class FrobeniusNorm(Tool):
     @staticmethod
-    def invoke(data: dict[str, Any], **kwargs: dict[str, Any]) -> str:
+    def invoke(data: dict[str, Any], **kwargs: Any) -> str:
         try:
             return str(frobenius_norm(**kwargs))
         except Exception as e:

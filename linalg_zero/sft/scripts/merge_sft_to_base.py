@@ -2,7 +2,7 @@ import unsloth  # noqa: F401
 from unsloth import FastLanguageModel
 
 
-def merge_lora_to_base_model():
+def merge_lora_to_base_model() -> None:
     # adapter_path = "results/LinalgZero-SFT-LoRA-110/checkpoint-110"
     adapter_path = "results/LinalgZero-SFT-LoRA/checkpoint-400"
 

@@ -26,7 +26,7 @@ def main() -> None:
     try:
         from huggingface_hub import HfApi
     except Exception as e:
-        raise SystemExit(f"Missing dependency: huggingface_hub ({e})")
+        raise SystemExit(f"Missing dependency: huggingface_hub ({e})") from e
 
     api = HfApi()
     api.create_repo(repo_id=REPO_ID, repo_type="model", private=PRIVATE, exist_ok=True)

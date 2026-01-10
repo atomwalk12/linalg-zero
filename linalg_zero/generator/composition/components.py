@@ -161,7 +161,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
             raise ValueError(f"Dependent input must be square, got shape {value.shape}")
 
         if spec.get("numeric_only", False) and not all(
-            isinstance(element, (Integer, Float, Rational)) for element in value
+            isinstance(element, Integer | Float | Rational) for element in value
         ):
             raise ValueError("Dependent input must contain only numeric elements")
 

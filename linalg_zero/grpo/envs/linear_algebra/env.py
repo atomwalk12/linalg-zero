@@ -117,6 +117,15 @@ class LinearAlgebraEnv(Env):
                 ),
                 actions=self.actions,
             )
+        if answer.content is None:
+            return RewardResult(
+                reward=-1.0,
+                info=RewardOutputInfo(
+                    r_outputs=-1.0,
+                    outputs={"structural_error": "no_answer_content", "answer_found": False},
+                ),
+                actions=self.actions,
+            )
 
         # 1. Correctness
         is_correct = validate_answer(
@@ -266,11 +275,14 @@ class LinearAlgebraEnv(Env):
             actions=tool_calls,
         )
 
-    def get_jitter(self):
+    def get_jitter(self) -> float:
         return random.uniform(0, 1e-4)
 
     def correctness_reward(self) -> float:
-        return 1.0 if validate_answer(ground_truth=self.task.outputs[0], completion=self.actions[-1].content) else 0.0
+        completion = self.actions[-1].content
+        if completion is None:
+            return 0.0
+        return 1.0 if validate_answer(ground_truth=self.task.outputs[0], completion=completion) else 0.0
 
     def efficiency_penalty(self) -> float:
         """Return an absolute penalty based on deviation from the expected number of tool calls.
@@ -310,15 +322,16 @@ class LinearAlgebraEnv(Env):
         total_weight = 0.0
 
         for action in self.actions[:-1]:
-            has_think = think_correct(completion=action.content)
+            has_think = think_correct(completion=action.content or "")
             if has_think:
                 correct_formats += 1.0
             total_weight += 1.0
 
         # Check final turn (weight = 3.0; answer tag is twice as important as think)
         final_action = self.actions[-1]
-        has_think = think_correct(completion=final_action.content)
-        has_answer = answer_correct(completion=final_action.content)
+        final_completion = final_action.content or ""
+        has_think = think_correct(completion=final_completion)
+        has_answer = answer_correct(completion=final_completion)
 
         if has_think:
             correct_formats += 1.0

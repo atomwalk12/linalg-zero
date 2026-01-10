@@ -4,7 +4,7 @@ import multiprocessing as mp
 import torch
 
 
-def worker():
+def worker() -> None:
     torch.cuda.set_device(0)
     x = torch.randn(1024, 1024, device="cuda")
     y = x @ x

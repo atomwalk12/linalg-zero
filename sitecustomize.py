@@ -64,4 +64,3 @@ def _install_art_unsloth_kl_guard_patch() -> None:
 
 if os.getenv("LINALGZERO_DISABLE_ART_PATCHES") != "1":
     _patch_art_trainconfig_lr_alias()
-

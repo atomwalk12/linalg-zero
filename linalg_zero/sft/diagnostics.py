@@ -9,6 +9,7 @@ from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import parse_string, verify_answers
 from linalg_zero.sft.tool_evaluation import EvaluationState
 from linalg_zero.shared.lib import get_lib_fn_names
+from linalg_zero.shared.types import LibTypes
 
 
 class DiagnosticTracker:
@@ -18,9 +19,9 @@ class DiagnosticTracker:
         # Store all messages and samples for Weave logging
         self.all_messages: list[list[dict[str, Any]]] = []
         self.all_samples: list[dict[str, Any]] = []
-        self.all_strict_formats = []
-        self.all_partial_formats = []
-        self.all_generated_answers = []
+        self.all_strict_formats: list[float] = []
+        self.all_partial_formats: list[float] = []
+        self.all_generated_answers: list[str | LibTypes | None] = []
 
     def update(self, state: EvaluationState) -> None:
         """Update tracker from an evaluation state."""

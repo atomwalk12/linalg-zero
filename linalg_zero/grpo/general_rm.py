@@ -112,10 +112,14 @@ async def create_openai_response(
 
 
 async def create_general_rm_trajectory_groups(group: art.TrajectoryGroup, config: RunConfig) -> art.TrajectoryGroup:
+    if not (config.judge_model.startswith("o3") or config.judge_model.startswith("o4-mini")):
+        print(f"General RM model {config.judge_model} not supported")
+        return group
+
     try:
         user_prompt = GENERAL_RM_PROMPT
 
-        system_message, remaining_messages = create_and_split_messages(group.trajectories[0].messages_and_choices)
+        system_message, _remaining_messages = create_and_split_messages(group.trajectories[0].messages_and_choices)
         user_prompt += f"Here is the system prompt that was provided at the beginning of each of the rollouts:\n--- START OF SYSTEM PROMPT ---\n{system_message}\n--- END OF SYSTEM PROMPT ---\n\n Here are the tools that were available to the rollouts:\n--- START OF TOOLS ---\n{group.trajectories[0].tools}\n--- END OF TOOLS ---\n\n Here are the rollouts to evaluate:"
         for idx, trajectory in enumerate(group.trajectories):
             user_prompt += f"\n\n--- ROLLOUT {idx} ---\n"
@@ -123,10 +127,7 @@ async def create_general_rm_trajectory_groups(group: art.TrajectoryGroup, config
             # Format conversation
             user_prompt = add_messages_to_prompt(user_prompt, messages)
 
-        if config.judge_model.startswith("o3") or config.judge_model.startswith("o4-mini"):
-            response = await create_openai_response(user_prompt, config.judge_model)
-        else:
-            raise ValueError(f"General RM model {config.judge_model} not supported")
+        response = await create_openai_response(user_prompt, config.judge_model)
 
         assert response is not None, "Response cannot be None"
         assert len(response.rollout_scores) == len(group.trajectories), (
@@ -209,11 +210,12 @@ async def calculate_reward(result: SolveResult, config: RunConfig) -> tuple[floa
             user_prompt = add_messages_to_prompt(user_prompt, result.messages)
             user_prompt += "\n--- END OF ROLLOUT ---\n\n"
             response = await create_openai_response(user_prompt, config.judge_model, response_format=RolloutScoreLLM)
-            assert response is not None, "Response cannot be None"
-            reward += response.score
-            return reward, response.explanation
         except Exception as e:
             print(f"Error calculating LLM reward: {e}")
             return reward, "real_reward, error_calculating_llm_reward: " + str(e)
+        else:
+            assert response is not None, "Response cannot be None"
+            reward += response.score
+            return reward, response.explanation
 
     raise ValueError(f"Invalid reward type: {config.reward_type}")

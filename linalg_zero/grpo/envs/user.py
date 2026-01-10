@@ -2,10 +2,11 @@
 
 import abc
 import enum
+from typing import ClassVar
 
 
 class BaseUserSimulationEnv(abc.ABC):
-    metadata = {}
+    metadata: ClassVar[dict[str, object]] = {}
 
     @abc.abstractmethod
     async def reset(self, instruction: str | None = None) -> str:

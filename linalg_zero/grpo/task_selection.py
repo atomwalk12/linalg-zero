@@ -121,7 +121,7 @@ def _deterministic_counts_from_probs(*, probs: Sequence[float], total: int) -> l
     normed = [p / mass for p in cleaned]
     expected = [p * total for p in normed]
     # Deterministic rounding: first take the floor of each expected count.
-    counts = [int(math.floor(e)) for e in expected]
+    counts = [math.floor(e) for e in expected]
 
     remainder = total - sum(counts)
     if remainder <= 0:
@@ -280,7 +280,7 @@ class ToolCallsMixtureSampler:
                 continue
 
             ordered = self._bucket_ordered[tool_calls]
-            k = int(math.ceil(frac * len(ordered)))
+            k = math.ceil(frac * len(ordered))
             if k <= 0:
                 k = 1
             eligible = ordered[:k]

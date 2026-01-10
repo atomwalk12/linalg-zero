@@ -6,7 +6,7 @@ import unicodedata
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from datasets.dataset_dict import DatasetDict
 from huggingface_hub import HfApi
@@ -76,7 +76,7 @@ def normalize_text(s: str, normalize_unicode: bool) -> str:
     return s.replace("\u2212", "-")
 
 
-def get_representative_examples_indices(dataset, per_category: int, include_remaining: bool = True) -> list[int]:
+def get_representative_examples_indices(dataset: Any, per_category: int, include_remaining: bool = True) -> list[int]:
     """Get representative indices first (per_category samples per problem type), then all remaining indices."""
     categories: defaultdict[str, list[int]] = defaultdict(list)
     representative_indices = []

@@ -17,7 +17,7 @@ def load_tasks(hf_path: str, split: str, dev: bool = False) -> list[Task]:
     dataset = load_dataset(path=hf_path, split=split)
 
     if not isinstance(dataset, Dataset):
-        raise ValueError(f"Expected Dataset, got {type(dataset)}")
+        raise TypeError(f"Expected Dataset, got {type(dataset)}")
 
     # Convert dataset entries to Task instances
     tasks = []

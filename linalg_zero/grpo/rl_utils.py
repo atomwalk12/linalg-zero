@@ -113,7 +113,7 @@ async def update_openpipe_log(traj: art.Trajectory):
         filters=[
             UpdateLogTagsRequestFiltersItem(
                 field="completionId",
-                equals=traj.metadata["completion_id"],  # type: ignore
+                equals=str(traj.metadata["completion_id"]),
             ),
         ],
         metadata={
@@ -134,7 +134,7 @@ async def update_steps_for_openpipe_logs(trajectory_groups: list[art.TrajectoryG
                 filters=[
                     UpdateLogTagsRequestFiltersItem(
                         field="completionId",
-                        equals=completion_id,  # type: ignore
+                        equals=str(completion_id),
                     ),
                 ],
                 metadata={

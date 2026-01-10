@@ -18,7 +18,7 @@ class EvaluationState:
     """Tracks evaluation state."""
 
     def __init__(self) -> None:
-        self.messages = []
+        self.messages: list[dict[str, Any]] = []
         self.sample: dict[str, Any] | None = None
 
         self.strict_format_match = 0.0

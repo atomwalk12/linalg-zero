@@ -18,7 +18,7 @@ def parse_string(s: str) -> LibTypes | None:
     try:
         parsed = ast.literal_eval(s)
 
-        if isinstance(parsed, (int, float, list, tuple)):
+        if isinstance(parsed, int | float | list | tuple):
             return list(parsed) if isinstance(parsed, tuple) else parsed
 
     except (ValueError, SyntaxError):

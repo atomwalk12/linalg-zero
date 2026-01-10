@@ -198,7 +198,7 @@ class XMLParser:
             if (
                 isinstance(data, dict)
                 and isinstance(data.get("name"), str)
-                and isinstance(data.get("arguments"), (dict, str))
+                and isinstance(data.get("arguments"), dict | str)
             ):
 
                 def parse_args() -> tuple[dict | None, bool]:
