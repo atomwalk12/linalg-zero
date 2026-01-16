@@ -15,7 +15,7 @@ import torch
 from omegaconf import DictConfig, OmegaConf
 
 from linalg_zero.grpo.run_rl import train
-from linalg_zero.grpo.types import TauBenchPolicyConfig
+from linalg_zero.grpo.types import LinAlgPolicyConfig
 
 
 @hydra.main(
@@ -52,7 +52,7 @@ def main(cfg: DictConfig) -> None:
         name=run_config["project_id"],
         project=run_config["project"],
         base_model=run_config["base_model"],
-        config=TauBenchPolicyConfig(
+        config=LinAlgPolicyConfig(
             training_config=training_config,
             run_config=run_config,
         ),

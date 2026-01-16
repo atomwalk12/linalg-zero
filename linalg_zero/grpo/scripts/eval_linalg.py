@@ -3,19 +3,15 @@ from dotenv import load_dotenv
 # For debugging purposes apply dotenv file
 load_dotenv()
 
-# Enable PyTorch memory fragmentation fix for better GPU memory management
-# os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-# Suppress LiteLLM logging spam
-# logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 import asyncio
 
 import art
 import hydra
 import torch
 from omegaconf import DictConfig, OmegaConf
-from run_rl import test
 
-from linalg_zero.grpo.types import TauBenchPolicyConfig
+from linalg_zero.grpo.run_rl import test
+from linalg_zero.grpo.types import LinAlgPolicyConfig
 
 
 # @hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B/eval", config_name="linalgzero-sft.yaml")
@@ -47,7 +43,7 @@ def main(cfg: DictConfig) -> None:
         name=run_config["project_id"],
         project=run_config["project"],
         base_model=run_config["base_model"],
-        config=TauBenchPolicyConfig(
+        config=LinAlgPolicyConfig(
             training_config=training_config,
             run_config=run_config,
         ),

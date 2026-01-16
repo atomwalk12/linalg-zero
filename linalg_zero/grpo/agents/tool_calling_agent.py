@@ -20,7 +20,7 @@ from linalg_zero.grpo.types import RESPOND_ACTION_NAME, Action, SolveResult
     reraise=True,
 )
 @limit_concurrency(n=128)
-async def acompletion_with_limit_concurrency(*args, **kwargs):
+async def acompletion_with_limit_concurrency(*args: Any, **kwargs: Any) -> ModelResponse:
     return await acompletion(*args, **kwargs)
 
 
@@ -32,15 +32,15 @@ class ToolCallingAgent(Agent):
         model: str,
         provider: str,
         temperature: float = 0.0,
-        *args,
-        **kwargs,
-    ):
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         self.tools_info = tools_info
         self.wiki = wiki
         self.model = model
         self.provider = provider
         self.temperature = temperature
-        self.messages = []
+        self.messages: list[dict[str, Any]] = []
 
     async def llm_completion(self, messages: list[dict[str, Any]], deterministic: bool = False) -> ModelResponse:
         temperature = 0.0 if deterministic else self.temperature
@@ -60,7 +60,7 @@ class ToolCallingAgent(Agent):
         obs = env_reset_res.observation
         info = env_reset_res.info.model_dump()
         reward = 0.0
-        self.messages: list[dict[str, Any]] = [
+        self.messages = [
             {"role": "system", "content": self.wiki},
             {"role": "user", "content": obs},
         ]
@@ -69,12 +69,12 @@ class ToolCallingAgent(Agent):
         max_completion_tokens = 0
         forced_stop = True
         curr_step_number = 0
-        for curr_step_number in range(max_assistant_turns):
+        for curr_step_number in range(max_assistant_turns):  # noqa: B007
             res = await self.llm_completion(self.messages, deterministic=env.task_split != "train")
-            final_prompt_tokens = res.usage.prompt_tokens  # type: ignore
-            total_completion_tokens += res.usage.completion_tokens  # type: ignore
-            max_completion_tokens = max(max_completion_tokens, res.usage.completion_tokens)  # type: ignore
-            next_message = res.choices[0].message.model_dump()  # type: ignore
+            final_prompt_tokens = res.usage.prompt_tokens
+            total_completion_tokens += res.usage.completion_tokens
+            max_completion_tokens = max(max_completion_tokens, res.usage.completion_tokens)
+            next_message = res.choices[0].message.model_dump()
             if (
                 "tool_calls" in next_message
                 and next_message["tool_calls"] is not None
@@ -117,7 +117,7 @@ class ToolCallingAgent(Agent):
 
 
 class ToolCallingRLAgent(ToolCallingAgent):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.api_key = kwargs.get("api_key")
         self.base_url = kwargs.get("base_url")
@@ -128,7 +128,7 @@ class ToolCallingRLAgent(ToolCallingAgent):
         self.repetition_penalty = kwargs.get("repetition_penalty")
         self.stop = kwargs.get("stop")
         self.seed = kwargs.get("seed")
-        self.choices = []
+        self.choices: list[Any] = []
 
     async def llm_completion(self, messages: list[dict[str, Any]], deterministic: bool = False) -> ModelResponse:
         temperature = 0.0 if deterministic else self.temperature
@@ -153,7 +153,7 @@ class ToolCallingRLAgent(ToolCallingAgent):
             top_p=top_p,
             do_sample=do_sample,
             repetition_penalty=self.repetition_penalty,
-            logprobs=False if self.provider == "openai" else True,
+            logprobs=self.provider != "openai",
             extra_body={"skip_special_tokens": self.skip_special_tokens},
             stop=self.stop,
             **request_kwargs,
@@ -162,27 +162,27 @@ class ToolCallingRLAgent(ToolCallingAgent):
             # else {},
         )
         assert isinstance(response, ModelResponse), f"Response is not a ModelResponse: {response}"
-        choice = response.choices[0]  # type: ignore
+        choice = response.choices[0]
         assert isinstance(choice, Choices), f"Choice is not a Choices object: {choice}"
         self.choices.append(convert_litellm_choice_to_openai(choice))
         return response
 
-    def create_messages_and_choices(self):
-        messages_and_choices = []
+    def create_messages_and_choices(self) -> list[Any]:
+        messages_and_choices: list[Any] = []
         choice_idx = 0
+        is_qwen3 = bool(self.base_model and "Qwen3-" in self.base_model)
         for message in self.messages:
             if message["role"] == "assistant":
                 choice = self.choices[choice_idx]
-                if self.base_model and "Qwen3-" in self.base_model:
-                    if hasattr(choice.message, "content") and choice.message.content is None:
-                        choice.message.content = ""
+                if hasattr(choice.message, "content") and choice.message.content is None and is_qwen3:
+                    choice.message.content = ""
                 messages_and_choices.append(choice)
                 choice_idx += 1
             else:
-                if self.base_model and "Qwen3-" in self.base_model:
+                if is_qwen3:
                     if "content" in message and message["content"] is None:
                         message["content"] = ""
-                    for key in message:
+                    for key in list(message):
                         if message[key] is None:
                             message.pop(key)
                 messages_and_choices.append(message)

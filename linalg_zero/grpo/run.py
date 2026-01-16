@@ -1,4 +1,5 @@
 # Copyright Sierra
+import asyncio
 import json
 import multiprocessing
 import os
@@ -37,7 +38,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
         public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
         host=os.getenv("LANGFUSE_HOST"),
     )
-    success_reward = 1.0 if config.env == "linear_algebra" else 1.0
+    success_reward = 1.0
     random.seed(config.seed)
     time_str = datetime.now().strftime("%m%d%H%M%S")
     ckpt_path = f"{config.log_dir}/{config.agent_strategy}-{config.model.split('/')[-1]}-{config.temperature}_range_{config.start_index}-{config.end_index}_user-{config.user_strategy}_{time_str}.json"
@@ -51,11 +52,6 @@ def run(config: RunConfig) -> list[EnvRunResult]:
         task_split=config.task_split,
         dataset_path=config.dataset_path,
     )
-    agent = agent_factory(
-        tools_info=env.tools_info,
-        wiki=env.wiki,
-        config=config,
-    )
     end_index = len(env.tasks) if config.end_index == -1 else min(config.end_index, len(env.tasks))
     results: list[EnvRunResult] = []
     lock = multiprocessing.Lock()
@@ -64,6 +60,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
     else:
         print(f"Running tasks {config.start_index} to {end_index} (checkpoint path: {ckpt_path})")
     for i in range(config.num_trials):
+        trial = i
         if config.task_ids and len(config.task_ids) > 0:
             idxs = config.task_ids
         else:
@@ -77,7 +74,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
             Push one full conversation to Langfuse.
             """
             # 2-a create / update the trace
-            trace = langfuse.trace(
+            trace = langfuse.trace(  # type: ignore[attr-defined]
                 name=f"{cfg.env}-task-{env_result.task_id}-{env_result.trial}",
                 input=env_result.info,
                 output=env_result.traj,
@@ -85,7 +82,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
             # 2-c attach numeric reward
             trace.score(name="reward", value=env_result.reward)
 
-        def _run(idx: int) -> EnvRunResult:
+        def _run(idx: int, _trial: int = trial) -> EnvRunResult:
             isolated_env = get_env(
                 config.env,
                 user_strategy=config.user_strategy,
@@ -93,19 +90,26 @@ def run(config: RunConfig) -> list[EnvRunResult]:
                 dataset_path=config.dataset_path,
                 task_index=idx,
             )
+            agent = agent_factory(
+                tools_info=isolated_env.tools_info,
+                wiki=isolated_env.wiki,
+                config=config,
+            )
 
             print(f"Running task {idx}")
             try:
-                res = agent.solve(
-                    env=isolated_env,
-                    task_index=idx,
+                res = asyncio.run(
+                    agent.solve(
+                        env=isolated_env,
+                        task_index=idx,
+                    )
                 )
                 result = EnvRunResult(
                     task_id=idx,
                     reward=res.reward,
                     info=res.info,
                     traj=res.messages,
-                    trial=i,
+                    trial=_trial,
                 )
             except Exception as e:
                 result = EnvRunResult(
@@ -113,7 +117,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
                     reward=0.0,
                     info={"error": str(e), "traceback": traceback.format_exc()},
                     traj=[],
-                    trial=i,
+                    trial=_trial,
                 )
             log_trace_to_langfuse(result, idx, config)
             print(
@@ -128,7 +132,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
                     with open(ckpt_path) as f:
                         data = json.load(f)
                 with open(ckpt_path, "w") as f:
-                    json.dump(data + [result.model_dump()], f, indent=2)
+                    json.dump([*data, result.model_dump()], f, indent=2)
             return result
 
         with ThreadPoolExecutor(max_workers=config.max_concurrency) as executor:
@@ -144,7 +148,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
     return results
 
 
-def agent_factory(tools_info: list[dict[str, Any]], wiki, config: RunConfig) -> Agent:
+def agent_factory(tools_info: list[dict[str, Any]], wiki: str, config: RunConfig) -> Agent:
     if config.agent_strategy == "tool-calling-rl":
         from linalg_zero.grpo.agents.tool_calling_agent import ToolCallingRLAgent
 
@@ -182,7 +186,7 @@ def display_metrics(results: list[EnvRunResult], success_reward: float = 1.0) ->
     def is_successful(reward: float) -> bool:
         return abs(reward - success_reward) <= 1e-6
 
-    num_trials = len(set([r.trial for r in results]))
+    num_trials = len({r.trial for r in results})
     rewards = [r.reward for r in results]
     avg_reward = sum(rewards) / len(rewards)
     # c from https://arxiv.org/pdf/2406.12045
@@ -194,7 +198,7 @@ def display_metrics(results: list[EnvRunResult], success_reward: float = 1.0) ->
             c_per_task_id[result.task_id] += 1 if is_successful(result.reward) else 0
     pass_hat_ks: dict[int, float] = {}
     for k in range(1, num_trials + 1):
-        sum_task_pass_hat_k = 0
+        sum_task_pass_hat_k = 0.0
         for c in c_per_task_id.values():
             sum_task_pass_hat_k += comb(c, k) / comb(num_trials, k)
         pass_hat_ks[k] = sum_task_pass_hat_k / len(c_per_task_id)

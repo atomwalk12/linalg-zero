@@ -171,7 +171,7 @@ class RunConfig:
 
 
 @dataclass
-class TauBenchTrainingConfig:
+class LinAlgTrainingConfig:
     """Training configuration for ART RL on tau-bench tasks"""
 
     chat_template: str | None = None
@@ -192,19 +192,19 @@ class TauBenchTrainingConfig:
     truncated_importance_sampling: float | None = None
 
 
-class TauBenchPolicyConfig(BaseModel):
+class LinAlgPolicyConfig(BaseModel):
     """Policy configuration for tau-bench agent"""
 
     # Run config
     run_config: RunConfig
 
     # Training configuration
-    training_config: TauBenchTrainingConfig
+    training_config: LinAlgTrainingConfig
 
 
 # Note: Both EngineArgs and TorchtuneArgs from art.dev are TypedDicts, not dataclasses,
 # so we cannot register them with ConfigStore. Use plain dict configuration in YAML instead.
 if ConfigStore is not None:  # pragma: no cover
     cs = ConfigStore.instance()
-    cs.store(name="training_schema", node=TauBenchTrainingConfig, group="training")
+    cs.store(name="training_schema", node=LinAlgTrainingConfig, group="training")
     cs.store(name="run_schema", node=RunConfig, group="run")

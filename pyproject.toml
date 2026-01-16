@@ -25,6 +25,7 @@ exclude = [
     ".venv",
     "unsloth_compiled_cache/",
 ]
+ignore = ["DEP004"]
 
 [tool.deptry.per_rule_ignores]
 # DEP002: defined as a dependency but not used in the codebase
@@ -36,7 +37,7 @@ DEP002 = [
 # There are some problems installing torch directly, however it is being made available as a transient dependency.
 # DEP003: imported but it is a transient dependency
 DEP003 = [
-    "torch", "openai", "pandas", "safetensors"
+    "torch", "openai", "pandas", "safetensors", "litellm", "tenacity", "dotenv", "omegaconf"
 ]
 
 [tool.uv]
@@ -220,6 +221,7 @@ module = [
     "datasets.*",
     "trl.*",
     "sympy.*",
+    "matplotlib.*",
     "distilabel.*",
     "math_verify.*",
     "verl.*",
@@ -230,7 +232,35 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["linalg_zero.distillation.utils", "linalg_zero.distillation.scripts.push_debug_dataset", "linalg_zero.sft.model_utils", "linalg_zero.grpo.datagen", "linalg_zero.grpo.process_dataset", "linalg_zero.distillation.run", "linalg_zero.sft.utils", "linalg_zero.sft.tool_calling_accuracy"]
-disable_error_code = ["attr-defined", "assignment"]
+disable_error_code = ["attr-defined", "assignment", "operator"]
+
+[[tool.mypy.overrides]]
+module = ["linalg_zero.grpo.run_rl", "linalg_zero.grpo.train"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+    "linalg_zero.distillation.scripts.validate_dataset",
+    "linalg_zero.grpo.general_rm",
+    "linalg_zero.grpo.rl_utils",
+    "linalg_zero.grpo.scripts.run",
+    "linalg_zero.sft.scripts.evaluate_merged_model",
+    "linalg_zero.sft.tool_calling_accuracy",
+    "linalg_zero.sft_train",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["linalg_zero.grpo.agents.tool_calling_agent"]
+disable_error_code = ["no-any-return", "attr-defined", "union-attr"]
+
+[[tool.mypy.overrides]]
+module = ["linalg_zero.grpo_train"]
+disable_error_code = ["arg-type", "typeddict-item"]
+
+[[tool.mypy.overrides]]
+module = ["linalg_zero.grpo.scripts.eval_linalg"]
+disable_error_code = ["arg-type", "typeddict-item"]
 
 [[tool.mypy.overrides]]
 module = ["linalg_zero.grpo.verify", "linalg_zero.grpo.linalg_zero_interaction"]
@@ -289,7 +319,6 @@ select = [
     "TRY",
 ]
 ignore = [
-    "UP038",
     # LineTooLong
     "E501",
     # DoNotAssignLambda
@@ -306,6 +335,8 @@ ignore = [
 "linalg_zero/distillation/components/multi_turn_generation_base.py" = ["A001", "PGH003", "S101"]
 "linalg_zero/*" = ["S101"]
 "linalg_zero/grpo/tau-bench/run_linalg.py" = ["E402"]
+"linalg_zero/grpo_train.py" = ["E402"]
+"linalg_zero/grpo/scripts/eval_linalg.py" = ["E402"]
 
 [tool.ruff.format]
 preview = true

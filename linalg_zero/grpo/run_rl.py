@@ -37,7 +37,7 @@ from linalg_zero.grpo.task_selection import (
     ToolCallsMixtureSampler,
     get_task_indices,
 )
-from linalg_zero.grpo.types import RunConfig, SolveResult, TauBenchPolicyConfig
+from linalg_zero.grpo.types import LinAlgPolicyConfig, RunConfig, SolveResult
 
 # Load environment variables
 load_dotenv(override=True)
@@ -58,7 +58,7 @@ _HF_UPLOAD_IGNORE_PATTERNS: tuple[str, ...] = (
 )
 
 
-async def _delete_checkpoints_keep_best(model: art.TrainableModel[TauBenchPolicyConfig]) -> None:
+async def _delete_checkpoints_keep_best(model: art.TrainableModel[LinAlgPolicyConfig]) -> None:
     try:
         await model.delete_checkpoints(best_checkpoint_metric=BEST_CHECKPOINT_METRIC)
     except Exception as e:
@@ -66,7 +66,7 @@ async def _delete_checkpoints_keep_best(model: art.TrainableModel[TauBenchPolicy
         await model.delete_checkpoints()
 
 
-def _archive_checkpoint(*, model: art.Model[TauBenchPolicyConfig], step: int, split: str) -> None:
+def _archive_checkpoint(*, model: art.Model[LinAlgPolicyConfig], step: int, split: str) -> None:
     """
     Copy the checkpoint directory for `step` into a persistent archive directory under the model output dir.
 
@@ -117,7 +117,7 @@ def _get_rank() -> int:
     return 0
 
 
-def _push_experiment_dir_to_hf_sync(*, model: art.Model[TauBenchPolicyConfig]) -> None:
+def _push_experiment_dir_to_hf_sync(*, model: art.Model[LinAlgPolicyConfig]) -> None:
     """
     Upload `.art/<project>/models/<experiment>/` to the HF Hub.
 
@@ -176,7 +176,7 @@ def _quantile(values: list[float], q: float) -> float:
     if q >= 1:
         return float(max(values))
     values_sorted = sorted(values)
-    idx = int(round((len(values_sorted) - 1) * q))
+    idx = round((len(values_sorted) - 1) * q)
     return float(values_sorted[idx])
 
 
@@ -442,7 +442,7 @@ def _log_eval_aggregate(*, split: str, step: int, aggregate: dict[str, float]) -
 
     # For each metric `k`, log the mean under the canonical `split/k` key and
     for k, v in aggregate.items():
-        if not isinstance(v, (int, float)):
+        if not isinstance(v, int | float):
             continue
         if k == "n":
             continue
@@ -453,7 +453,7 @@ def _log_eval_aggregate(*, split: str, step: int, aggregate: dict[str, float]) -
     wandb.log(payload, step=step)
 
 
-def _summarize_trajectories(trajectories: list[art.Trajectory]) -> dict[str, float]:
+def _summarize_trajectories(trajectories: list[art.Trajectory]) -> dict[str, float]:  # noqa: C901
     """Compute simple mean metrics from a list of trajectories (used for eval retries)."""
     if not trajectories:
         return {}
@@ -477,7 +477,7 @@ def _summarize_trajectories(trajectories: list[art.Trajectory]) -> dict[str, flo
             v = t.metrics.get(key)
             if isinstance(v, bool):
                 vals.append(1.0 if v else 0.0)
-            elif isinstance(v, (int, float)):
+            elif isinstance(v, int | float):
                 vals.append(float(v))
         if vals:
             summary[key] = float(statistics.mean(vals))
@@ -506,7 +506,7 @@ def _aggregate_retry_summaries(*, summaries: list[dict[str, float]]) -> dict[str
 
     out: dict[str, float] = {"n": float(len(summaries))}
     for key in sorted(keys):
-        vals = [s[key] for s in summaries if isinstance(s.get(key), (int, float))]
+        vals = [s[key] for s in summaries if isinstance(s.get(key), int | float)]
         if not vals:
             continue
         out[f"{key}_mean"] = float(statistics.mean(vals))
@@ -618,7 +618,7 @@ def _iterate_curriculum(
 
 @limit_concurrency(256)
 async def rollout_tau_bench_task(
-    model: art.Model[TauBenchPolicyConfig],
+    model: art.Model[LinAlgPolicyConfig],
     task_index: int,
     step: int = 0,
     phase: str = "train",
@@ -632,7 +632,7 @@ async def rollout_tau_bench_task(
     """
     # print(f"Rolling out task {task_index} (step {step}, phase {phase})")
     config = copy.deepcopy(model.config.run_config)
-    success_reward = 1.0 if config.env == "linear_algebra" else 1.0
+    success_reward = 1.0
     if is_shadow:
         config.model = "gpt-4.1"
         config.model_provider = "openai"
@@ -658,7 +658,7 @@ async def rollout_tau_bench_task(
     )
 
     if not isinstance(agent, ToolCallingRLAgent):
-        raise ValueError("Agent must be a ToolCallingRLAgent")
+        raise TypeError("Agent must be a ToolCallingRLAgent")
 
     # Create trajectory object
     traj = art.Trajectory(
@@ -695,7 +695,7 @@ async def rollout_tau_bench_task(
         outputs = info.get("outputs") or {}
         has_valid_outputs = "correctness_score" in outputs
         total_completion_tokens = result.info.get("total_completion_tokens")
-        if not isinstance(total_completion_tokens, (int, float)):
+        if not isinstance(total_completion_tokens, int | float):
             total_completion_tokens = result.info["avg_completion_tokens"] * result.info["total_steps"]
         traj.metrics = {
             "total_steps": result.info["total_steps"],
@@ -724,15 +724,15 @@ async def rollout_tau_bench_task(
         traj.metadata["judge_explanation"] = explanation
 
         if config.messages_only:
-            traj.messages_and_choices = clean_messages(result.messages)  # type: ignore
+            traj.messages_and_choices = clean_messages(result.messages)
         else:
-            traj.messages_and_choices = agent.create_messages_and_choices()  # type: ignore
+            traj.messages_and_choices = agent.create_messages_and_choices()
     except Exception as e:
         print(f"Error in rollout for task {task_index}: {e}")
         traj.reward = -1.0
         traj.metadata["error"] = str(e)
         traj.metadata["traceback"] = traceback.format_exc()
-        traj.messages_and_choices = agent.create_messages_and_choices()  # type: ignore
+        traj.messages_and_choices = agent.create_messages_and_choices()
         result = SolveResult(
             reward=-1.0,
             info={"error": str(e)},
@@ -753,7 +753,7 @@ async def rollout_tau_bench_task(
 
 
 async def evaluate_model(
-    model: art.Model[TauBenchPolicyConfig],
+    model: art.Model[LinAlgPolicyConfig],
     config: RunConfig,
     step: int,
     val_task_indices: list[int],
@@ -775,7 +775,6 @@ async def evaluate_model(
     model_step = await model.get_step()
     eval_step = max(step, model_step)
 
-    last_trajectories: list[art.Trajectory] = []
     for pass_idx in range(eval_retries):
         trajectories = await art.gather_trajectories(
             rollout_tau_bench_task(
@@ -787,7 +786,6 @@ async def evaluate_model(
             )
             for val_task_index in val_task_indices
         )
-        last_trajectories = trajectories
         summaries.append(_summarize_trajectories(trajectories))
         if eval_retries > 1:
             print(f"Eval pass {pass_idx + 1}/{eval_retries}: reward={summaries[-1].get('reward', float('nan')):.4f}")
@@ -807,7 +805,7 @@ async def evaluate_model(
     return float(aggregate.get("reward_mean", float("nan")))
 
 
-async def test(model: art.TrainableModel[TauBenchPolicyConfig]):
+async def test(model: art.TrainableModel[LinAlgPolicyConfig]):
     """Main evaluation loop"""
     loop = asyncio.get_event_loop()
     big_pool = concurrent.futures.ThreadPoolExecutor(max_workers=50)
@@ -875,7 +873,7 @@ async def test(model: art.TrainableModel[TauBenchPolicyConfig]):
         print("Evaluation complete!")
 
 
-async def train(model: art.TrainableModel[TauBenchPolicyConfig]):
+async def train(model: art.TrainableModel[LinAlgPolicyConfig]):  # noqa: C901
     """Main training loop adapted from art-e example"""
     loop = asyncio.get_event_loop()
     big_pool = concurrent.futures.ThreadPoolExecutor(max_workers=50)
@@ -1118,7 +1116,7 @@ def main():
     model_dict = json.loads(args.model_json)
 
     # The nested `config` needs to be converted back into the proper pydantic model.
-    model_dict["config"] = TauBenchPolicyConfig(**model_dict["config"])
+    model_dict["config"] = LinAlgPolicyConfig(**model_dict["config"])
 
     is_multi_gpu = False
 
@@ -1126,7 +1124,7 @@ def main():
     if "_internal_config" in model_dict and model_dict["_internal_config"] is not None:
         model_dict["_internal_config"] = art.dev.InternalModelConfig(**model_dict["_internal_config"])
 
-    model: art.TrainableModel[TauBenchPolicyConfig] = art.TrainableModel(**model_dict)
+    model: art.TrainableModel[LinAlgPolicyConfig] = art.TrainableModel(**model_dict)
     if model._internal_config is not None:
         is_multi_gpu = model._internal_config.get("engine_args", {}).get("tensor_parallel_size", 1) > 1
     model.config.run_config.model = model.name  # set run_config model name to model name

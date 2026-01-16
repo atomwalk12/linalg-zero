@@ -3,7 +3,7 @@
 import random
 from collections.abc import Callable
 from hashlib import sha256
-from typing import Any, Union
+from typing import Any
 
 from linalg_zero.grpo.envs.tool import Tool
 from linalg_zero.grpo.envs.user import UserStrategy, load_user
@@ -22,8 +22,8 @@ from linalg_zero.grpo.verifiers.xml_parser import (
     XMLParser,
 )
 
-ToHashable = Union[str, int, float, dict[str, "ToHashable"], list["ToHashable"], set["ToHashable"]]
-HashableItem = Union[str, int, float, tuple[Any, ...]]
+ToHashable = str | int | float | dict[str, "ToHashable"] | list["ToHashable"] | set["ToHashable"]
+HashableItem = str | int | float | tuple[Any, ...]
 
 
 def to_hashable(item: ToHashable) -> HashableItem:
@@ -62,7 +62,7 @@ class Env:
         self.data = data_load_func()
         self.tools_map: dict[str, type[Tool]] = {tool.get_info()["function"]["name"]: tool for tool in tools}
         self.tools_info = [tool.get_info() for tool in tools]
-        self.terminate_tools = []
+        self.terminate_tools: list[str] = []
         self.tasks = tasks
         if task_index is not None:
             self.task_index = task_index
@@ -89,15 +89,15 @@ class Env:
         self.actions.append(action)
 
         info = EnvInfo(task=self.task)
-        reward = 0
+        reward: float = 0.0
         done = False
         if action.name == RESPOND_ACTION_NAME:
-            observation = await self.user.step(action.content)
+            content = action.content
+            if content is None:
+                raise ValueError("Respond action must include content")
+            observation = await self.user.step(content)
             info.source = "user"
-            if self.parser:
-                done = True
-            else:
-                done = "###STOP###" in observation
+            done = True
         elif action.name in self.tools_map:
             try:
                 observation = self.tools_map[action.name].invoke(data=self.data, **action.kwargs)
@@ -133,26 +133,33 @@ class Env:
             if action.name not in self.terminate_tools:
                 await self.step(action)
         gt_data_hash = self.get_data_hash()
-        info = RewardActionInfo(r_actions=data_hash == gt_data_hash, gt_data_hash=gt_data_hash)
-        if not info.r_actions:
+        actions_ok = data_hash == gt_data_hash
+        reward_info: RewardActionInfo | RewardOutputInfo = RewardActionInfo(
+            r_actions=actions_ok, gt_data_hash=gt_data_hash
+        )
+        if not actions_ok:
             reward = 0.0
 
         if len(self.task.outputs) > 0:
             # check outputs
             r_outputs = 1.0
-            outputs = {}
+            outputs: dict[str, bool | str | float | int] = {}
             for output in self.task.outputs:
+                output_str = str(output).lower().replace(",", "")
                 found = False
                 for action in self.actions:
-                    if action.name == RESPOND_ACTION_NAME and output.lower() in action.kwargs[
-                        "content"
-                    ].lower().replace(",", ""):
+                    content = action.kwargs.get("content")
+                    if (
+                        action.name == RESPOND_ACTION_NAME
+                        and isinstance(content, str)
+                        and output_str in content.lower().replace(",", "")
+                    ):
                         found = True
                         break
-                outputs[output] = found
+                outputs[str(output)] = found
                 if not found:
                     r_outputs = 0.0
                     reward = 0.0
-            info = RewardOutputInfo(r_outputs=r_outputs, outputs=outputs)
+            reward_info = RewardOutputInfo(r_outputs=r_outputs, outputs=outputs)
 
-        return RewardResult(reward=reward, info=info, actions=actions)
+        return RewardResult(reward=reward, info=reward_info, actions=actions)
