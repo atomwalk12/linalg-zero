@@ -3,10 +3,6 @@ from dotenv import load_dotenv
 # For debugging purposes apply dotenv file
 load_dotenv()
 
-# Enable PyTorch memory fragmentation fix for better GPU memory management
-# os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-# Suppress LiteLLM logging spam
-# logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 import asyncio
 
 import art
@@ -21,7 +17,6 @@ from linalg_zero.grpo.types import LinAlgPolicyConfig
 @hydra.main(
     version_base=None,
     config_path="config/grpo/Qwen/Qwen2.5-3B",
-    # config_name="v3_fork210.yaml",
     config_name="local.yaml",
 )  # 2.5
 def main(cfg: DictConfig) -> None:

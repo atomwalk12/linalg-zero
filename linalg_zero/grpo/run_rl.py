@@ -1,8 +1,6 @@
-import argparse
 import asyncio
 import concurrent.futures
 import copy
-import json
 import logging
 import traceback
 
@@ -529,51 +527,3 @@ async def train(model: art.TrainableModel[LinAlgPolicyConfig]):  # noqa: C901
             print(f"[hf] Warning: post-training upload failed: {e}")
 
         print("Training completed!")
-
-
-def main():
-    """Entry point: expects a JSON-serialized TrainableModel (model_json) just like art-e/train.py"""
-
-    parser = argparse.ArgumentParser(description="Run RL training for a serialized TrainableModel")
-    parser.add_argument(
-        "model_json",
-        help="JSON string serialization of the TrainableModel to train",
-    )
-    args = parser.parse_args()
-
-    print("Model JSON:", args.model_json)
-
-    # Recreate the TrainableModel from the serialized JSON.
-    model_dict = json.loads(args.model_json)
-
-    # The nested `config` needs to be converted back into the proper pydantic model.
-    model_dict["config"] = LinAlgPolicyConfig(**model_dict["config"])
-
-    is_multi_gpu = False
-
-    # the nested "_internal_config" needs to be converted back into the proper pydantic model.
-    if "_internal_config" in model_dict and model_dict["_internal_config"] is not None:
-        model_dict["_internal_config"] = art.dev.InternalModelConfig(**model_dict["_internal_config"])
-
-    model: art.TrainableModel[LinAlgPolicyConfig] = art.TrainableModel(**model_dict)
-    if model._internal_config is not None:
-        is_multi_gpu = model._internal_config.get("engine_args", {}).get("tensor_parallel_size", 1) > 1
-    model.config.run_config.model = model.name  # set run_config model name to model name
-    model.config.run_config.is_multi_gpu = is_multi_gpu
-
-    print(model)
-
-    run_config = model.config.run_config
-
-    print(f"Starting RL training for model: {model.name}")
-    print(f"Base model: {model.base_model}")
-    print(f"Environment: {run_config.env}")
-    print(f"Task split: {run_config.task_split}")
-    print(f"Reward type: {run_config.reward_type}")
-
-    # Run training
-    asyncio.run(train(model))
-
-
-if __name__ == "__main__":
-    main()
