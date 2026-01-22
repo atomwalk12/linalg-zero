@@ -29,18 +29,18 @@ class XMLParser:
         role_messages = self.get_messages(messages, role)
         if role_messages:
             result = role_messages[-1]["content"]
-            assert isinstance(result, str)  # noqa: S101
+            assert isinstance(result, str)
             return result
         return None
 
-    def _extract_last_answer(self, message: str) -> str | None:
+    def extract_last_answer(self, message: str) -> str | None:
         """Extract answer content from <answer> tags.
 
         Primary path: properly closed <answer>...</answer> (last occurrence).
         Fallback: if an opening <answer> exists but closing is missing (e.g.,
         stop sequences), return content from after <answer> to end of message.
         """
-        contents = self._extract_tag_contents(message, "answer", last_only=True)
+        contents = self.extract_tag_contents(message, "answer", last_only=True)
         return contents[0] if contents else None
 
     def _check_format(self, message: str, regex: str, expected_groups: int) -> bool:
@@ -82,7 +82,7 @@ class XMLParser:
             return message
         return "<think>" + message
 
-    def _extract_tag_contents(
+    def extract_tag_contents(
         self,
         message: str,
         tag: str,
@@ -98,7 +98,7 @@ class XMLParser:
           contents in document order.
         - Whitespace around extracted content is stripped.
         """
-        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
+        assert tag in ["tool_call", "answer", "think"]
         if not message:
             return []
 
@@ -113,10 +113,10 @@ class XMLParser:
 
     def _extract_last_tool_call(self, message: str) -> str | None:
         """Extract <tool_call>...</tool_call> block contents."""
-        contents = self._extract_tag_contents(message, "tool_call", last_only=True)
+        contents = self.extract_tag_contents(message, "tool_call", last_only=True)
         return contents[0] if contents else None
 
-    def _extract_thought(self, message: str) -> str | None:
+    def extract_last_thought(self, message: str) -> str | None:
         """Extract thought content from properly formed <think></think> tags.
 
         Supports normalization when the message begins with an auto-seeded
@@ -124,7 +124,7 @@ class XMLParser:
         leading "<think><think>". In such case, we still return the content of
         the last properly closed think block.
         """
-        contents = self._extract_tag_contents(message, "think", last_only=True)
+        contents = self.extract_tag_contents(message, "think", last_only=True)
         return contents[0] if contents else None
 
     def analyze_message(
@@ -155,25 +155,26 @@ class XMLParser:
 
         diagnostics = XMLDiagnostics(self)
 
-        thought = self._extract_thought(message)
-        answer = self._extract_last_answer(message)
+        thought = self.extract_last_thought(message)
+        answer = self.extract_last_answer(message)
         tool_block = self._extract_last_tool_call(message)
 
         result: dict = {}
         result["thought"] = thought
         result["answer"] = answer
-        result["has_think"] = bool(thought)
+        result["has_think"] = thought is not None
         result["has_tool_call"] = tool_block is not None
-        result["has_answer"] = bool(answer)
+        result["has_answer"] = answer is not None
 
         # Counts of properly closed blocks (uniqueness diagnostics)
-        result["think_count"] = len(self._extract_tag_contents(message, "think"))
-        result["tool_call_count"] = len(self._extract_tag_contents(message, "tool_call"))
-        result["answer_count"] = len(self._extract_tag_contents(message, "answer"))
+        result["think_count"] = len(self.extract_tag_contents(message, "think"))
+        result["tool_call_count"] = len(self.extract_tag_contents(message, "tool_call"))
+        result["answer_count"] = len(self.extract_tag_contents(message, "answer"))
 
         # Format validity
         result["is_valid_think_then_tool_or_answer"] = self._is_valid_think_then_tool_or_answer(message)
         result["is_valid_think_then_answer"] = self._is_valid_think_then_answer(message)
+        result["has_content_outside_tags"] = self.has_content_outside_tags(message)
 
         # Structural diagnostics
         result["unopened"] = {
@@ -197,11 +198,25 @@ class XMLParser:
             if (
                 isinstance(data, dict)
                 and isinstance(data.get("name"), str)
-                and isinstance(data.get("arguments"), dict)
+                and isinstance(data.get("arguments"), dict | str)
             ):
-                tool_info["json_valid"] = True
+
+                def parse_args() -> tuple[dict | None, bool]:
+                    arguments = data["arguments"]
+                    if isinstance(arguments, str):
+                        try:
+                            arguments = json.loads(arguments)
+                        except (ValueError, SyntaxError):
+                            return None, False
+                        else:
+                            return arguments, True
+                    else:
+                        return arguments, True
+
+                arguments, json_valid = parse_args()
+                tool_info["json_valid"] = json_valid
                 tool_info["name"] = data["name"]
-                tool_info["arguments"] = data["arguments"]
+                tool_info["arguments"] = arguments
                 if tool_names is not None:
                     tool_info["name_known"] = data["name"] in tool_names
             else:
@@ -210,6 +225,20 @@ class XMLParser:
         result["tool"] = tool_info
 
         return result
+
+    def has_content_outside_tags(self, message: str) -> bool:
+        """
+        Check if there's any non-whitespace content outside of
+        <think>...</think>, <tool_call>...</tool_call>, and <answer>...</answer> tags.
+        """
+        # Remove all allowed tag blocks
+        cleaned = message
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL)
+        cleaned = re.sub(r"<tool_call>.*?</tool_call>", "", cleaned, flags=re.DOTALL)
+        cleaned = re.sub(r"<answer>.*?</answer>", "", cleaned, flags=re.DOTALL)
+
+        # Check if there's any non-whitespace content left
+        return bool(cleaned.strip())
 
     def analyze_message_in_context(
         self,
@@ -234,7 +263,7 @@ class XMLParser:
         return result
 
     def is_answer_policy_valid(self, context: list[dict], message: str) -> bool:
-        answer = self._extract_last_answer(message)
+        answer = self.extract_last_answer(message)
         if not answer:
             return True
         skipped_current_assistant = False
@@ -271,6 +300,9 @@ class XMLParser:
             return "no <think>/<tool_call>/<answer> blocks"
 
         # Core requirements
+        if analysis["has_tool_call"] and analysis["has_answer"]:
+            return "both tool call and answer present"
+
         if not analysis["has_tool_call"] and not analysis["has_answer"]:
             return "no tool call or answer"
 
@@ -288,6 +320,10 @@ class XMLParser:
             name = tool["name"]
             if tool_names and name not in tool_names:
                 return "unknown tool name"
+
+        # Check for content outside allowed tags
+        if analysis["has_content_outside_tags"]:
+            return "content outside allowed tags"
 
         # Overall format validation
         if not analysis["is_valid_think_then_tool_or_answer"]:
@@ -310,7 +346,7 @@ class XMLDiagnostics:
         self.parser = parser
 
     def _has_unclosed_tag(self, message: str, tag: str) -> bool:
-        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
+        assert tag in ["tool_call", "answer", "think"]
         if not message:
             return False
         open_token = f"<{tag}>"
@@ -322,7 +358,7 @@ class XMLDiagnostics:
         return close_token not in after_open
 
     def _has_code_fences_in_last_tool(self, message: str) -> bool:
-        block = self.parser._extract_tag_contents(message, "tool_call", last_only=True)
+        block = self.parser.extract_tag_contents(message, "tool_call", last_only=True)
         if not block:
             return False
         return "```" in block[0]
@@ -338,7 +374,7 @@ class XMLDiagnostics:
 
     def _has_unopened_tag(self, message: str, tag: str) -> bool:
         """Return True if a closing </tag> appears without any prior opening <tag>."""
-        assert tag in ["tool_call", "answer", "think"]  # noqa: S101
+        assert tag in ["tool_call", "answer", "think"]
         if not message:
             return False
         open_token = f"<{tag}>"
