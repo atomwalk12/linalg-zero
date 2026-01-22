@@ -56,8 +56,8 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         description="Whether to use structured output for the generation.",
     )
     enable_hint_injection: RuntimeParameter[bool] = Field(
-        default=True,
-        description="If true (and immediate recovery is disabled), inject a user hint about the previous issue to guide the next turn.",
+        default=False,
+        description="If true, inject a user hint about malformed outputs to guide the next turn. If false, track diagnostics only without modifying conversations.",
     )
     max_diagnostic_messages: RuntimeParameter[int | None] = Field(
         default=1,
@@ -67,7 +67,16 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         default=True,
         description=f"If true, enforce strict '{THINK_OPEN} then {TOOL_CALL_OPEN}|{ANSWER_OPEN}' structure gate in parsing.",
     )
-    model_name: str = Field(
+    min_successful_completions: int = Field(
+        default=-1,
+        exclude=True,
+        description="If set, continue generating until this many successful completions are achieved (ignores dataset size).",
+    )
+    strip_think_prefix: RuntimeParameter[bool] = Field(
+        default=True,
+        description="If true, strip the think prefix from the conversation. This is needed for Qwen3 models.",
+    )
+    model_type: str = Field(
         description="The name of the model.",
     )
 
@@ -84,7 +93,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         return prepared_inputs
 
     def create_assistant_message(self, message: ThoughtSchema) -> dict[str, Any] | None:
-        config: ModelParameters = ModelType(self.model_name).get_model_parameters()
+        config: ModelParameters = ModelType(self.model_type).get_model_parameters()
         return config.format_assistant_message(message)
 
     def create_tool_message(self, conversation: list["ChatType"], message: dict[str, Any]) -> dict[str, Any]:
@@ -144,7 +153,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
     ) -> list[dict[str, Any]]:
         """Prepare the output conversation removing the system prompt if necessary.
         It will return a dictionary with a "messages" key."""
-        diag = Diagnostics(model_type=ModelType(self.model_name))
+        diag = Diagnostics(model_type=ModelType(self.model_type))
         outputs: list[dict[str, Any]] = []
         for conversation, final_answer, is_correct in zip(conversations, final_answers, success_indices, strict=True):
             if conversation is None:
@@ -168,6 +177,25 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             outputs.append(output)
         return outputs
 
+    def _sanitize_history_for_llm(self, conversations: list[list[dict[str, Any]]]) -> list[list[dict[str, Any]]]:
+        """Return a sanitized deep copy of conversations without THINK content in history.
+        - Assistant messages: drop THINK segments; keep only final answer text.
+          If tool_calls present, keep tool_calls and clear content.
+        - Other roles are kept as-is.
+        """
+        assert self.model_type == "default", "This function is only supported for Default model (Qwen3)"
+
+        sanitized: list[list[dict[str, Any]]] = []
+        for conv in conversations:
+            new_conv: list[dict[str, Any]] = []
+            for msg in conv:
+                m = dict(msg)
+                if m.get("role") == "assistant" and m.get("tool_calls"):
+                    m["content"] = ""
+                new_conv.append(m)
+            sanitized.append(new_conv)
+        return sanitized
+
     def _inject_hints(
         self,
         conversations: list["ChatType"],
@@ -175,11 +203,11 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
         parsed_active_msgs: list[ThoughtSchema | None],
         raw_messages: list[str | None],
     ) -> dict[int, tuple[str, str]]:
-        """Append a brief user hint to conversations with malformed assistant outputs to guide the next turn.
+        """Track diagnostic reasons and optionally inject hint messages for malformed outputs.
         Returns a mapping from global sample index to (diagnostic reason, raw message).
         """
         reasons: dict[int, tuple[str, str]] = {}
-        diag = Diagnostics(model_type=ModelType(self.model_name))
+        diag = Diagnostics(model_type=ModelType(self.model_type))
         for local_idx, parsed in enumerate(parsed_active_msgs):
             if parsed is None or (parsed.tool_call is None and not parsed.completed):
                 global_idx = active_indices[local_idx]
@@ -189,8 +217,13 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 hint = diag.analyze_and_build_hint(context=conv, message=raw, tool_names=self.library)
                 if hint:
                     reasons[global_idx] = (hint, raw)
-                    diag.apply_hint(conv, hint, max_hints=self.max_diagnostic_messages)
-                    self._logger.info(f"Injected recovery hint for turn {global_idx}: {hint}")
+                    if self.enable_hint_injection:
+                        # Inject hint message into conversation to guide next turn
+                        diag.apply_hint(conv, hint, max_hints=self.max_diagnostic_messages)
+                        self._logger.info(f"Injected recovery hint for sample {global_idx}: {hint}")
+                    else:
+                        # Track diagnostic only without modifying conversation
+                        self._logger.info(f"Tracked malformed output for sample {global_idx}: {hint}")
 
         return reasons
 
@@ -204,7 +237,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
             inputs.append(conversation)
 
         outputs = self.llm.generate(
-            inputs=inputs,
+            inputs=inputs,  # TODO: Sanitizing history likely not necessary: self._sanitize_history_for_llm(inputs)
             num_generations=1,
             **self.llm.get_generation_kwargs(),
         )
@@ -241,8 +274,7 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         # Inject hint for failed messages to guide next turn
         diagnostics: dict[int, tuple[str, str]] = {}
-        if self.enable_hint_injection:
-            diagnostics = self._inject_hints(conversations, active_indices, parsed_active_msgs, list(messages))
+        diagnostics = self._inject_hints(conversations, active_indices, parsed_active_msgs, list(messages))
 
         # Keep samples active even if message is None (retry next turn)
         new_active_indices = [
@@ -561,6 +593,14 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
 
         return merged_stats
 
+    def _prepare_diagnostics_lists(self, stats_gen: dict[str, Any]) -> tuple[list[str], list[str]]:
+        """Prepare diagnostics and diagnostic_messages lists with safe filtering."""
+        diagnostics_list = [str(v) for v in (stats_gen.get("diagnostics", []) or []) if v is not None and str(v) != ""]
+        diagnostic_msgs_list = [
+            str(v) for v in (stats_gen.get("diagnostic_messages", []) or []) if v is not None and str(v) != ""
+        ]
+        return diagnostics_list, diagnostic_msgs_list
+
     def _generate_with_pre_query_template(self, inputs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Generate a list of instructions or conversations of the specified number of turns."""
         outputs, statistics_gens, statistics_tools = self._generate_multi_turn_conversation(inputs)
@@ -573,16 +613,20 @@ class MultiTurnWithToolUseBase(RuntimeParametersMixin):
                 **output,
                 "model_name": self.llm.model_name,
             }
+            # Ensure stats_tools has at least one field to avoid Parquet serialization errors
+            tool_stats = stats_tools if isinstance(stats_tools, dict) and stats_tools else {"_empty": 0}
+
+            # Prepare diagnostics lists with safe filtering
+            diagnostics_list, diagnostic_msgs_list = self._prepare_diagnostics_lists(stats_gen)
+
             generation["distilabel_metadata"] = {
                 f"statistics_gen_{self.name}": stats_gen.get("gen_stats", []),
-                f"statistics_tools_{self.name}": stats_tools if isinstance(stats_tools, dict) else {},
+                f"statistics_tools_{self.name}": tool_stats,
                 f"malformed_turns_{self.name}": int(stats_gen.get("malformed_turns", 0) or 0),
                 f"tool_errors_{self.name}": int(stats_gen.get("tool_errors", 0) or 0),
-                f"tool_calls_total_{self.name}": int(
-                    sum(stats_tools.values()) if isinstance(stats_tools, dict) else 0
-                ),
-                f"diagnostics_{self.name}": list(stats_gen.get("diagnostics", [])),
-                f"diagnostic_messages_{self.name}": list(stats_gen.get("diagnostic_messages", [])),
+                f"tool_calls_total_{self.name}": int(sum(tool_stats.values())) if isinstance(tool_stats, dict) else 0,
+                f"diagnostics_{self.name}": (diagnostics_list if diagnostics_list else [""]),
+                f"diagnostic_messages_{self.name}": (diagnostic_msgs_list if diagnostic_msgs_list else [""]),
             }
             generations.append(generation)
         return generations

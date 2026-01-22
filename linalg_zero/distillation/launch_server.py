@@ -61,7 +61,7 @@ def main() -> None:
     # Determine which server config to use based on backend
     if backend == "llamacpp":
         # Parse again with LlamaCppServerConfig
-        parser = TrlParser(dataclass_types=(DistillationConfig, LlamaCppServerConfig))
+        parser = TrlParser(dataclass_types=[DistillationConfig, LlamaCppServerConfig])
         llama_cpp_config: LlamaCppServerConfig = parser.parse_args_and_config()[1]
 
         logger.info("LlamaCPP Server configuration:")
@@ -73,7 +73,7 @@ def main() -> None:
 
     elif backend == "vllm":
         # Parse again with VllmServerConfig
-        parser = TrlParser(dataclass_types=(DistillationConfig, VllmServerConfig))
+        parser = TrlParser(dataclass_types=[DistillationConfig, VllmServerConfig])
         vllm_config: VllmServerConfig = parser.parse_args_and_config()[1]
 
         logger.info("vLLM Server configuration:")
