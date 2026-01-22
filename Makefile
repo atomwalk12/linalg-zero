@@ -1,12 +1,28 @@
 ## NOTE: the llama-cpp server is used to startup the inference server using `make distillation-server`
 # Fixing the llama-cpp server version to 0.3.13 as the upstream repository gets updated frequently
 # leading to incompatibility issues. If bumping the version don't forget to update pyproject.toml.
-.PHONY: install
-install: ## Install the virtual environment and install the pre-commit hooks.
+.PHONY: install-distillation
+install-distillation: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
-	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
-	@uv sync --locked
+#	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
+	@uv sync --locked --group distillation
 	@uv pip install setuptools flash-attn==2.7.3 --no-build-isolation
+	@uv run pre-commit install
+
+.PHONY: install-sft
+install-sft: ## Install the virtual environment and install the pre-commit hooks.
+	@echo "🚀 Creating virtual environment using uv"
+	@uv sync --locked --group sft
+	@uv pip install --upgrade setuptools ninja
+	@uv pip install --upgrade --torch-backend cu128 "xformers==0.0.33.post1"
+	@TORCH_CUDA_ARCH_LIST=8.9 MAX_JOBS=3 uv pip install --upgrade --no-build-isolation "flash-attn==2.8.3"
+	@uv run pre-commit install
+
+.PHONY: install-grpo
+install-grpo: ## Install the virtual environment and install the pre-commit hooks.
+	@echo "🚀 Creating virtual environment using uv"
+	@uv sync --locked --group grpo
+#	@TORCH_CUDA_ARCH_LIST=8.9 MAX_JOBS=2 uv pip install setuptools "xformers==0.0.32.post2" "flash-attn==2.8.2" --no-build-isolation
 	@uv run pre-commit install
 
 .PHONY: setup-dev
@@ -91,14 +107,12 @@ distillation-llamacpp: ## Start the llama.cpp server
 .PHONY: distillation-vllm
 distillation-vllm: ## Start the vLLM server
 	@echo "🚀 Starting vLLM server"
-	@source env.sh
-	@uv run python linalg_zero/distillation/launch_server.py --config ${VLLM_CONFIG}
+	@. ./env.sh && uv run python linalg_zero/distillation/launch_server.py --config ${VLLM_CONFIG}
 
 .PHONY: distillation
 distillation: ## Run the distillation pipeline using the vllm config
 	@echo "🚀 Running distillation pipeline"
-	@source env.sh
-	@uv run python linalg_zero/distillation.py --config ${VLLM_CONFIG}
+	@. ./env.sh && uv run python linalg_zero/distillation.py --config ${VLLM_CONFIG}
 
 .PHONY: distillation-vllm-local
 distillation-vllm-local: ## Start the vLLM server
