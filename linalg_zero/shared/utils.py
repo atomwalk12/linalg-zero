@@ -1,8 +1,12 @@
+import importlib
 import json
 import logging
 import sys
+import unicodedata
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from datasets.dataset_dict import DatasetDict
 from huggingface_hub import HfApi
@@ -10,6 +14,8 @@ from huggingface_hub import HfApi
 logger = logging.getLogger(__name__)
 
 LLAMA_CPP_DIR = Path(__file__).parent / "distillation" / "llama-cpp" / "models"
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 def get_config_dir() -> str:
@@ -60,15 +66,56 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
+def normalize_text(s: str, normalize_unicode: bool) -> str:
+    """
+    Normalize Unicode text using NFKC normalization and replace minus signs.
+    """
+    if not normalize_unicode or not isinstance(s, str):
+        return s
+    s = unicodedata.normalize("NFKC", s)
+    return s.replace("\u2212", "-")
+
+
+def get_representative_examples_indices(dataset: Any, per_category: int, include_remaining: bool = True) -> list[int]:
+    """Get representative indices first (per_category samples per problem type), then all remaining indices."""
+    categories: defaultdict[str, list[int]] = defaultdict(list)
+    representative_indices = []
+
+    # First pass: collect representative examples per category
+    for idx, example in enumerate(dataset):
+        task = example["problem_type"]
+        if len(categories[task]) < per_category:
+            categories[task].append(idx)
+            representative_indices.append(idx)
+
+    # Second pass: add all remaining indices
+    representative_set = set(representative_indices)
+    remaining_indices = [i for i in range(len(dataset)) if i not in representative_set]
+    print(f"Number of representative indices: {len(representative_indices)}")
+
+    if include_remaining:
+        return representative_indices + remaining_indices
+    else:
+        return representative_indices
+
+
 def get_libpath() -> Path:
     """Returns the path to the library of functions."""
     return Path(__file__).parent / "lib.py"
 
 
+def load_module_from_path(path: Path) -> "ModuleType":
+    """Loads a python module from a given path."""
+    spec = importlib.util.spec_from_file_location("module.name", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def get_function_schema() -> str:
     """Return a JSON string with the full tool function schemas (sorted by name)."""
-    from distilabel.steps.tasks.apigen.execution_checker import load_module_from_path
-
+    # TODO: verify loaded functions
     libpath_module = load_module_from_path(get_libpath())
     tools = libpath_module.get_tools()
     # Ensure deterministic order for readability
