@@ -80,7 +80,7 @@ class ProblemContext:
                 verification[key] = json.dumps(input_data.pop(key))
                 num_inputs += 1
 
-        assert num_inputs == num_dependencies, "Number of inputs and dependencies must match"  # noqa: S101
+        assert num_inputs == num_dependencies, "Number of inputs and dependencies must match"
 
         # Add generator type and remaining input data
         verification["generator_type"] = input_data.pop("generator_type")

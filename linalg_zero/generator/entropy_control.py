@@ -71,7 +71,7 @@ class EntropyController:
 
         If min_value_abs is provided, rejection-sample until |value| >= min_value_abs.
         """
-        if not isinstance(min_value_abs, (int, float)):
+        if not isinstance(min_value_abs, int | float):
             raise TypeError(f"min_value_abs must be int or float when provided, got {type(min_value_abs).__name__}")
         if min_value_abs < 0:
             raise ValueError("min_value_abs must be >= 0")

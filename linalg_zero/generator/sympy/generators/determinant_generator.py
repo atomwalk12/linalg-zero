@@ -28,7 +28,7 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
     def __init__(self, difficulty_level: DifficultyCategory, **kwargs: Any) -> None:
         """Initialize determinant generator."""
         super().__init__(difficulty_level=difficulty_level, **kwargs)
-        assert self.problem_type == Task.ONE_DETERMINANT  # noqa: S101
+        assert self.problem_type == Task.ONE_DETERMINANT
 
         validate_tool_calls(expected=self.config.target_tool_calls, actual=1, problem_type=self.problem_type)
 
@@ -87,7 +87,7 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         """Calculate determinant using both SymPy and lib.py function."""
         # Convert to primitives (this applies precision constraints)
         matrix_a_primitive = MathFormatter.sympy_to_primitive(matrix_a, precision=self.precision)
-        assert isinstance(matrix_a_primitive, list)  # noqa: S101
+        assert isinstance(matrix_a_primitive, list)
 
         # Calculate using lib.py with the primitives
         lib_result = self.lib["determinant"](matrix_a_primitive)
@@ -96,7 +96,7 @@ class DeterminantGenerator(MatrixVectorBaseGenerator):
         # This ensures both calculations work with the same precision
         matrix_a_precision_matched = Matrix(matrix_a_primitive)
         sympy_result = matrix_a_precision_matched.det()
-        assert isinstance(sympy_result, (Float, Integer, Rational))  # noqa: S101
+        assert isinstance(sympy_result, Float | Integer | Rational)
 
         return sympy_result, lib_result
 
@@ -113,7 +113,7 @@ class DeterminantGeneratorDependent(DeterminantGenerator):
     ) -> None:
         super().__init__(difficulty_level=difficulty_level, **kwargs)
 
-        assert self.problem_type == Task.ONE_DETERMINANT  # noqa: S101
+        assert self.problem_type == Task.ONE_DETERMINANT
 
         self.input_matrix = input_matrix
         self.input_matrix_index = input_matrix_index
@@ -125,7 +125,7 @@ class DeterminantGeneratorDependent(DeterminantGenerator):
     def _prepare_tool_call_input_data(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Prepare input data for dependent generator including dependency info."""
         base_data = super()._prepare_tool_call_input_data(**kwargs)
-        assert self.input_matrix == kwargs["matrix"]  # noqa: S101
+        assert self.input_matrix == kwargs["matrix"]
         base_data.update({
             "dependent_on": {"input_matrix": self.input_matrix_index},
             "input_matrix": MathFormatter.sympy_to_primitive(self.input_matrix, precision=self.precision),

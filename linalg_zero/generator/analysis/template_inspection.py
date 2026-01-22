@@ -85,7 +85,7 @@ class TemplateInspector:
             if template_index_map is not None:
                 idx = template_index_map.get(question_type, 0)
             else:
-                assert template_index is not None  # noqa: S101
+                assert template_index is not None
                 idx = template_index
             context_info = available_variables.pop("context_info", None)
             result = original_select_template(

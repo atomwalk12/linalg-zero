@@ -67,14 +67,14 @@ def _extract_numeric_values_from_object(obj: Any) -> list[float]:
     """Recursively extract numeric values (as floats) from an arbitrary object."""
     values: list[float] = []
 
-    if isinstance(obj, (int, float)):
+    if isinstance(obj, int | float):
         values.append(float(obj))
         return values
 
     if isinstance(obj, complex):
         raise TypeError(f"Complex number found: {obj}")
 
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, list | tuple):
         for item in obj:
             values.extend(_extract_numeric_values_from_object(item))
         return values
@@ -216,7 +216,7 @@ def extract_all_numerical_values(statistics: dict[tuple, dict[str, Any]], use_mi
         all_values.extend(values)
 
     for value in all_values:
-        assert value is not None, "Value is None"  # noqa: S101
+        assert value is not None, "Value is None"
 
     return all_values
 
@@ -239,7 +239,7 @@ def extract_values_by_combination(
         values_by_combination[combination] = values
 
     for key, items in values_by_combination.items():
-        assert all(value is not None for value in items), f"Values are None for combination {key}"  # noqa: S101
+        assert all(value is not None for value in items), f"Values are None for combination {key}"
 
     return values_by_combination
 
@@ -290,7 +290,7 @@ def plot_combination_comparison(
         :max_combinations
     ]
 
-    fig, axes = plt.subplots(3, 4, figsize=(16, 12))
+    _, axes = plt.subplots(3, 4, figsize=(16, 12))
     axes = axes.flatten()
 
     for i, (combination, values) in enumerate(sorted_combinations):
@@ -448,7 +448,7 @@ def extract_report_metadata(
     # Validate the ordered combination length matches the number of components
     selected_combination = (
         list(top_choice["combination"])
-        if isinstance(top_choice["combination"], (list, tuple))
+        if isinstance(top_choice["combination"], list | tuple)
         else [top_choice["combination"]]
     )
     if len(selected_combination) != len(components):

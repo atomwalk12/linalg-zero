@@ -656,7 +656,7 @@ def register_problem_type(
         single_step_functions[problem_type](registry, entropy_value, {"min_element_abs": min_value_abs})
     elif problem_type in multi_step_functions:
         # Multi-step factories take entropy_ranges directly
-        assert isinstance(entropy_ranges, dict)  # noqa: S101
+        assert isinstance(entropy_ranges, dict)
         # Convert fixed values to small ranges per component
         converted: dict[Task, tuple[float, float] | float] = {}
         for comp, val in entropy_ranges.items():

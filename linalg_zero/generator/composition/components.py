@@ -70,7 +70,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
         **kwargs: Any,
     ) -> None:
         is_independent = constraints.get("is_independent")
-        assert isinstance(is_independent, bool)  # noqa: S101
+        assert isinstance(is_independent, bool)
         super().__init__(name, is_independent=is_independent, entropy_constraints=entropy_constraints, **kwargs)
         self.constraints = constraints
         self.gen_constraints = gen_constraints
@@ -161,7 +161,7 @@ class SympyGeneratorWrapperComponent(ProblemComponent):
             raise ValueError(f"Dependent input must be square, got shape {value.shape}")
 
         if spec.get("numeric_only", False) and not all(
-            isinstance(element, (Integer, Float, Rational)) for element in value
+            isinstance(element, Integer | Float | Rational) for element in value
         ):
             raise ValueError("Dependent input must contain only numeric elements")
 

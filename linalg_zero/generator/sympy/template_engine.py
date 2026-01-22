@@ -36,7 +36,7 @@ class MathFormatter:
         elif isinstance(element, list):
             result = []
             for e in element:
-                if isinstance(e, (int, float, list)):
+                if isinstance(e, int | float | list):
                     result.append(MathFormatter.round_sympy_element(e, precision))
                 elif isinstance(e, str):
                     # Symbol elements are appended as they are. These are used for instance
@@ -55,7 +55,7 @@ class MathFormatter:
         if isinstance(sympy_result, MutableDenseMatrix):
             list_of_lists = sympy_result.tolist()
             result = [[MathFormatter._sympy_element_to_python(element) for element in _] for _ in list_of_lists]
-        elif isinstance(sympy_result, (Number, Integer, Float)):
+        elif isinstance(sympy_result, Number | Integer | Float):
             result = MathFormatter._sympy_element_to_python(sympy_result)
         elif isinstance(sympy_result, Mul | Pow):
             # Frobenius norm requires Pow and Mul expressions
