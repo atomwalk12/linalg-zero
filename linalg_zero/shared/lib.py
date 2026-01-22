@@ -97,7 +97,7 @@ def determinant(matrix: list[list[float | int]]) -> float:
         det_result = sym_matrix.det()
         result = MathFormatter.sympy_to_primitive(det_result, precision=Precision.DETERMINANT)
 
-        if isinstance(result, (int, float)):
+        if isinstance(result, int | float):
             return float(result)
 
     except NonSquareMatrixError as e:
@@ -130,7 +130,7 @@ def frobenius_norm(matrix: list[list[float | int]]) -> float:
         norm_result = sym_matrix.norm()
         result = MathFormatter.sympy_to_primitive(norm_result, precision=Precision.FROBENIUS_NORM)
 
-        if isinstance(result, (int, float)):
+        if isinstance(result, int | float):
             return float(result)
 
     except Exception as e:
@@ -188,7 +188,7 @@ def matrix_trace(matrix: list[list[float | int]]) -> float:
         trace_result = sym_matrix.trace()
         result = MathFormatter.sympy_to_primitive(trace_result, precision=Precision.MATRIX_TRACE)
 
-        if isinstance(result, (int, float)):
+        if isinstance(result, int | float):
             return float(result)
 
     except NonSquareMatrixError as e:
