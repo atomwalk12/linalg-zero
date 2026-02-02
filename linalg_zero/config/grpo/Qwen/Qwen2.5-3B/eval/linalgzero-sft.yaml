@@ -18,8 +18,8 @@ training:
 run:
   project_id: 004-linalgzero-sft
   project: linalgzero-eval
-  base_model: "results/LinalgZero-SFT/checkpoint-300-best"
-  model: "results/LinalgZero-SFT/checkpoint-300-best"
+  base_model: "atomwalk12/LinAlgZero-SFT"
+  model: "atomwalk12/LinAlgZero-SFT"
   dataset_path: "atomwalk12/linalgzero-grpo"
   env: linear_algebra
   model_provider: hosted_vllm
