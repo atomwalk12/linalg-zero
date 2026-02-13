@@ -1,7 +1,11 @@
 import asyncio
 import concurrent.futures
 import copy
+import dataclasses
+from datetime import datetime
+import json
 import logging
+import os
 import traceback
 
 import art
@@ -16,6 +20,8 @@ from linalg_zero.grpo.envs import get_env
 from linalg_zero.grpo.general_rm import calculate_reward, create_general_rm_trajectory_groups
 from linalg_zero.grpo.rl_utils import (
     log_trajectory_to_openpipe,
+    json_default,
+    write_eval_trajectories
 )
 from linalg_zero.grpo.run import agent_factory
 from linalg_zero.grpo.task_selection import (
@@ -203,6 +209,8 @@ async def evaluate_model(
 
     model_step = await model.get_step()
     eval_step = max(step, model_step)
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    os.makedirs(config.log_dir, exist_ok=True)
 
     for pass_idx in range(eval_retries):
         trajectories = await art.gather_trajectories(
@@ -215,6 +223,17 @@ async def evaluate_model(
             )
             for val_task_index in val_task_indices
         )
+        output_path = os.path.join(
+            config.log_dir,
+            f"eval_trajectories_{split}_step_{eval_step}_pass_{pass_idx + 1}_{run_id}.jsonl",
+        )
+        write_eval_trajectories(
+            output_path=output_path,
+            trajectories=trajectories,
+            eval_step=eval_step,
+            pass_idx=pass_idx + 1,
+        )
+        print(f"Wrote eval trajectories to {output_path}")
         summaries.append(summarize_trajectories(trajectories))
         if eval_retries > 1:
             print(f"Eval pass {pass_idx + 1}/{eval_retries}: reward={summaries[-1].get('reward', float('nan')):.4f}")
