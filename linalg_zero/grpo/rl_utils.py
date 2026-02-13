@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import os
 import time
 import uuid
@@ -34,6 +36,7 @@ def write_eval_trajectories(
     trajectories: list[art.Trajectory],
     eval_step: int,
     pass_idx: int,
+    split: str,
 ) -> None:
     with open(output_path, "w", encoding="utf-8") as f:
         for trajectory_idx, traj in enumerate(trajectories):

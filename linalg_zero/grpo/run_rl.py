@@ -1,9 +1,7 @@
 import asyncio
 import concurrent.futures
 import copy
-import dataclasses
 from datetime import datetime
-import json
 import logging
 import os
 import traceback
@@ -20,8 +18,7 @@ from linalg_zero.grpo.envs import get_env
 from linalg_zero.grpo.general_rm import calculate_reward, create_general_rm_trajectory_groups
 from linalg_zero.grpo.rl_utils import (
     log_trajectory_to_openpipe,
-    json_default,
-    write_eval_trajectories
+    write_eval_trajectories,
 )
 from linalg_zero.grpo.run import agent_factory
 from linalg_zero.grpo.task_selection import (
@@ -225,13 +222,14 @@ async def evaluate_model(
         )
         output_path = os.path.join(
             config.log_dir,
-            f"eval_trajectories_{split}_step_{eval_step}_pass_{pass_idx + 1}_{run_id}.jsonl",
+            f"eval_trajectories_{split}_step_{eval_step}_pass_{pass_idx}_{run_id}.jsonl",
         )
         write_eval_trajectories(
             output_path=output_path,
             trajectories=trajectories,
             eval_step=eval_step,
-            pass_idx=pass_idx + 1,
+            pass_idx=pass_idx,
+            split=split,
         )
         print(f"Wrote eval trajectories to {output_path}")
         summaries.append(summarize_trajectories(trajectories))
