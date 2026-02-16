@@ -4,8 +4,8 @@ import statistics
 from collections import Counter
 
 import art
-
 import wandb
+
 from linalg_zero.grpo.utils.trajectory_messages import extract_tool_name_sequence
 
 

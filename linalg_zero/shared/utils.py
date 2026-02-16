@@ -1,10 +1,10 @@
-import importlib
 import json
 import logging
 import sys
 import unicodedata
 from collections import defaultdict
 from datetime import datetime
+from importlib import util
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -106,9 +106,9 @@ def get_libpath() -> Path:
 
 def load_module_from_path(path: Path) -> "ModuleType":
     """Loads a python module from a given path."""
-    spec = importlib.util.spec_from_file_location("module.name", path)
+    spec = util.spec_from_file_location("module.name", path)
     assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
+    module = util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 

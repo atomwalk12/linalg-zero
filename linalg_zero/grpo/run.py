@@ -74,7 +74,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
             Push one full conversation to Langfuse.
             """
             # 2-a create / update the trace
-            trace = langfuse.trace(  # type: ignore[attr-defined]
+            trace = langfuse.trace(
                 name=f"{cfg.env}-task-{env_result.task_id}-{env_result.trial}",
                 input=env_result.info,
                 output=env_result.traj,

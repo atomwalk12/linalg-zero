@@ -8,7 +8,7 @@ from typing import Any
 try:
     from hydra.core.config_store import ConfigStore
 except ModuleNotFoundError:  # pragma: no cover
-    ConfigStore = None  # type: ignore[misc,assignment]
+    ConfigStore = None
 from pydantic import BaseModel
 
 from linalg_zero.shared.types import LibTypes

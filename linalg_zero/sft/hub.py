@@ -1,5 +1,6 @@
 import logging
 from concurrent.futures import Future
+from typing import Any, cast
 
 from huggingface_hub import (
     create_branch,
@@ -51,4 +52,4 @@ def push_to_hub_revision(training_args: SFTConfig | GRPOConfig | object, extra_i
     )
     logger.info(f"Pushed to {repo_url} revision {hub_model_revision} successfully!")
 
-    return future
+    return cast(Future[Any], future)

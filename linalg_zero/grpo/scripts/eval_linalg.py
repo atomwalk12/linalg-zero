@@ -8,16 +8,14 @@ import asyncio
 import art
 import hydra
 import torch
+import wandb
 from omegaconf import DictConfig, OmegaConf
 
 from linalg_zero.grpo.run_rl import test
 from linalg_zero.grpo.types import LinAlgPolicyConfig
 
 
-# @hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B/eval", config_name="linalgzero-sft.yaml")
-@hydra.main(
-    version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B/eval", config_name="linalgzero-grpo.yaml"
-)
+@hydra.main(version_base=None, config_path="../../config/grpo/Qwen/Qwen2.5-3B/eval", config_name="linalgzero-sft.yaml")
 def main(cfg: DictConfig) -> None:
     # Convert all configs to plain dicts
     init_config = OmegaConf.to_container(cfg.init, resolve=True)
@@ -38,6 +36,13 @@ def main(cfg: DictConfig) -> None:
     if "tensor_parallel_size" not in engine_args:
         engine_args["tensor_parallel_size"] = torch.cuda.device_count()
 
+    report_to = trainer_args.get("report_to") if isinstance(trainer_args, dict) else None
+    if report_to:
+        if isinstance(report_to, str):
+            report_to = [report_to]
+        if "wandb" in report_to and wandb.run is None:
+            wandb.init(project=run_config["project"], name=run_config["project_id"], job_type="eval")
+
     # Build model and run training
     model = art.TrainableModel(
         name=run_config["project_id"],
@@ -54,7 +59,11 @@ def main(cfg: DictConfig) -> None:
         ),
     )
 
-    asyncio.run(test(model))
+    try:
+        asyncio.run(test(model))
+    finally:
+        if wandb.run is not None:
+            wandb.finish()
 
 
 if __name__ == "__main__":

@@ -34,6 +34,17 @@ DEP002 = [
     "bs4", "verl", "ipykernel", "bitsandbytes", "fastapi", "anyio", "instructor", "outlines", "pydantic",
     "liger-kernel", "deepspeed", "flashinfer-python", "triton", "unsloth-zoo"
 ]
+# DEP001: imported but listed only in dependency groups or as transient dependencies
+DEP001 = [
+    "art",
+    "dotenv",
+    "hydra",
+    "litellm",
+    "omegaconf",
+    "openai",
+    "tenacity",
+    "torch",
+]
 # There are some problems installing torch directly, however it is being made available as a transient dependency.
 # DEP003: imported but it is a transient dependency
 DEP003 = [
@@ -227,6 +238,30 @@ module = [
     "verl.*",
     "argilla.*",
     "unsloth.*",
+    "art",
+    "art.*",
+    "huggingface_hub",
+    "huggingface_hub.*",
+    "transformers",
+    "transformers.*",
+    "numpy",
+    "numpy.*",
+    "wandb",
+    "wandb.*",
+    "hydra",
+    "hydra.*",
+    "omegaconf",
+    "omegaconf.*",
+    "dotenv",
+    "dotenv.*",
+    "litellm",
+    "litellm.*",
+    "tenacity",
+    "tenacity.*",
+    "openai",
+    "openai.*",
+    "langfuse",
+    "langfuse.*",
 ]
 ignore_missing_imports = true
 
@@ -253,6 +288,10 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module = ["linalg_zero.grpo.agents.tool_calling_agent"]
 disable_error_code = ["no-any-return", "attr-defined", "union-attr"]
+
+[[tool.mypy.overrides]]
+module = ["linalg_zero.grpo.envs.linear_algebra.tools.*"]
+disable_error_code = ["no-any-return"]
 
 [[tool.mypy.overrides]]
 module = ["linalg_zero.grpo_train"]

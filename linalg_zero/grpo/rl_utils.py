@@ -1,3 +1,4 @@
+import contextlib
 import dataclasses
 import json
 import os
@@ -44,10 +45,8 @@ def write_eval_trajectories(
             if isinstance(traj.metadata, dict):
                 task_index = traj.metadata.get("task_index")
             if isinstance(task_index, str):
-                try:
+                with contextlib.suppress(ValueError):
                     task_index = int(task_index)
-                except ValueError:
-                    pass
             if task_index is None:
                 task_index = trajectory_idx
             try:

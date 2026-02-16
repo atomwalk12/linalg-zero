@@ -52,9 +52,9 @@ class PushToHubRevisionCallback(TrainerCallback):
             # Also if you instantiate a new SFTConfig, the accelerator dist state will also be broken
             dummy_config = DummyConfig(
                 hub_model_id=args.hub_model_id,
-                hub_model_revision=f"{args.hub_model_revision}-step-{global_step:09d}",  # type: ignore[attr-defined]
+                hub_model_revision=f"{args.hub_model_revision}-step-{global_step:09d}",
                 output_dir=f"{args.output_dir}/checkpoint-{global_step}",
-                system_prompt=args.system_prompt,  # type: ignore[attr-defined]
+                system_prompt=args.system_prompt,
             )
 
             _ = push_to_hub_revision(dummy_config, extra_ignore_patterns=["*.pt"])  # don't push the optimizer states
