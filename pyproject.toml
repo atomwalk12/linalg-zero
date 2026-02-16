@@ -282,6 +282,10 @@ module = ["linalg_zero.grpo.run_rl", "linalg_zero.grpo.train"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
+module = ["linalg_zero.generator.analysis.analyse", "linalg_zero.sft.tool_evaluation"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
 module = [
     "linalg_zero.distillation.scripts.validate_dataset",
     "linalg_zero.grpo.general_rm",

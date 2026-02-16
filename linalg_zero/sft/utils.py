@@ -264,9 +264,10 @@ def get_unsloth_model(
 
 def get_model(model_args: ModelConfig, training_args: SFTRunConfig) -> AutoModelForCausalLM:
     """Get the model"""
-    torch_dtype = (
-        model_args.torch_dtype if model_args.torch_dtype in ["auto", None] else getattr(torch, model_args.torch_dtype)
-    )
+    torch_dtype = model_args.torch_dtype
+    if torch_dtype not in (None, "auto"):
+        assert torch_dtype is not None
+        torch_dtype = getattr(torch, torch_dtype)
     quantization_config = get_quantization_config(model_args)
 
     using_deepspeed = is_using_deepspeed()
@@ -287,10 +288,10 @@ def get_model(model_args: ModelConfig, training_args: SFTRunConfig) -> AutoModel
         "device_map": device_map,
         "quantization_config": quantization_config,
     }
-    model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        **model_kwargs,
-    )
+    if model_args.model_name_or_path is None:
+        raise ValueError("model_name_or_path must be set for loading the model")
+
+    model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(model_args.model_name_or_path, **model_kwargs)
     return model
 
 
