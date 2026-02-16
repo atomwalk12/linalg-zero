@@ -112,6 +112,14 @@ dev = [
     "types-tqdm>=4.67.0.20250516",
 ]
 
+test = [
+    "math-verify>=0.8.0",
+    "numpy>=1.26.4",
+    "pyyaml>=6.0.2",
+    "sympy==1.14.0",
+    "trl>=0.20.0,<0.23",
+]
+
 # Dependencies for dataset generation, distillation, and SFT training
 # Install with: uv sync --group distillation
 distillation = [

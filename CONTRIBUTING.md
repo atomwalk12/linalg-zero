@@ -65,7 +65,7 @@ cd linalg-zero
 Then, install and activate the environment with:
 
 ```bash
-uv sync
+uv sync --group dev --group test
 ```
 
 4. Install pre-commit to run linters/formatters at commit time:
