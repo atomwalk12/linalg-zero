@@ -15,7 +15,7 @@ Check out the poster [here](docs/poster.pdf) and the paper [here](docs/report.pd
 3. [Installation](#installation)
 4. [Quickstart](#quickstart)
 5. [Results](#results)
-   - [Artifacts](#artifacts)
+6. [Artifacts](#artifacts)
 7. [Reproducibility](#reproducibility)
 
 ## Overview
