@@ -1,11 +1,10 @@
 ## NOTE: the llama-cpp server is used to startup the inference server using `make distillation-server`
 # Fixing the llama-cpp server version to 0.3.13 as the upstream repository gets updated frequently
 # leading to incompatibility issues. If bumping the version don't forget to update pyproject.toml.
-.PHONY: install-distillation
-install-distillation: ## Install the virtual environment and install the pre-commit hooks.
+.PHONY: install-data-gen
+install-data-gen: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
-#	@CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python==0.3.13 --upgrade --force-reinstall --no-cache-dir
-	@uv sync --locked --group distillation
+	@uv sync --locked --group data-gen
 	@uv pip install setuptools flash-attn==2.7.3 --no-build-isolation
 	@uv run pre-commit install
 
@@ -22,7 +21,6 @@ install-sft: ## Install the virtual environment and install the pre-commit hooks
 install-grpo: ## Install the virtual environment and install the pre-commit hooks.
 	@echo "🚀 Creating virtual environment using uv"
 	@uv sync --locked --group grpo
-#	@TORCH_CUDA_ARCH_LIST=8.9 MAX_JOBS=2 uv pip install setuptools "xformers==0.0.32.post2" "flash-attn==2.8.2" --no-build-isolation
 	@uv run pre-commit install
 
 .PHONY: setup-dev
@@ -141,11 +139,6 @@ sft-debug: ## Run SFT training on single GPU
 sft-distributed: ## Run SFT training with distributed setup using DeepSpeed ZeroStage 3
 	@echo "🚀 Running distributed SFT training with DeepSpeed"
 	@uv run accelerate launch --config_file=$(ACCELERATE_CONFIG) linalg_zero/sft.py --config $(SFT_CONFIG)
-
-.PHONY: grpo-debug
-grpo-debug: ## Run GRPO training using multi-turn rollout
-	@echo "🚀 Running GRPO training on single GPU"
-	@cd linalg_zero/grpo/verl && . .venv/bin/activate && bash ../run_grpo_training.sh
 
 .PHONY: prepare-grpo-dataset
 prepare-grpo-dataset: ## Prepare the GRPO dataset

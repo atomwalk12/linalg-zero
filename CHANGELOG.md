@@ -1,6 +1,48 @@
 # CHANGELOG
 
 
+## v1.0.0 (2026-02-17)
+
+### Bug Fixes
+
+- **generate**: Remove ambiguities in problem generation ([`5339d04`](https://github.com/atomwalk12/linalg-zero/commit/5339d04bd7f1a8253e744a209f47179f67a47394))
+- **distillation**: Remove vllm chat templates ([`57be920`](https://github.com/atomwalk12/linalg-zero/commit/57be920fdb2ca9524593b67b735dfee8716affc0))
+- **grpo**: Adjust launch script parameters ([`a40be0e`](https://github.com/atomwalk12/linalg-zero/commit/a40be0ebcf73657a4d0c695ba933d379a31eef2b))
+- **grpo**: Log statistics ([`b983abd`](https://github.com/atomwalk12/linalg-zero/commit/b983abd1760b26b62c2e101ac76e1e3290359ec9))
+- **sft**: Adjust optional accuracy callback ([`16b7d32`](https://github.com/atomwalk12/linalg-zero/commit/16b7d322f5a50fd830c1ea5acd51e3ca20702454))
+
+### Documentation
+
+- **config**: Add sample config files ([`62290aa`](https://github.com/atomwalk12/linalg-zero/commit/62290aa84d011ef52078272d241204518a78cf16))
+- **report**: Finalize project ([`ffbfcb2`](https://github.com/atomwalk12/linalg-zero/commit/ffbfcb24a0cc54bcd888b4b7c19148e75ffce4f7))
+
+### Features
+
+- **distillation**: Add data generation configs ([`6aab283`](https://github.com/atomwalk12/linalg-zero/commit/6aab283a343c6273bfdc274e7397dff76bb3fa5c))
+- **distillation**: Add validation script ([`8344dba`](https://github.com/atomwalk12/linalg-zero/commit/8344dbad775768a7a74ffd83dec56587514e1c49))
+- **distillation**: Improve multi-turn generation with progress tracking ([`f58eadf`](https://github.com/atomwalk12/linalg-zero/commit/f58eadf0083f135f2fee2405b43eca1c2705d84e))
+- **grpo**: Add environment abstraction layer with base classes ([`edc9615`](https://github.com/atomwalk12/linalg-zero/commit/edc9615163385df75ad18aa15f918e534c45f7fa))
+- **grpo**: Add linear algebra environment with reward computation ([`4e46e7c`](https://github.com/atomwalk12/linalg-zero/commit/4e46e7c9e0040ee34e5fca060f652272f0c6ed1f))
+- **grpo**: Add linear algebra tools for matrix operations ([`d2f08b1`](https://github.com/atomwalk12/linalg-zero/commit/d2f08b1231c2c0f493bbea1f3f6718cb6829c0fa))
+- **grpo**: Add reward model and RL training utilities ([`aba4bae`](https://github.com/atomwalk12/linalg-zero/commit/aba4baefdbbe9c21c01ed82d2a062f788062f9d6))
+- **grpo**: Add task selection and training infrastructure ([`d82f8c6`](https://github.com/atomwalk12/linalg-zero/commit/d82f8c69506056c227825741ae7098eabbcb2067))
+- **grpo**: Add tool calling agent implementation ([`b95ec50`](https://github.com/atomwalk12/linalg-zero/commit/b95ec50ce7956f897a1bde16481633cb2395c77b))
+- **grpo**: Add training and evaluation scripts ([`38b99fd`](https://github.com/atomwalk12/linalg-zero/commit/38b99fd20ecf08d0fa7ce185b6094b1d782d90d9))
+- **grpo**: Add utility modules for training infrastructure ([`7362699`](https://github.com/atomwalk12/linalg-zero/commit/73626995bdcfd365b40fcd6813eca5ee99f2b8c0))
+- **grpo**: Add yaml config files ([`bcb5b68`](https://github.com/atomwalk12/linalg-zero/commit/bcb5b68ef026110a8fcee14da23e5bf4736c8251))
+- **sft**: Add model evaluation and dataset preparation scripts ([`5e8ee4c`](https://github.com/atomwalk12/linalg-zero/commit/5e8ee4c9d8fdf90e825a8a907216dadf78e8103b))
+- **sft**: Add yaml training configs ([`65ff234`](https://github.com/atomwalk12/linalg-zero/commit/65ff2348dc592d790bef130ecf593ce157ebdaf3))
+- **sft**: Adjust tool evaluation callback ([`c7f2c9d`](https://github.com/atomwalk12/linalg-zero/commit/c7f2c9daf2b8506e3687bd92d1d90d6599c99aa7))
+- **sft**: Improve tool calling accuracy callback with weave logging ([`823b263`](https://github.com/atomwalk12/linalg-zero/commit/823b263a447470a30993c809264dbb20494d1331))
+- **sft**: Refactor diagnostics and callbacks and improve evaluation logging ([`10ae836`](https://github.com/atomwalk12/linalg-zero/commit/10ae836eb0c7af9b7756bc0690c4461f2eaf3c8d))
+- **system_prompts**: Add SFT system prompt and improve tool usage guidelines ([`061d21a`](https://github.com/atomwalk12/linalg-zero/commit/061d21aa6de9dc5e0f5ff3ac97a8f71be7a83c2e))
+
+### Refactoring
+
+- Reorganize training entry points ([`5a65164`](https://github.com/atomwalk12/linalg-zero/commit/5a65164ceb460701ba946c745ddf5e8a1631b73e))
+- **grpo**: Improve XML parser API and validation logic ([`fa80cba`](https://github.com/atomwalk12/linalg-zero/commit/fa80cba680bd6af515bc66a66b69a255b4e3f3d1))
+
+
 ## v0.3.0 (2025-09-29)
 
 ### Bug Fixes

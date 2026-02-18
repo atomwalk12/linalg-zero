@@ -21,7 +21,6 @@ dependencies = [
 # These are false positives, the libraries are actually used (i.e. see launch_server.py)
 [tool.deptry]
 exclude = [
-    "linalg_zero/grpo/verl/",
     ".venv",
     "unsloth_compiled_cache/",
 ]
@@ -58,11 +57,11 @@ constraint-dependencies = [
   "torch",
 ]
 
-# Declare that distillation and grpo groups have conflicting dependencies
+# Declare that data-gen, grpo, and sft groups have conflicting dependencies
 # This allows uv to create a universal resolution knowing they are mutually exclusive
 conflicts = [
   [
-    { group = "distillation" },
+    { group = "data-gen" },
     { group = "grpo" },
     { group = "sft" },
   ],
@@ -120,21 +119,14 @@ test = [
     "trl>=0.20.0,<0.23",
 ]
 
-# Dependencies for dataset generation, distillation, and SFT training
-# Install with: uv sync --group distillation
-distillation = [
+# Dependencies for dataset generation and distillation
+# Install with: uv sync --group data-gen
+data-gen = [
     "anyio>=4.9.0",
     "distilabel[openai,outlines,instructor]>=1.5.3",
     "datasets>=4.0.0",
     "outlines>=0.1.0",
     "instructor>=1.9.2",
-    # NOTE: these dependencies will be necessary, leaving here for convenience.
-    #"ipykernel>=6.29.5",
-    #"ipywidgets>=8.1.7",
-    #"jupyter>=1.1.1",
-    #"llama-cpp-python[server]>=0.3.0",
-    #"pynvml>=12.0.0",
-    #"ray>=2.47.1",
     "transformers==4.55.2",
     "trl==0.22.2",
     "fastapi>=0.116.1",
@@ -183,7 +175,7 @@ sft = [
 
 # Dependencies for GRPO training with openpipe-art
 # Install with: uv sync --group grpo
-# IMPORTANT: These versions CONFLICT with distillation group - use separate sync!
+# IMPORTANT: These versions CONFLICT with data-gen group - use separate sync!
 grpo = [
     "openpipe-art==0.5.3",
     # The following are pinned dependencies required by art library
@@ -221,7 +213,6 @@ py-modules = ["linalg_zero"]
 
 [tool.mypy]
 files = ["linalg_zero"]
-exclude = ["linalg_zero/grpo/verl/"]
 disallow_untyped_defs = true
 disallow_any_unimported = false
 no_implicit_optional = true
