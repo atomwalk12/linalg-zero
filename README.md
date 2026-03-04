@@ -8,15 +8,19 @@ Check out the poster [here](docs/poster.pdf) and the paper [here](docs/report.pd
 
 <img width="14173" height="8504" alt="poster" src="https://github.com/user-attachments/assets/b7019c34-8dcf-45a3-830e-050a822e9ff0" />
 
-
-**Table of Contents**
-1. [Overview](#overview)
-2. [Main Phases](#main-phases)
-3. [Installation](#installation)
-4. [Quickstart](#quickstart)
-5. [Results](#results)
-6. [Artifacts](#artifacts)
-7. [Reproducibility](#reproducibility)
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#main-phases">Main Phases</a></li>
+    <li><a href="#installation">Installation</a></li>
+    <li><a href="#quickstart">Quickstart</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#artifacts">Artifacts</a></li>
+    <li><a href="#reproducibility">Reproducibility</a></li>
+    <li><a href="#acknowledgements">Acknowledgements</a></li>
+  </ol>
+</details>
 
 ## Overview
 
@@ -122,6 +126,11 @@ This yields models like [Linalg-Zero-SFT](https://huggingface.co/atomwalk12/Lina
 - **SFT:** Local 24GB RTX 4090 with [Qwen/Qwen2.5-3B](https://huggingface.co/Qwen/Qwen2.5-3B).
 - **GRPO:** RTX 6000 Ada on [Runpod](https://www.runpod.io/), improving on the SFT baseline; 57 hours at $0.77/hr (~$50).
 - **Total:** ~$75 using a mix of cloud GPUs and local training.
+
+## Acknowledgements
+- We base our distillation pipeline on [distilabel](https://github.com/argilla-io/distilabel).
+- We base the RL experiment on [ART](https://deepwiki.com/OpenPipe/ART).
+- We use Qwen2.5 series base model [Qwen2.5](https://github.com/QwenLM/Qwen2.5).
 
 ## Citation
 
