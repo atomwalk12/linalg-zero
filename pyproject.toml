@@ -269,7 +269,7 @@ module = ["linalg_zero.distillation.utils", "linalg_zero.distillation.scripts.pu
 disable_error_code = ["attr-defined", "assignment", "operator"]
 
 [[tool.mypy.overrides]]
-module = ["linalg_zero.grpo.run_rl", "linalg_zero.grpo.train"]
+module = ["linalg_zero.grpo.run_rl"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]

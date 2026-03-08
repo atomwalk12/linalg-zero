@@ -18,7 +18,7 @@ from linalg_zero.grpo.types import LinAlgPolicyConfig
     version_base=None,
     config_path="config/grpo/Qwen/Qwen2.5-3B",
     config_name="local.yaml",
-)  # 2.5
+)
 def main(cfg: DictConfig) -> None:
     # Convert all configs to plain dicts
     init_config = OmegaConf.to_container(cfg.init, resolve=True)
