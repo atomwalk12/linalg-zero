@@ -122,7 +122,7 @@ This yields models like [Linalg-Zero-SFT](https://huggingface.co/atomwalk12/Lina
 | GRPO dataset | [atomwalk12/linalgzero-grpo](https://huggingface.co/datasets/atomwalk12/linalgzero-grpo) |
 
 ## Reproducibility
-- **Distillation:** H100 80GB on [Runpod](https://www.runpod.io/) with [Qwen/Qwen3-32B-FP8](https://huggingface.co/Qwen/Qwen3-32B-FP8); 14 hours at $2.39/hr (~$25).
+- **Distillation:** H100 80GB on [Runpod](https://www.runpod.io/) with [Qwen/Qwen3-32B-FP8](https://huggingface.co/Qwen/Qwen3-32B-FP8); 15 hours at $2.39/hr (~$25).
 - **SFT:** Local 24GB RTX 4090 with [Qwen/Qwen2.5-3B](https://huggingface.co/Qwen/Qwen2.5-3B).
 - **GRPO:** RTX 6000 Ada on [Runpod](https://www.runpod.io/), improving on the SFT baseline; 57 hours at $0.77/hr (~$50).
 - **Total:** ~$75 using a mix of cloud GPUs and local training.
