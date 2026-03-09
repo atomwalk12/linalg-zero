@@ -8,6 +8,9 @@ Check out the poster [here](docs/poster.pdf) and the paper [here](docs/report.pd
 
 <img width="14173" height="8504" alt="poster" src="https://github.com/user-attachments/assets/b7019c34-8dcf-45a3-830e-050a822e9ff0" />
 
+
+## Overview
+
 <details>
   <summary>Table of Contents</summary>
   <ol>
@@ -21,8 +24,6 @@ Check out the poster [here](docs/poster.pdf) and the paper [here](docs/report.pd
     <li><a href="#acknowledgements">Acknowledgements</a></li>
   </ol>
 </details>
-
-## Overview
 
 This repository offers tools for generating a linear algebra problem dataset and training an open-source base model (i.e. Qwen2.5-3B), aiming to explore planning and tool use using SFT and RL, distinct from Deepseek-R1's primary emphasis on reasoning.
 
