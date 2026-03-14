@@ -261,6 +261,8 @@ module = [
     "openai.*",
     "langfuse",
     "langfuse.*",
+    "peft",
+    "peft.*"
 ]
 ignore_missing_imports = true
 
