@@ -224,7 +224,6 @@ def get_unsloth_model(
         load_in_4bit=model_args.load_in_4bit,
         load_in_8bit=model_args.load_in_8bit,
         max_lora_rank=model_args.lora_r,
-        # enforce_eager=model_args.enforce_eager,
         fast_inference=use_vllm,
         gpu_memory_utilization=training_args.gpu_memory_utilization,
     )

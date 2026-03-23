@@ -168,7 +168,6 @@ def agent_factory(tools_info: list[dict[str, Any]], wiki: str, config: RunConfig
             stop=config.stop,
         )
     elif config.agent_strategy == "tool-calling":
-        # native tool calling
         from linalg_zero.grpo.agents.tool_calling_agent import ToolCallingAgent
 
         return ToolCallingAgent(

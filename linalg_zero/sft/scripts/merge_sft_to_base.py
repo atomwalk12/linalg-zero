@@ -3,7 +3,6 @@ from unsloth import FastLanguageModel
 
 
 def merge_lora_to_base_model() -> None:
-    # adapter_path = "results/LinalgZero-SFT-LoRA-110/checkpoint-110"
     adapter_path = "results/LinalgZero-SFT-LoRA/checkpoint-400"
 
     # Load the checkpoint directly - Unsloth will detect it's a PEFT model
@@ -14,12 +13,10 @@ def merge_lora_to_base_model() -> None:
         dtype=None,
         load_in_4bit=False,
         load_in_8bit=False,
-        # resize_model_vocab=151680,
     )
 
     # Now merge and save
     model.save_pretrained_merged(
-        # save_directory="results/LinalgZero-SFT-merged-110", tokenizer=tokenizer, save_method="merged_16bit"
         save_directory="results/LinalgZero-SFT-merged",
         tokenizer=tokenizer,
         save_method="merged_16bit",

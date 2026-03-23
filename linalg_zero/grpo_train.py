@@ -20,15 +20,12 @@ from linalg_zero.grpo.types import LinAlgPolicyConfig
     config_name="local.yaml",
 )
 def main(cfg: DictConfig) -> None:
-    # Convert all configs to plain dicts
     init_config = OmegaConf.to_container(cfg.init, resolve=True)
     training_config = OmegaConf.to_container(cfg.training, resolve=True)
     run_config = OmegaConf.to_container(cfg.run, resolve=True)
     peft_config = OmegaConf.to_container(cfg.peft, resolve=True)
     trainer_args = OmegaConf.to_container(cfg.trainer, resolve=True)
     engine_args = OmegaConf.to_container(cfg.engine, resolve=True)
-    # Use peft config for LoRA training instead of:
-    # torchtune_args = OmegaConf.to_container(cfg.torchtune, resolve=True)
     print(f"Training model {cfg.run.base_model}")
 
     assert isinstance(init_config, dict), "Init config must be provided"
@@ -56,7 +53,7 @@ def main(cfg: DictConfig) -> None:
             engine_args=engine_args,
             trainer_args=trainer_args,
             peft_args=peft_config,
-            # Use peft_config for LoRA training instead of:
+            # For full fine-tuning use:
             # torchtune_args=torchtune_args,
         ),
     )

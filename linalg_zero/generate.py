@@ -70,7 +70,6 @@ def main(
         config = load_entropy_settings(config_path)
         check_constraints(dataset, config, statistics)
 
-    # Create stratified splits by difficulty for balanced evaluation
     splits = convert_to_dataset_splits(
         dataset,
         test_size=0.1,

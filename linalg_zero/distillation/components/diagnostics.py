@@ -12,7 +12,6 @@ class Diagnostics:
         self.diagnostics: list[str] = []
         self.append_assistant = self.config.append_policy()
 
-    # -------- Hint identification / filtering --------
     def is_diagnostic_user_message(self, msg: dict[str, Any]) -> bool:
         return msg.get("role") == "user" and str(msg.get("content", "")).lstrip().startswith(f"{DIAG_PREFIX} ")
 
@@ -41,7 +40,6 @@ class Diagnostics:
 
         return cleaned
 
-    # -------- Hint creation / application --------
     def build_hint(self, reason: str) -> str:
         return (
             f"{DIAG_PREFIX} Format error: {reason}.\n"

@@ -99,8 +99,8 @@ def main(  # noqa: C901
         return x
 
     def formatting_prompts_func(examples):
-        convos = examples["messages"]  # List of 1000 conversations
-        tools = examples.get("tools", None)  # List of 1000 tool specs
+        convos = examples["messages"]
+        tools = examples.get("tools", None)
 
         texts = []
         for i, convo in enumerate(convos):
@@ -108,7 +108,7 @@ def main(  # noqa: C901
 
             text = tokenizer.apply_chat_template(
                 convo,
-                tools=example_tools,  # Pass tools[i] for the i-th conversation
+                tools=example_tools,
                 tokenize=False,
                 add_generation_prompt=False,
             )
@@ -230,8 +230,6 @@ if __name__ == "__main__":
     if "--config" not in sys.argv:
         sys.argv.append("--config")
         sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_merged.yaml")
-        # sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production_instruct.yaml")
-        # sys.argv.append("linalg_zero/config/sft/qwen2.5-3B/production.yaml")
 
     parser = TrlParser([ScriptArguments, SFTRunConfig, SFTConfig, SFTModelConfig])
     script_args, training_args, trl_training_args, model_args = parser.parse_args_and_config()
