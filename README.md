@@ -8,7 +8,7 @@ Check out the poster [here](docs/poster.pdf) and the paper [here](docs/report.pd
 
 <img width="14173" height="8504" alt="poster" src="https://github.com/user-attachments/assets/b7019c34-8dcf-45a3-830e-050a822e9ff0" />
 
-This video shows the process of asking three separate questions for each completed checkpoint, for both SFT and RL.
+This video shows the process of asking three separate questions for each resulting checkpoint.
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=Dxc3yTr-AE0" target="_blank" rel="noopener noreferrer">
