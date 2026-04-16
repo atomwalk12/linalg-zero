@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import Any
 
 from datasets import Dataset, DownloadMode, load_dataset, load_from_disk
+from transformers import AutoTokenizer
+
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import parse_string, verify_answers
-from transformers import AutoTokenizer
 
 DISTILLED_DATASET = "atomwalk12/linalgzero-distilled"
 LOCAL_DATASET_PATH = "atomwalk12/linalgzero-distilled-local"
@@ -399,16 +400,14 @@ def analyze_dataset(  # noqa: C901
     print_to_both("=" * 80)
 
     print_to_both(
-        f"\n1. Answer-Tool Response Mismatch Issues: {len(reuse_issues)} "
-        f"({len(reuse_issues) / len(ds) * 100:.2f}%)"
+        f"\n1. Answer-Tool Response Mismatch Issues: {len(reuse_issues)} ({len(reuse_issues) / len(ds) * 100:.2f}%)"
     )
     if reuse_issues:
         for idx, reason in reuse_issues:
             print_to_both(f"  - Example {idx}: {reason}")
 
     print_to_both(
-        f"\n2. Repeated Tool Calls: {len(repeated_tool_calls)} "
-        f"({len(repeated_tool_calls) / len(ds) * 100:.2f}%)"
+        f"\n2. Repeated Tool Calls: {len(repeated_tool_calls)} ({len(repeated_tool_calls) / len(ds) * 100:.2f}%)"
     )
     if repeated_tool_calls:
         for idx, repeated_info in repeated_tool_calls:
@@ -463,16 +462,14 @@ def analyze_dataset(  # noqa: C901
         print_to_both("\n  Adjacent duplicates:")
         for idx, dup, is_answer in adjacent_dups:
             print_to_both(
-                f"    Example {idx}, msgs {dup['positions']}, is answer: {is_answer}: "
-                f"{dup['content_preview']}..."
+                f"    Example {idx}, msgs {dup['positions']}, is answer: {is_answer}: {dup['content_preview']}..."
             )
 
     if non_adjacent_dups:
         print_to_both("\n  Non-adjacent duplicates:")
         for idx, dup, is_answer in non_adjacent_dups:
             print_to_both(
-                f"    Example {idx}, msgs {dup['positions']}, is answer: {is_answer}: "
-                f"{dup['content_preview']}..."
+                f"    Example {idx}, msgs {dup['positions']}, is answer: {is_answer}: {dup['content_preview']}..."
             )
 
     print_to_both(f"Number of adjacent duplicates with final answer: {len([d for d in adjacent_dups if d[2]])}")
