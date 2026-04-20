@@ -6,7 +6,7 @@
 
 Check out the poster [here](docs/poster.pdf) and the paper [here](docs/report.pdf). Also check a live demo on [HuggingFace Spaces](https://huggingface.co/spaces/atomwalk12/linalg-zero).
 
-<img width="14173" height="8504" alt="poster" src="https://github.com/user-attachments/assets/b7019c34-8dcf-45a3-830e-050a822e9ff0" />
+![image](https://github.com/user-attachments/assets/b7019c34-8dcf-45a3-830e-050a822e9ff0)
 
 This video shows the process of asking three separate questions for each resulting checkpoint.
 
