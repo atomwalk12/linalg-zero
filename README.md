@@ -1,5 +1,5 @@
 [![Release](https://img.shields.io/github/v/release/atomwalk12/linalg-zero)](https://img.shields.io/github/v/release/atomwalk12/linalg-zero)
-[![Build status](https://img.shields.io/github/actions/workflow/status/atomwalk12/linalg-zero/main.yml?branch=main)](https://github.com/atomwalk12/linalg-zero/actions/workflows/main.yml?query=branch%3Amain)
+[![Build status](https://img.shields.io/github/actions/workflow/status/atomwalk12/linalg-zero/main.yml?branch=main)](https://github.com/rfvasile/linalg-zero/actions/workflows/main.yml?query=branch%3Amain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 # Linalg-Zero
@@ -152,7 +152,7 @@ If you find this project is useful in your own work, please consider citing as f
 ```bibtex
 @misc{linalg-zero,
     title = {Linalg-Zero: Distilling Neurosymbolic Reasoning for Linear Algebra in Small Language Models},
-    url = {https://github.com/atomwalk12/linalg-zero},
+    url = {https://github.com/rfvasile/linalg-zero},
     author = {{Razvan F. Vasile}},
     month = {March},
     year = {2026}

@@ -92,7 +92,7 @@ explicit = true
 
 [project.urls]
 Homepage = "https://atomwalk12.github.io/linalg-zero/"
-Repository = "https://github.com/atomwalk12/linalg-zero"
+Repository = "https://github.com/rfvasile/linalg-zero"
 Documentation = "https://atomwalk12.github.io/linalg-zero/"
 
 [dependency-groups]
