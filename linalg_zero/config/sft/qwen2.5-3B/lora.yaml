@@ -22,7 +22,7 @@ lora_task_type: "CAUSAL_LM"
 # fast_inference: true
 
 # Data training arguments
-dataset_name: atomwalk12/linalgzero-sft
+dataset_name: rfvasile/linalgzero-sft
 dataset_config: default
 eval_dataset_config: default
 dataset_num_proc: 12
@@ -66,7 +66,7 @@ gradient_accumulation_steps: 16   # Recommended batch size: 16
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: atomwalk12/LinalgZero-SFT-LoRA
+hub_model_id: rfvasile/LinalgZero-SFT-LoRA
 hub_strategy: every_save
 learning_rate: 2e-5 # Alternatives: 5e-5/4e-5/3e-5/2e-5 and train for 2 epochs
 log_level: info

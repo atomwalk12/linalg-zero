@@ -1,11 +1,11 @@
 site_name: linalg-zero
 repo_url: https://github.com/rfvasile/linalg-zero
-site_url: https://atomwalk12.github.io/linalg-zero
+site_url: https://rfvasile.github.io/linalg-zero
 site_description: This repository provides tools to generate a linear algebra dataset and code to train an open-source pre-trained model. Our goal is to explore the model's potential for emergent reasoning, inspired by the Deepseek-R1 paper.
 site_author: Razvan Florian Vasile
 edit_uri: edit/main/docs/
-repo_name: atomwalk12/linalg-zero
-copyright: Maintained by <a href="https://github.com/atomwalk12">atomwalk12</a>.
+repo_name: rfvasile/linalg-zero
+copyright: Maintained by <a href="https://github.com/rfvasile">rfvasile</a>.
 
 nav:
   - Home: index.md

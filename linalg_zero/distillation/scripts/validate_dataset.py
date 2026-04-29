@@ -10,8 +10,8 @@ from transformers import AutoTokenizer
 from linalg_zero.grpo.verifiers.xml_parser import XMLParser
 from linalg_zero.grpo.verify import parse_string, verify_answers
 
-DISTILLED_DATASET = "atomwalk12/linalgzero-distilled"
-LOCAL_DATASET_PATH = "atomwalk12/linalgzero-distilled-local"
+DISTILLED_DATASET = "rfvasile/linalgzero-distilled"
+LOCAL_DATASET_PATH = "rfvasile/linalgzero-distilled-local"
 
 output_buffer = StringIO()
 

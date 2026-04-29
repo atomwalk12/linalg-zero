@@ -29,9 +29,9 @@ training:
 run:
   project_id: linalgzero-3b-grpo-runpod
   project: linalgzero-grpo
-  base_model: "atomwalk12/LinalgZero-SFT"
-  model: "atomwalk12/LinalgZero-SFT"
-  dataset_path: "atomwalk12/linalgzero-grpo"
+  base_model: "rfvasile/LinalgZero-SFT"
+  model: "rfvasile/LinalgZero-SFT"
+  dataset_path: "rfvasile/linalgzero-grpo"
   env: linear_algebra
   curriculum:
     enabled: true

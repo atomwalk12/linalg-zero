@@ -50,12 +50,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--base-model",
-        default="atomwalk12/LinalgZero-SFT",
+        default="rfvasile/LinalgZero-SFT",
         help="Base model used during GRPO training.",
     )
     parser.add_argument(
         "--adapter-model",
-        default="atomwalk12/LinalgZero-GRPO",
+        default="rfvasile/LinalgZero-GRPO",
         help="GRPO adapter repo or local path.",
     )
     parser.add_argument(

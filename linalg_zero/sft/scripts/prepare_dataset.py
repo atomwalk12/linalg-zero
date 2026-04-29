@@ -116,8 +116,8 @@ def prepare_debug(train: Dataset, validation: Dataset, dataset_size: int) -> Dat
 def main(output_repo: str, push_to_hub: bool, normalize_unicode: bool, per_category: int, seed: int) -> None:
     """Main processing function."""
     # Load
-    train_repo = "atomwalk12/linalgzero-distilled-clean"
-    test_repo = "atomwalk12/linalgzero"
+    train_repo = "rfvasile/linalgzero-distilled-clean"
+    test_repo = "rfvasile/linalgzero"
 
     logger.info("*** Loading datasets ***")
     dataset = load_datasets(train_repo, test_repo)
@@ -139,7 +139,7 @@ def main(output_repo: str, push_to_hub: bool, normalize_unicode: bool, per_categ
 if __name__ == "__main__":
     """Script entry point for SFT training."""
     parser = ArgumentParser()
-    parser.add_argument("--output_repo", default="atomwalk12/linalgzero-sft", type=str, help="Output repository name")
+    parser.add_argument("--output_repo", default="rfvasile/linalgzero-sft", type=str, help="Output repository name")
     parser.add_argument(
         "--push_to_hub", default=False, action="store_true", help="Whether to push the dataset to HuggingFace"
     )

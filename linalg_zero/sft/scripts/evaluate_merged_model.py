@@ -45,8 +45,8 @@ def load_merged():
     )
     assert len(tok2) == len(tokenizer)
 
-    model.push_to_hub("atomwalk12/LinalgZero-SFT")
-    tokenizer.push_to_hub("atomwalk12/LinalgZero-SFT")
+    model.push_to_hub("rfvasile/LinalgZero-SFT")
+    tokenizer.push_to_hub("rfvasile/LinalgZero-SFT")
 
     FastLanguageModel.for_inference(model)
 
@@ -55,11 +55,11 @@ def load_merged():
 
 model, tokenizer = load_unmerged()
 
-eval_ds = load_dataset("atomwalk12/linalgzero-sft", split="test")  # or whatever split you used
+eval_ds = load_dataset("rfvasile/linalgzero-sft", split="test")  # or whatever split you used
 
 cb = ToolCallingAccuracyCallback(
-    model_name="atomwalk12/LinAlgZero-SFT-merged",
-    dataset_name="atomwalk12/linalgzero",
+    model_name="rfvasile/LinAlgZero-SFT-merged",
+    dataset_name="rfvasile/linalgzero",
     eval_dataset=eval_ds,
 )
 gen_config = cb.get_generation_config(max_new_tokens=800, tokenizer=tokenizer)

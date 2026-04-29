@@ -18,9 +18,9 @@ training:
 run:
   project_id: LinAlgZero-GRPO-001
   project: linalgzero-eval
-  base_model: "atomwalk12/LinAlgZero-GRPO"
-  model: "atomwalk12/LinAlgZero-GRPO"
-  dataset_path: "atomwalk12/linalgzero-grpo"
+  base_model: "rfvasile/LinAlgZero-GRPO"
+  model: "rfvasile/LinAlgZero-GRPO"
+  dataset_path: "rfvasile/linalgzero-grpo"
   env: linear_algebra
   model_provider: hosted_vllm
   user_model_provider: openai

@@ -26,7 +26,7 @@ install-grpo: ## Install the virtual environment and install the pre-commit hook
 .PHONY: setup-dev
 setup-dev: ## Setup the development environment
 	@echo "🚀 Setting up development environment"
-	@uv run linalg_zero/distillation/scripts/push_debug_dataset.py --dataset-name atomwalk12/linalg-debug --private
+	@uv run linalg_zero/distillation/scripts/push_debug_dataset.py --dataset-name rfvasile/linalg-debug --private
 
 .PHONY: check
 check: ## Run code quality tools.

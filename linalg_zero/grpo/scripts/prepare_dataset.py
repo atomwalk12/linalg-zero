@@ -230,11 +230,11 @@ if __name__ == "__main__":
     """Script entry point for GRPO dataset preparation."""
     parser = ArgumentParser(description="Prepare dataset for GRPO training")
     parser.add_argument(
-        "--src_train", type=str, default="atomwalk12/linalgzero-distilled-clean", help="Source training dataset"
+        "--src_train", type=str, default="rfvasile/linalgzero-distilled-clean", help="Source training dataset"
     )
-    parser.add_argument("--src_test", type=str, default="atomwalk12/linalgzero", help="Source test dataset")
+    parser.add_argument("--src_test", type=str, default="rfvasile/linalgzero", help="Source test dataset")
     parser.add_argument(
-        "--output_repo", default="atomwalk12/linalgzero-grpo", type=str, help="Output repository name for GRPO dataset"
+        "--output_repo", default="rfvasile/linalgzero-grpo", type=str, help="Output repository name for GRPO dataset"
     )
     parser.add_argument(
         "--push_to_hub", default=False, action="store_true", help="Whether to push the dataset to HuggingFace Hub"

@@ -91,9 +91,9 @@ url = "https://download.pytorch.org/whl/cu129"
 explicit = true
 
 [project.urls]
-Homepage = "https://atomwalk12.github.io/linalg-zero/"
+Homepage = "https://rfvasile.github.io/linalg-zero/"
 Repository = "https://github.com/rfvasile/linalg-zero"
-Documentation = "https://atomwalk12.github.io/linalg-zero/"
+Documentation = "https://rfvasile.github.io/linalg-zero/"
 
 [dependency-groups]
 dev = [

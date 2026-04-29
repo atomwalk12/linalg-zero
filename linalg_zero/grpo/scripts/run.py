@@ -93,7 +93,7 @@ def parse_args() -> RunConfig:
         help="Path to a jsonlines file containing few shot displays",
     )
     parser.add_argument(
-        "--dataset-path", default="atomwalk12/linalgzero-grpo", type=str, help="Path to the huggingface dataset"
+        "--dataset-path", default="rfvasile/linalgzero-grpo", type=str, help="Path to the huggingface dataset"
     )
     args = parser.parse_args()
     print(args)

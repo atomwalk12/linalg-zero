@@ -1,8 +1,8 @@
 # Distillation Configuration for vLLM inference
 
 # Dataset parameters
-dataset_name: "atomwalk12/linalgzero"
-# dataset_name: "atomwalk12/linalg-distilled-debug"
+dataset_name: "rfvasile/linalgzero"
+# dataset_name: "rfvasile/linalg-distilled-debug"
 debug_mode: True
 dataset_config: null
 take_n: 20
@@ -25,8 +25,8 @@ timeout: 600
 retries: 2
 
 # Output parameters
-hf_output_dataset: "atomwalk12/linalgzero-distilled-debug"
-argilla_output_dataset: "atomwalk12/linalgzero-distilled-debug"
+hf_output_dataset: "rfvasile/linalgzero-distilled-debug"
+argilla_output_dataset: "rfvasile/linalgzero-distilled-debug"
 private: false
 
 # Server parameters

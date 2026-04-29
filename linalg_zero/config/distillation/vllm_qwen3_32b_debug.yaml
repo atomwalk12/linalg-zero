@@ -1,5 +1,5 @@
 # Dataset parameters
-dataset_name: "atomwalk12/linalgzero"
+dataset_name: "rfvasile/linalgzero"
 debug_mode: False
 dataset_config: null
 n_turns: 8
@@ -23,8 +23,8 @@ timeout: 600
 retries: 5
 
 # Output parameters
-hf_output_dataset: "atomwalk12/linalgzero-distilled-500"
-argilla_output_dataset: "atomwalk12/linalgzero-distilled-500"
+hf_output_dataset: "rfvasile/linalgzero-distilled-500"
+argilla_output_dataset: "rfvasile/linalgzero-distilled-500"
 private: false
 
 # Server parameters

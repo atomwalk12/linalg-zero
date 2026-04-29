@@ -11,7 +11,7 @@ Usage (dry-run first):
   uv run python linalg_zero/grpo/tau-bench/push_best_models_to_hf.py \
     --project linalgzero-grpo \
     --experiment linalgzero-grpo-001 \
-    --hub-namespace atomwalk12 \
+    --hub-namespace rfvasile \
     --dry-run
 
 Auth:
@@ -89,7 +89,7 @@ def main() -> int:
         required=True,
         help="Experiment/model directory name under `.art/<project>/models/` (e.g. linalgzero-grpo-001).",
     )
-    parser.add_argument("--hub-namespace", required=True, help="HF namespace/user/org (e.g. atomwalk12).")
+    parser.add_argument("--hub-namespace", required=True, help="HF namespace/user/org (e.g. rfvasile).")
     parser.add_argument(
         "--scope",
         choices=["experiment", "best_models"],

@@ -1,10 +1,10 @@
-[![Release](https://img.shields.io/github/v/release/atomwalk12/linalg-zero)](https://img.shields.io/github/v/release/atomwalk12/linalg-zero)
-[![Build status](https://img.shields.io/github/actions/workflow/status/atomwalk12/linalg-zero/main.yml?branch=main)](https://github.com/rfvasile/linalg-zero/actions/workflows/main.yml?query=branch%3Amain)
+[![Release](https://img.shields.io/github/v/release/rfvasile/linalg-zero)](https://img.shields.io/github/v/release/rfvasile/linalg-zero)
+[![Build status](https://img.shields.io/github/actions/workflow/status/rfvasile/linalg-zero/main.yml?branch=main)](https://github.com/rfvasile/linalg-zero/actions/workflows/main.yml?query=branch%3Amain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 # Linalg-Zero
 
-Check out the poster [here](docs/poster.pdf) and the paper [here](docs/report.pdf). Also check a live demo on [HuggingFace Spaces](https://huggingface.co/spaces/atomwalk12/linalg-zero).
+Check out the poster [here](docs/poster.pdf) and the paper [here](docs/report.pdf). Also check a live demo on [HuggingFace Spaces](https://huggingface.co/spaces/rfvasile/linalg-zero).
 
 ![image](https://github.com/user-attachments/assets/b7019c34-8dcf-45a3-830e-050a822e9ff0)
 
@@ -82,7 +82,7 @@ After installing dependencies above, run the commands below. For modifications, 
 
 ```shell
 # Phase 1: Generate dataset
-uv run python linalg_zero/generate.py --dataset_name atomwalk12/linalgzero --push_dataset
+uv run python linalg_zero/generate.py --dataset_name rfvasile/linalgzero --push_dataset
 
 # Phase 2: Distillation (setup once)
 cp linalg_zero/config/distillation/env.example.sh env.sh
@@ -113,7 +113,7 @@ Training requires the dataset to follow the strict OpenAI tool-calling format (s
 
 We provide a recipe to encourage planning and tool-use capabilities in the [Qwen2.5-3B](https://huggingface.co/Qwen/Qwen2.5-3B) model, starting from a pre-trained (not instruction-tuned) base model.
 
-This yields models like [Linalg-Zero-SFT](https://huggingface.co/atomwalk12/LinalgZero-SFT) and [Linalg-Zero-GRPO](https://huggingface.co/atomwalk12/LinalgZero-GRPO), with the following downstream performance on the test set:
+This yields models like [Linalg-Zero-SFT](https://huggingface.co/rfvasile/LinalgZero-SFT) and [Linalg-Zero-GRPO](https://huggingface.co/rfvasile/LinalgZero-GRPO), with the following downstream performance on the test set:
 
 
 | Metric             | LinAlgZero-SFT | LinAlgZero-GRPO |
@@ -127,12 +127,12 @@ This yields models like [Linalg-Zero-SFT](https://huggingface.co/atomwalk12/Lina
 
 | Artifact | Link |
 |---|---|
-| SFT checkpoint | [atomwalk12/LinalgZero-SFT](https://huggingface.co/atomwalk12/LinalgZero-SFT) |
-| GRPO checkpoint | [atomwalk12/LinAlgZero-GRPO](https://huggingface.co/atomwalk12/LinAlgZero-GRPO) |
-| Base dataset | [atomwalk12/linalgzero](https://huggingface.co/datasets/atomwalk12/linalgzero) |
-| Distilled dataset (clean) | [atomwalk12/linalgzero-distilled-clean](https://huggingface.co/datasets/atomwalk12/linalgzero-distilled-clean) |
-| SFT dataset | [atomwalk12/linalgzero-sft](https://huggingface.co/datasets/atomwalk12/linalgzero-sft) |
-| GRPO dataset | [atomwalk12/linalgzero-grpo](https://huggingface.co/datasets/atomwalk12/linalgzero-grpo) |
+| SFT checkpoint | [rfvasile/LinalgZero-SFT](https://huggingface.co/rfvasile/LinalgZero-SFT) |
+| GRPO checkpoint | [rfvasile/LinAlgZero-GRPO](https://huggingface.co/rfvasile/LinAlgZero-GRPO) |
+| Base dataset | [rfvasile/linalgzero](https://huggingface.co/datasets/rfvasile/linalgzero) |
+| Distilled dataset (clean) | [rfvasile/linalgzero-distilled-clean](https://huggingface.co/datasets/rfvasile/linalgzero-distilled-clean) |
+| SFT dataset | [rfvasile/linalgzero-sft](https://huggingface.co/datasets/rfvasile/linalgzero-sft) |
+| GRPO dataset | [rfvasile/linalgzero-grpo](https://huggingface.co/datasets/rfvasile/linalgzero-grpo) |
 
 ## Reproducibility
 - **Distillation:** H100 80GB on [Runpod](https://www.runpod.io/) with [Qwen/Qwen3-32B-FP8](https://huggingface.co/Qwen/Qwen3-32B-FP8); 15 hours at $2.39/hr (~$25).

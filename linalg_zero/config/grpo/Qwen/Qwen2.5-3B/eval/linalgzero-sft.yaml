@@ -18,9 +18,9 @@ training:
 run:
   project_id: 004-linalgzero-sft
   project: linalgzero-eval
-  base_model: "atomwalk12/LinAlgZero-SFT"
-  model: "atomwalk12/LinAlgZero-SFT"
-  dataset_path: "atomwalk12/linalgzero-grpo"
+  base_model: "rfvasile/LinAlgZero-SFT"
+  model: "rfvasile/LinAlgZero-SFT"
+  dataset_path: "rfvasile/linalgzero-grpo"
   env: linear_algebra
   model_provider: hosted_vllm
   user_model_provider: openai
