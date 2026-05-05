@@ -129,7 +129,7 @@ The resulting checkpoints: [Linalg-Zero-SFT](https://huggingface.co/rfvasile/Lin
 
 ## Acknowledgements
 - We leverage the [distilabel](https://github.com/argilla-io/distilabel) library.
-- The RL experiments are based on [ART](https://deepwiki.com/OpenPipe/ART).
+- The RL experiments are based on [ART](https://github.com/OpenPipe/ART).
 
 ## Citation
 
