@@ -90,7 +90,7 @@ uv run python linalg_zero/sft_train.py --config linalg_zero/config/sft/qwen2.5-3
 uv run python linalg_zero/grpo_train.py --config-name runpod.yaml
 ```
 
-Training requires the dataset to follow the strict OpenAI tool-calling format (see [this link](https://huggingface.co/docs/trl/en/dataset_formats#tool-calling)). We provide scripts to prepare and validate the data accordingly:
+Training requires the dataset to follow the strict OpenAI tool-calling format (see [link](https://huggingface.co/docs/trl/en/dataset_formats#tool-calling)). We provide scripts to prepare and validate the data accordingly:
 
 - `linalg_zero/`
     - `sft/scripts/prepare_dataset.py`: prepares the SFT dataset.
@@ -122,10 +122,10 @@ The resulting checkpoints: [Linalg-Zero-SFT](https://huggingface.co/rfvasile/Lin
 | GRPO dataset | [rfvasile/linalgzero-grpo](https://huggingface.co/datasets/rfvasile/linalgzero-grpo) |
 
 ## Cost
-- **Distillation:** H100 80GB on [Runpod](https://www.runpod.io/) with [Qwen/Qwen3-32B-FP8](https://huggingface.co/Qwen/Qwen3-32B-FP8); 15 hours at $2.39/hr (~$25).
-- **SFT:** Local 24GB RTX 4090 with [Qwen/Qwen2.5-3B](https://huggingface.co/Qwen/Qwen2.5-3B).
-- **GRPO:** RTX 6000 Ada on [Runpod](https://www.runpod.io/), improving on the SFT baseline; 57 hours at $0.77/hr (~$50).
 - **Total:** ~$75 using a mix of cloud GPUs and local training.
+  - **Distillation:** H100 80GB on [Runpod](https://www.runpod.io/) with [Qwen/Qwen3-32B-FP8](https://huggingface.co/Qwen/Qwen3-32B-FP8); 15 hours at $2.39/hr (~$25).
+  - **SFT:** Local 24GB RTX 4090 with [Qwen/Qwen2.5-3B](https://huggingface.co/Qwen/Qwen2.5-3B).
+  - **GRPO:** RTX 6000 Ada on [Runpod](https://www.runpod.io/), improving on the SFT baseline; 57 hours at $0.77/hr (~$50).
 
 ## Acknowledgements
 - We leverage the [distilabel](https://github.com/argilla-io/distilabel) library.
