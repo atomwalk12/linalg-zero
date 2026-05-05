@@ -117,7 +117,7 @@ This yields models like [Linalg-Zero-SFT](https://huggingface.co/rfvasile/Linalg
 | SFT checkpoint | [rfvasile/LinalgZero-SFT](https://huggingface.co/rfvasile/LinalgZero-SFT) |
 | GRPO checkpoint | [rfvasile/LinAlgZero-GRPO](https://huggingface.co/rfvasile/LinAlgZero-GRPO) |
 | Base dataset | [rfvasile/linalgzero](https://huggingface.co/datasets/rfvasile/linalgzero) |
-| Distilled dataset (clean) | [rfvasile/linalgzero-distilled-clean](https://huggingface.co/datasets/rfvasile/linalgzero-distilled-clean) |
+| Distilled dataset | [rfvasile/linalgzero-distilled](https://huggingface.co/datasets/rfvasile/linalgzero-distilled-clean) |
 | SFT dataset | [rfvasile/linalgzero-sft](https://huggingface.co/datasets/rfvasile/linalgzero-sft) |
 | GRPO dataset | [rfvasile/linalgzero-grpo](https://huggingface.co/datasets/rfvasile/linalgzero-grpo) |
 
