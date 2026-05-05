@@ -24,33 +24,33 @@ Check out the [poster](docs/poster.pdf), the [paper](docs/report.pdf) and the [d
   </ol>
 </details>
 
-This repository offers tools for generating a linear algebra problem dataset and training an open-source base model (i.e. Qwen2.5-3B), aiming to explore planning and tool use using SFT and RL, distinct from Deepseek-R1's primary emphasis on reasoning.
+This repository offers tools for generating a linear algebra dataset and training an open-source base model (i.e. `Qwen2.5-3B`), aiming to explore planning and tool use using SFT and RL.
 
-The project is simple by design and mostly consists of:
+The project is designed as follows:
 
 - `linalg_zero/`: contains the scripts to train models as well as generate synthetic data:
     - `generate.py`: generates the linear algebra dataset and splits.
     - `distillation.py`: runs the distillation pipeline to create multi-turn tool-use data.
     - `sft_train.py`: performs a simple SFT of a model on a dataset.
     - `grpo_train.py`: trains a model with GRPO on a given dataset.
-- `Makefile`: contains easy-to-run commands for the dataset and training workflows using previous scripts.
+- `Makefile`: contains commands for the dataset generation and common training workflows.
 
 ## Main Phases
 
-We use the DeepSeek-R1 [tech report](https://github.com/deepseek-ai/DeepSeek-R1) as a loose guide, but the project phases are:
+We use the DeepSeek-R1 [tech report](https://github.com/deepseek-ai/DeepSeek-R1) as a guide, but the project phases are:
 
 * Step 1: generate a linear algebra dataset with controlled difficulty and tool-call metadata.
 * Step 2: distill multi-turn tool-use data from a teacher model.
-* Step 3: SFT the base model on the dataset to teach the tool-calling format.
-* Step 4: GRPO fine-tune on the tool-use tasks, using a curriculum.
+* Step 3: train the base model using SFT teaching the tool-calling format.
+* Step 4: traing using GSPO to improve model robustness, using a curriculum.
 
 
 ## Installation
 
 We use `uv` as the dependency management tool.
-First, to install `uv`, follow the [UV Installation Guide](https://docs.astral.sh/uv/getting-started/installation/).
+First, install `uv` by following the [official documentation](https://docs.astral.sh/uv/getting-started/installation/).
 
-To run the experiments install the dependencies using:
+To run the experiments:
 
 * For generation/distillation: `make install-data-gen`
 * For SFT: `make install-sft`
@@ -65,7 +65,7 @@ wandb login
 
 ## Quickstart
 
-After installing dependencies above, run the commands below. For modifications, see the config files.
+After installing the dependencies, execute the following commands:
 
 ```shell
 # Phase 1: Generate dataset
@@ -98,9 +98,9 @@ Training requires the dataset to follow the strict OpenAI tool-calling format (s
 
 ## Results
 
-We provide a recipe to encourage planning and tool-use capabilities in the [Qwen2.5-3B](https://huggingface.co/Qwen/Qwen2.5-3B) model, starting from a pre-trained (not instruction-tuned) base model.
+We provide a recipe to encourage planning and tool-use capabilities using the [Qwen2.5-3B](https://huggingface.co/Qwen/Qwen2.5-3B) pre-trained model.
 
-This yields models like [Linalg-Zero-SFT](https://huggingface.co/rfvasile/LinalgZero-SFT) and [Linalg-Zero-GRPO](https://huggingface.co/rfvasile/LinalgZero-GRPO), with the following downstream performance on the test set:
+The resulting checkpoints: [Linalg-Zero-SFT](https://huggingface.co/rfvasile/LinalgZero-SFT) and [Linalg-Zero-GRPO](https://huggingface.co/rfvasile/LinalgZero-GRPO). The resulting accuracy is shown below:
 
 
 | Metric             | LinAlgZero-SFT | LinAlgZero-GRPO |
@@ -121,16 +121,15 @@ This yields models like [Linalg-Zero-SFT](https://huggingface.co/rfvasile/Linalg
 | SFT dataset | [rfvasile/linalgzero-sft](https://huggingface.co/datasets/rfvasile/linalgzero-sft) |
 | GRPO dataset | [rfvasile/linalgzero-grpo](https://huggingface.co/datasets/rfvasile/linalgzero-grpo) |
 
-## Reproducibility
+## Cost
 - **Distillation:** H100 80GB on [Runpod](https://www.runpod.io/) with [Qwen/Qwen3-32B-FP8](https://huggingface.co/Qwen/Qwen3-32B-FP8); 15 hours at $2.39/hr (~$25).
 - **SFT:** Local 24GB RTX 4090 with [Qwen/Qwen2.5-3B](https://huggingface.co/Qwen/Qwen2.5-3B).
 - **GRPO:** RTX 6000 Ada on [Runpod](https://www.runpod.io/), improving on the SFT baseline; 57 hours at $0.77/hr (~$50).
 - **Total:** ~$75 using a mix of cloud GPUs and local training.
 
 ## Acknowledgements
-- We base our distillation pipeline on [distilabel](https://github.com/argilla-io/distilabel).
-- We base the RL experiment on [ART](https://deepwiki.com/OpenPipe/ART).
-- We use Qwen2.5 series base model [Qwen2.5](https://github.com/QwenLM/Qwen2.5).
+- We leverage the [distilabel](https://github.com/argilla-io/distilabel) library.
+- The RL experiments are based on [ART](https://deepwiki.com/OpenPipe/ART).
 
 ## Citation
 
